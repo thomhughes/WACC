@@ -1,7 +1,8 @@
-object AST {
+object ast {
   case class Program(functions: List[Func], statements: List[Statement])
   case class Func(typeName: Type, identifier: Identifier, params: List[Parameter])
   case class Parameter(typeName: Type, identifier: Identifier)
+
   sealed trait Statement
   case class SkipStatement() extends Statement
   case class DeclarationStatement(typeName: Type, identifier: Identifier, rvalue: RValue) extends Statement
@@ -15,10 +16,12 @@ object AST {
   case class IfStatement(condition: Expression, thenStatement: Statement, elseStatement: Statement) extends Statement
   case class WhileStatement(condition: Expression, doStatement: Statement) extends Statement
   case class BeginStatement(statement: Statement) extends Statement
+
   sealed trait LValue
   case class Identifier(name: String) extends LValue with Expression
   case class PairElem(elem: String, value: LValue) extends LValue
   case class ArrayElem(identifier: Identifier, index: Expression) extends LValue with Expression
+
   sealed trait Type
   case class IntType() extends Type
   case class BoolType() extends Type
@@ -26,6 +29,7 @@ object AST {
   case class StringType() extends Type
   case class ArrayType(arrayType: Type) extends Type
   case class PairType(fstType: Type, sndType: Type) extends Type
+
   sealed trait RValue
   sealed trait Expression extends RValue
   case class IntLiteral(value: Int) extends Expression
