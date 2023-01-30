@@ -1,10 +1,13 @@
+import parsley.Parsley
+
 object ast {
-  case class Program(functions: List[Func], statements: Statement)
-  case class Func(typeName: Type, identifier: Identifier, params: List[Parameter], body: Statement)
+  import parsley.genericbridges._
+
+  case class Program(functions: List[Func], statement: List[Statement])
+  case class Func(typeName: Type, identifier: Identifier, params: List[Parameter], body: List[Statement])
   case class Parameter(typeName: Type, identifier: Identifier)
 
   sealed trait Statement
-  case object SkipStatement extends Statement
   case class DeclarationStatement(typeName: Type, identifier: Identifier, rvalue: RValue) extends Statement
   case class AssignmentStatement(lvalue: LValue, rvalue: RValue) extends Statement
   case class ReadStatement(lvalue: LValue) extends Statement
@@ -13,18 +16,17 @@ object ast {
   case class ExitStatement(expression: Expression) extends Statement
   case class PrintStatement(expression: Expression) extends Statement
   case class PrintLnStatement(expression: Expression) extends Statement
-  case class IfStatement(condition: Expression, thenStatement: Statement, elseStatement: Statement) extends Statement
-  case class WhileStatement(condition: Expression, doStatement: Statement) extends Statement
-  case class BeginStatement(statement: Statement) extends Statement
-  case class SequenceStatement(firstStatement: Statement, secondStatement: Statement) extends Statement
+  case class IfStatement(condition: Expression, thenStatement: List[Statement], elseStatement: List[Statement]) extends Statement
+  case class WhileStatement(condition: Expression, doStatement: List[Statement]) extends Statement
+  case class BeginStatement(statement: List[Statement]) extends Statement
 
   sealed trait PairIndex
   case object Fst extends PairIndex
-  case object Snd extends PairIndex 
+  case object Snd extends PairIndex
 
   sealed trait LValue
   case class Identifier(name: String) extends LValue with Expression
-  case class PairElem(pairIndex: PairIndex, value: LValue) extends LValue with RValue
+  case class PairElem(index: PairIndex, value: LValue) extends LValue with RValue
   case class ArrayElem(identifier: Identifier, index: Expression) extends LValue with Expression
 
   sealed trait Type
@@ -33,36 +35,34 @@ object ast {
   case object CharType extends Type
   case object StringType extends Type
   case class ArrayType(arrayType: Type) extends Type
-  // in this impl, fstType can be a PairType, is it necessary to stop this
   case class PairType(fstType: Type, sndType: Type) extends Type
-  case object PairRef extends Type
 
   sealed trait UnaryOp
   case object Not extends UnaryOp
-  case object Neg extends UnaryOp
+  case object Negation extends UnaryOp
   case object Len extends UnaryOp
   case object Ord extends UnaryOp
   case object Chr extends UnaryOp
 
-  sealed trait BinaryOp
+  sealed trait BinaryOp 
   case object Mul extends BinaryOp
   case object Div extends BinaryOp
   case object Mod extends BinaryOp
   case object Plus extends BinaryOp
   case object Minus extends BinaryOp
-  case object Greater extends BinaryOp
-  case object GreaterThanEqual extends BinaryOp
-  case object Less extends BinaryOp
-  case object LessThanEqual extends BinaryOp
-  case object Equals extends BinaryOp
-  case object NotEquals extends BinaryOp
+  case object Gt extends BinaryOp
+  case object Ge extends BinaryOp
+  case object Lt extends BinaryOp
+  case object Le extends BinaryOp
+  case object Eq extends BinaryOp
+  case object Neq extends BinaryOp
   case object And extends BinaryOp
   case object Or extends BinaryOp
 
   sealed trait RValue
-  case class NewPair(firstExpr: Expression, secondExpr: Expression) extends RValue
+  case class NewPair(fst: Expression, snd: Expression) extends RValue
   case class ArrayLiteral(expressions: List[Expression]) extends RValue
-  case class FunctionCall(identifier: Identifier, argList: List[Expression]) extends RValue
+  case class FunctionCall(identifier: Identifier, args: List[Expression]) extends RValue
 
   sealed trait Expression extends RValue
   case class IntLiteral(value: Int) extends Expression
@@ -70,7 +70,43 @@ object ast {
   case class CharLiteral(value: Char) extends Expression
   case class StringLiteral(value: String) extends Expression
   case object PairLiteral extends Expression
-  case class UnaryOpApp(uOp: UnaryOp, expr: Expression) extends Expression
-  case class BinaryOpApp(binaryOp: BinaryOp, firstExpr: Expression, secondExpr: Expression) extends Expression
-  case class Parentheses(expr: Expression) extends Expression
+  case class UnaryOpApp(op: UnaryOp, expr: Expression) extends Expression
+  case class BinaryOpApp(op: BinaryOp, lhs: Expression, rhs: Expression) extends Expression
+
+  // Bridges
+  object Program extends ParserBridge2[List[Func], List[Statement], Program]
+  object Func extends ParserBridge4[Type, Identifier, List[Parameter], List[Statement], Func]
+  object Parameter extends ParserBridge2[Type, Identifier, Parameter]
+  
+  object SkipStatement extends Statement with ParserBridge0[Statement]
+  object DeclarationStatement extends Statement with ParserBridge3[Type, Identifier, RValue, DeclarationStatement]
+  object AssignmentStatement extends Statement with ParserBridge2[LValue, RValue, AssignmentStatement]
+  object ReadStatement extends Statement with ParserBridge1[LValue, ReadStatement]
+  object FreeStatement extends Statement with ParserBridge1[Expression, FreeStatement]
+  object ReturnStatement extends Statement with ParserBridge1[Expression, ReturnStatement]
+  object ExitStatement extends Statement with ParserBridge1[Expression, ExitStatement]
+  object PrintStatement extends Statement with ParserBridge1[Expression, PrintStatement]
+  object PrintLnStatement extends Statement with ParserBridge1[Expression, PrintLnStatement]
+  object IfStatement extends Statement with ParserBridge3[Expression, List[Statement], List[Statement], IfStatement]
+  object WhileStatement extends Statement with ParserBridge2[Expression, List[Statement], WhileStatement]
+  object BeginStatement extends Statement with ParserBridge1[List[Statement], Statement]
+
+  object Identifier extends LValue with Expression with ParserBridge1[String, LValue with Expression]
+  object PairElem extends LValue with RValue with ParserBridge2[PairIndex, LValue, LValue with RValue]
+  object ArrayElem extends LValue with Expression with ParserBridge2[Identifier, Expression, LValue with Expression]
+
+  object ArrayType extends Type with ParserBridge1[Type, ArrayType]
+  object PairType extends Type with ParserBridge2[Type, Type, PairType]
+
+  object NewPair extends RValue with ParserBridge2[Expression, Expression, RValue]
+  object ArrayLiteral extends RValue with ParserBridge1[List[Expression], RValue]
+  object FunctionCall extends RValue with ParserBridge2[Identifier, List[Expression], RValue]
+
+  object IntLiteral extends Expression with ParserBridge1[Int, IntLiteral]
+  object BoolLiteral extends Expression with ParserBridge1[Boolean, BoolLiteral]
+  object CharLiteral extends Expression with ParserBridge1[Char, CharLiteral]
+  object StringLiteral extends Expression with ParserBridge1[String, StringLiteral]
+
+  object UnaryOpApp extends Expression with ParserBridge2[UnaryOp, Expression, UnaryOpApp]
+  object BinaryOpApp extends Expression with ParserBridge3[BinaryOp, Expression, Expression, BinaryOpApp]
 }
