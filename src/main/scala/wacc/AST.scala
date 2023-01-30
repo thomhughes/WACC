@@ -61,7 +61,7 @@ object ast {
 
   sealed trait RValue
   case class NewPair(firstExpr: Expression, secondExpr: Expression) extends RValue
-  case class ArrayLiteral(expressions: List[Expression]) extends Rvalue
+  case class ArrayLiteral(expressions: List[Expression]) extends RValue
   case class FunctionCall(identifier: Identifier, argList: List[Expression]) extends RValue
 
   sealed trait Expression extends RValue

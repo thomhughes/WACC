@@ -19,6 +19,7 @@ lazy val root = (project in file(".")).
 
     libraryDependencies += "com.github.j-mie6" %% "parsley" % "4.2.1",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+    libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.1" % "test",
 
     // Some handy scala compiler flags
     scalacOptions ++= Seq(
