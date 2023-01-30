@@ -1,3 +1,5 @@
+import parsley.Parsley
+
 object lexer {
   import parsley.token.{Lexer, predicate}
   import parsley.token.descriptions.{LexicalDesc, NameDesc, SymbolDesc, SpaceDesc}
@@ -6,11 +8,12 @@ object lexer {
   import parsley.token.descriptions.numeric.PlusSignPresence.Optional
   import parsley.token.descriptions.numeric.ExponentDesc.NoExponents
   import parsley.token.descriptions.text.TextDesc
+  import parsley.character.newline
 
   val desc = LexicalDesc.plain.copy(
       nameDesc = NameDesc.plain.copy(
           identifierStart = predicate.Basic(x => x.isLetter || x == '_'),
-          identifierLetter = predicate.Basic(_.isLetterOrDigit),
+          identifierLetter = predicate.Basic(x => x.isLetterOrDigit || x == '_'),
           operatorLetter = predicate.Basic(x => false),
           operatorStart = predicate.Basic(x => false)
         ),
@@ -50,4 +53,14 @@ object lexer {
           nestedComments = false
         )
     )
+
+    val lexer = new Lexer(desc)
+
+    val identifier = lexer.lexeme.names.identifier
+    val number = lexer.lexeme.numeric.integer.decimal32
+    val string = lexer.lexeme.text.string.fullUtf16
+    val char = lexer.lexeme.text.character.fullUtf16
+
+    def fully[A](p: Parsley[A]) = lexer.fully(p)
+    val implicits = lexer.lexeme.symbol.implicits
 }
