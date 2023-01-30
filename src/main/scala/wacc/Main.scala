@@ -5,7 +5,8 @@ import parsley.character.{digit, whitespaces}
 import parsley.expr.chain
 import parsley.implicits.character.charLift
 import parsley.combinator.eof
-import wacc.Parser.parse
+// import wacc.io.readFile
+// import wacc.parser.parse
 
 /*
 object Lexer {
@@ -21,14 +22,16 @@ object Lexer {
 */
 
 object Main {
-    import Lexer._
+    // import Lexer._
 
     def main(args: Array[String]): Unit = {
         println("Hello WACC_42!")
 
-        parse(args.head) match {
-            case Success(x) => println(s"${args.head} = $x")
-            case Failure(msg) => println(msg)
-        }
+        // println(readFile("something.txt"))
+
+        // parse(args.head) match {
+        //     case Success(x) => println(s"${args.head} = $x")
+        //     case Failure(msg) => println(msg)
+        // }
     }
 }

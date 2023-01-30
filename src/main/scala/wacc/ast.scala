@@ -1,3 +1,5 @@
+package wacc
+
 import parsley.Parsley
 
 object ast {
@@ -30,12 +32,15 @@ object ast {
   case class ArrayElem(identifier: Identifier, index: Expression) extends LValue with Expression
 
   sealed trait Type
-  case object IntType extends Type
-  case object BoolType extends Type
-  case object CharType extends Type
-  case object StringType extends Type
-  case class ArrayType(arrayType: Type) extends Type
-  case class PairType(fstType: Type, sndType: Type) extends Type
+  sealed trait BaseType extends Type with PairElemType
+  sealed trait PairElemType
+  case object IntType extends BaseType with ParserBridge0[BaseType]
+  case object BoolType extends BaseType with ParserBridge0[BaseType]
+  case object CharType extends BaseType with ParserBridge0[BaseType]
+  case object StringType extends BaseType with ParserBridge0[BaseType]
+  case object PairRefType extends PairElemType with ParserBridge0[PairElemType]
+  case class ArrayType(arrayType: Type) extends Type with PairElemType
+  case class PairType(fstType: PairElemType, sndType: PairElemType) extends Type
 
   sealed trait UnaryOp
   case object Not extends UnaryOp
@@ -78,7 +83,7 @@ object ast {
   object Func extends ParserBridge4[Type, Identifier, List[Parameter], List[Statement], Func]
   object Parameter extends ParserBridge2[Type, Identifier, Parameter]
   
-  object SkipStatement extends Statement with ParserBridge0[Statement]
+  case object SkipStatement extends Statement with ParserBridge0[Statement]
   object DeclarationStatement extends Statement with ParserBridge3[Type, Identifier, RValue, DeclarationStatement]
   object AssignmentStatement extends Statement with ParserBridge2[LValue, RValue, AssignmentStatement]
   object ReadStatement extends Statement with ParserBridge1[LValue, ReadStatement]
@@ -96,7 +101,7 @@ object ast {
   object ArrayElem extends LValue with Expression with ParserBridge2[Identifier, Expression, LValue with Expression]
 
   object ArrayType extends Type with ParserBridge1[Type, ArrayType]
-  object PairType extends Type with ParserBridge2[Type, Type, PairType]
+  object PairType extends Type with ParserBridge2[PairElemType, PairElemType, PairType]
 
   object NewPair extends RValue with ParserBridge2[Expression, Expression, RValue]
   object ArrayLiteral extends RValue with ParserBridge1[List[Expression], RValue]

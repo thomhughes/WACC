@@ -1,3 +1,4 @@
+package wacc
 import parsley.Parsley
 
 object lexer {
@@ -63,4 +64,6 @@ object lexer {
 
     def fully[A](p: Parsley[A]) = lexer.fully(p)
     val implicits = lexer.lexeme.symbol.implicits
+    val enclosing = lexer.lexeme.enclosing
+    val separators = lexer.lexeme.separators
 }

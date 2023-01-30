@@ -1,4 +1,4 @@
-object IO {
+object io {
   import scala.io.Source
 
   def readFile(filename: String): String = {
