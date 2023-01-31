@@ -57,7 +57,7 @@ object lexer {
 
     val lexer = new Lexer(desc)
 
-    val identifier = lexer.lexeme.names.identifier
+    val `<identifier>` = lexer.lexeme.names.identifier
     val number = lexer.lexeme.numeric.integer.decimal32
     val string = lexer.lexeme.text.string.fullUtf16
     val char = lexer.lexeme.text.character.fullUtf16
