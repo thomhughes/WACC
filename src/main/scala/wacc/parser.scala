@@ -4,10 +4,9 @@ import parsley.Parsley
 
 object parser {
   import parsley.combinator.{many, some}
-  import wacc.lexer.implicits._
   import parsley.character._
   import parsley.Parsley.{attempt, pure}
-  import parsley.expr.chain
+  import parsley.expr.{chain, precedence, Ops, InfixL}
   import parsley.Result
   import ast._
   import lexer._
@@ -63,20 +62,39 @@ object parser {
   private lazy val `<array-elem>` = ArrayElem(Identifier(`<identifier>`), some(enclosing.brackets(`<expression>`)))
   // private lazy val `<array-elem>` = 
   
-  lazy val `<expression>`: Parsley[Expression] = {
+  lazy val `<base-expression>`: Parsley[Expression] = {
     IntLiteral(number) <|>
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
     StringLiteral(`<string>`) <|>
     CharLiteral(ascii) <|> 
+    UnaryOpApp(`<unary-op>`, `<expression>`) <|>
     Identifier(`<identifier>`) <|>
     `<array-elem>`
   }
 
-  /*
-  lazy val `<expression>`: Parsley[Expression]
-    = precedence[Int]('(' *> `<expression>` <* `)`, `<base-expression>`)
-  */
+  lazy val `<unary-op>`: Parsley[UnaryOp] = {
+    "!" #> Not <|>
+    "-" #> Negation <|>
+    "len" #> Len <|>
+    "ord" #> Ord <|>
+    "chr" #> Chr
+  }
+
+  private def binopParser(opString: String, binOp: BinaryOp) =
+    opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y))
+
+  lazy val `<expression>`: Parsley[Expression] = precedence[Expression]("(" *> `<expression>` <* ")", `<base-expression>`)(
+    Ops(InfixL)(binopParser("*", Mul), binopParser("/", Div), binopParser("%", Mod)),
+    Ops(InfixL)(binopParser("+", Plus),binopParser("-", Minus)),
+    Ops(InfixL)(
+      binopParser("<", Lt), binopParser("<=", Le), binopParser(">", Gt),
+      binopParser(">=", Ge), binopParser("!=", Neq), binopParser("==", Eq)
+    ),
+    Ops(InfixL)(binopParser("&&", And)),
+    Ops(InfixL)(binopParser("||", Or))
+  )
+  
 
   /*
   private lazy val `<base-type>`: Parsley[BaseType] = {

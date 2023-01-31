@@ -41,11 +41,11 @@ object ast {
   case class PairType(fstType: PairElemType, sndType: PairElemType) extends Type
 
   sealed trait UnaryOp
-  case object Not extends UnaryOp
-  case object Negation extends UnaryOp
-  case object Len extends UnaryOp
-  case object Ord extends UnaryOp
-  case object Chr extends UnaryOp
+  case object Not extends UnaryOp with ParserBridge0[UnaryOp]
+  case object Negation extends UnaryOp with ParserBridge0[UnaryOp]
+  case object Len extends UnaryOp with ParserBridge0[UnaryOp]
+  case object Ord extends UnaryOp with ParserBridge0[UnaryOp]
+  case object Chr extends UnaryOp with ParserBridge0[UnaryOp]
 
   sealed trait BinaryOp 
   case object Mul extends BinaryOp
