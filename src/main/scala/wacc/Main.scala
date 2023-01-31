@@ -6,7 +6,7 @@ import parsley.expr.chain
 import parsley.implicits.character.charLift
 import parsley.combinator.eof
 // import wacc.io.readFile
-// import wacc.parser.parse
+import wacc.parser.parse
 
 /*
 object Lexer {
@@ -27,11 +27,9 @@ object Main {
     def main(args: Array[String]): Unit = {
         println("Hello WACC_42!")
 
-        // println(readFile("something.txt"))
-
-        // parse(args.head) match {
-        //     case Success(x) => println(s"${args.head} = $x")
-        //     case Failure(msg) => println(msg)
-        // }
+        parse(args.head) match {
+            case Success(x) => println(s"${args.head} = $x")
+            case Failure(msg) => println(msg)
+        }
     }
 }

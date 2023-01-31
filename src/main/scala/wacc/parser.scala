@@ -3,15 +3,16 @@ package wacc
 import parsley.Parsley
 
 object parser {
-  import parsley.combinator.many
+  import parsley.combinator.{many, some}
   import wacc.lexer.implicits._
   import parsley.character._
-  import parsley.Parsley.attempt
-  import parsley.Parsley.pure
+  import parsley.Parsley.{attempt, pure}
   import parsley.expr.chain
+  import parsley.Result
   import ast._
   import lexer._
   import wacc.lexer.implicits._
+  import parsley.debug._
 
   /*
   private lazy val `<program>` = Program("begin" *> many(`<func>`), `<statements>` <* "end")
@@ -29,7 +30,6 @@ object parser {
     "free" *> FreeStatement(`<expression>`) <|>
     "return" *> ReturnStatement(`<expression>`) <|>
     "exit" *> ExitStatement(`<expression>`) <|>
-    // TODO: need to account for println and print conflict
     "print" *> PrintStatement(`<expression>`) <|>
     "println" *> PrintLnStatement(`<expression>`) <|>
     IfStatement("if" *> `<expression>`, "then" *> `<statements>`, "else" *> `<statements>` <* "fi") <|>
@@ -59,16 +59,25 @@ object parser {
     ("snd" *> PairElem(Snd, `<lvalue>`))
   }
   */
+
+  private lazy val `<array-elem>` = ArrayElem(Identifier(`<identifier>`), some(enclosing.brackets(`<expression>`)))
+  // private lazy val `<array-elem>` = 
   
-  private lazy val `<expression>` = {
+  lazy val `<expression>`: Parsley[Expression] = {
     IntLiteral(number) <|>
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
-    CharLiteral(ascii) <|>
-    StringLiteral("\"" *> stringOfSome(letter) <* "\"") <|>
-    "null" #> PairLiteral
-    // `<identifier>` <|>
-    // `<array-elem>`
+    "null" #> PairLiteral <|>
+    StringLiteral(`<string>`) <|>
+    CharLiteral(ascii) <|> 
+    Identifier(`<identifier>`) <|>
+    `<array-elem>`
   }
+
+  /*
+  lazy val `<expression>`: Parsley[Expression]
+    = precedence[Int]('(' *> `<expression>` <* `)`, `<base-expression>`)
+  */
+
   /*
   private lazy val `<base-type>`: Parsley[BaseType] = {
     ("int" #> IntType) <|> 
@@ -81,7 +90,6 @@ object parser {
   object implicits {
    
   }
-}
   // private lazy val `<program>` = Program("begin" *> many(`<func>`), `<statement>` <* "end")
   // private lazy val `<func>` = Func(`<type>`, `<identifier>`, `<parameters>`, many(`<statement>`))
   // private lazy val `<parameters>` = enclosing.brackets(separators.commaSep(`<parameter>`))
@@ -117,4 +125,7 @@ object parser {
   lazy val `<pair-type>` = "pair" *> (enclosing.parens(PairType(`<pair-elem-type>` <* ",", `<pair-elem-type>`)))
   lazy val `<pair-elem-type>` = (chain.postfix(`<base-type>`, ArrayType <# "[" *> "]")) <|> ("pair" #> PairRefType)
   lazy val `<base-type>` = ("int" #> IntType) <|> ("bool" #> BoolType) <|> ("char" #> CharType) <|> ("string" #> StringType)
+
+  def parse(input: String): Result[String, Expression] =
+    `<expression>`.parse(input)
 }

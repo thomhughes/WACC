@@ -1,7 +1,5 @@
 package wacc
 
-import parsley.Parsley
-
 object ast {
   import parsley.genericbridges._
 
@@ -29,7 +27,7 @@ object ast {
   sealed trait LValue
   case class Identifier(name: String) extends LValue with Expression
   case class PairElem(index: PairIndex, value: LValue) extends LValue with RValue
-  case class ArrayElem(identifier: Identifier, index: Expression) extends LValue with Expression
+  case class ArrayElem(identifier: Identifier, indices: List[Expression]) extends LValue with Expression
 
   sealed trait Type
   sealed trait BaseType extends Type with PairElemType
@@ -96,9 +94,9 @@ object ast {
   object WhileStatement extends Statement with ParserBridge2[Expression, List[Statement], WhileStatement]
   object BeginStatement extends Statement with ParserBridge1[List[Statement], Statement]
 
-  object Identifier extends LValue with Expression with ParserBridge1[String, LValue with Expression]
+  object Identifier extends LValue with Expression with ParserBridge1[String, Identifier]
   object PairElem extends LValue with RValue with ParserBridge2[PairIndex, LValue, LValue with RValue]
-  object ArrayElem extends LValue with Expression with ParserBridge2[Identifier, Expression, LValue with Expression]
+  object ArrayElem extends LValue with Expression with ParserBridge2[Identifier, List[Expression], LValue with Expression]
 
   object ArrayType extends Type with ParserBridge1[Type, ArrayType]
   object PairType extends Type with ParserBridge2[PairElemType, PairElemType, PairType]
