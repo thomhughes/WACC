@@ -61,6 +61,7 @@ object lexer {
     val number = lexer.lexeme.numeric.integer.decimal32
     val string = lexer.lexeme.text.string.fullUtf16
     val char = lexer.lexeme.text.character.fullUtf16
+    val ascii = lexer.lexeme.text.character.ascii
 
     def fully[A](p: Parsley[A]) = lexer.fully(p)
     val implicits = lexer.lexeme.symbol.implicits
