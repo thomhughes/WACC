@@ -60,7 +60,6 @@ object parser {
   */
 
   private lazy val `<array-elem>` = ArrayElem(Identifier(`<identifier>`), some(enclosing.brackets(`<expression>`)))
-  // private lazy val `<array-elem>` = 
   
   lazy val `<base-expression>`: Parsley[Expression] = {
     IntLiteral(number) <|>
@@ -69,8 +68,9 @@ object parser {
     StringLiteral(`<string>`) <|>
     CharLiteral(ascii) <|> 
     UnaryOpApp(`<unary-op>`, `<expression>`) <|>
-    Identifier(`<identifier>`) <|>
-    `<array-elem>`
+    // TODO: not ideal?
+    attempt(`<array-elem>`) <|>
+    Identifier(`<identifier>`)
   }
 
   lazy val `<unary-op>`: Parsley[UnaryOp] = {
@@ -105,9 +105,7 @@ object parser {
   }
   */
 
-  object implicits {
-   
-  }
+
   // private lazy val `<program>` = Program("begin" *> many(`<func>`), `<statement>` <* "end")
   // private lazy val `<func>` = Func(`<type>`, `<identifier>`, `<parameters>`, many(`<statement>`))
   // private lazy val `<parameters>` = enclosing.brackets(separators.commaSep(`<parameter>`))
