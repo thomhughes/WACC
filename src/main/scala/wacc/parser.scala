@@ -96,6 +96,9 @@ object parser {
   
   private lazy val `<statements>` = separators.semiSep(`<statement>`)
 
+  def parseExpression(input: String): Result[String, Expression] =
+    fully(`<expression>`).parse(input)
+
   def parse(input: String): Result[String, Program] =
     `<program>`.parse(input)
 }
