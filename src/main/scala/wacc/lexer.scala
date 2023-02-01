@@ -15,14 +15,14 @@ object lexer {
       nameDesc = NameDesc.plain.copy(
           identifierStart = predicate.Basic(x => x.isLetter || x == '_'),
           identifierLetter = predicate.Basic(x => x.isLetterOrDigit || x == '_'),
-          operatorLetter = predicate.Basic(x => false),
-          operatorStart = predicate.Basic(x => false)
+          operatorLetter = predicate.Basic(x => false)
+          // operatorStart = predicate.Basic(x => false)
         ),
       symbolDesc = SymbolDesc.plain.copy(
           hardKeywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print", "println", "if", "then", "else", "fi", 
             "while", "do", "done", "fst", "snd", "newpair", "call", "int", "bool", "char", "string", "pair", "len", "ord", "chr", "true", "false",
             "null"),
-          hardOperators = Set("=", "!", "-", "*", "/", "%", "+", "-", ">", ">=", "<=", "==", "!=", "&&", "||") // might be pessimistic
+          hardOperators = Set("=", "!", "-", "*", "/", "%", "+", "-", ">", ">=", "<=", "<", "==", "!=", "&&", "||") // might be pessimistic
         ),
       numericDesc = NumericDesc.plain.copy(
           literalBreakChar = NoBreakChar,
