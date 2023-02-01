@@ -18,19 +18,14 @@ object parser {
   private lazy val `<param-list>` = enclosing.parens(separators.commaSep(`<param>`))
   private lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
-  // TODO: enclosing brackets do not handle whitespace
-  private lazy val `<array-elem>` = ArrayElem(Identifier(`<identifier>`), some(enclosing.brackets(`<expression>`)))
-
-  // TODO: rewrite attempt
-  private lazy val `<base-expression>`: Parsley[Expression] = {
+  lazy val `<base-expression>`: Parsley[Expression] = {
     IntLiteral(number) <|>
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
     StringLiteral(`<string>`) <|>
     CharLiteral(ascii) <|> 
     UnaryOpApp(`<unary-op>`, `<expression>`) <|>
-    attempt(`<array-elem>`) <|>
-    Identifier(`<identifier>`)
+    IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`)))
   }
 
   private lazy val `<unary-op>`: Parsley[UnaryOp] = {
