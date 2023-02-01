@@ -10,8 +10,12 @@ object Main {
         println("Hello WACC_42!")
 
         parse(readFile(args.head)) match {
-            case Success(x) => println(s"${args.head} = $x")
-            case Failure(msg) => println(msg)
+            case Success(x) => println("exit:\n0")
+            case Failure(msg) => {
+                println(msg)
+                println("exit:\n100")                     
+            }
         }
     }
 }
+ 
