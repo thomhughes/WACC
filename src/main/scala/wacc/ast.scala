@@ -4,8 +4,9 @@ object ast {
   import parsley.genericbridges._
 
   case class Program(functions: List[Func], statement: List[Statement])
-  case class Func(typeName: Type, identifier: Identifier, params: List[Parameter], body: List[Statement])
+  case class Func(identBinding: IdentBinding, params: List[Parameter], body: List[Statement])
   case class Parameter(typeName: Type, identifier: Identifier)
+  case class IdentBinding(typeName: Type, identifier: Identifier)
 
   sealed trait Statement
   case class DeclarationStatement(typeName: Type, identifier: Identifier, rvalue: RValue) extends Statement
@@ -78,7 +79,7 @@ object ast {
 
   // Bridges
   object Program extends ParserBridge2[List[Func], List[Statement], Program]
-  object Func extends ParserBridge4[Type, Identifier, List[Parameter], List[Statement], Func]
+  object Func extends ParserBridge3[IdentBinding, List[Parameter], List[Statement], Func]
   object Parameter extends ParserBridge2[Type, Identifier, Parameter]
   
   case object SkipStatement extends Statement with ParserBridge0[Statement]
@@ -95,6 +96,7 @@ object ast {
   object BeginStatement extends Statement with ParserBridge1[List[Statement], Statement]
 
   object Identifier extends LValue with Expression with ParserBridge1[String, Identifier]
+  object IdentBinding extends ParserBridge2[Type, Identifier, IdentBinding]
   object PairElem extends LValue with RValue with ParserBridge2[PairIndex, LValue, LValue with RValue]
   object ArrayElem extends LValue with Expression with ParserBridge2[Identifier, List[Expression], LValue with Expression]
   object IdentOrArrayElem extends ParserBridge2[String, List[Expression], LValue with Expression] {
