@@ -10,9 +10,10 @@ object parser {
   import ast._
   import lexer._
   import wacc.lexer.implicits._
+  import parsley.debug._
 
   // TODO: rewrite attempt
-  private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`)), `<statements>` <* "end")
+  private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`).debug("function")), `<statements>` <* "end")
   private lazy val `<func>` = Func(`<type>`, Identifier(`<identifier>`), `<param-list>`, "is" *> `<statements>` <* "end")
   private lazy val `<param-list>` = enclosing.parens(separators.commaSep(`<param>`))
   private lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
@@ -97,5 +98,5 @@ object parser {
   private lazy val `<statements>` = separators.semiSep(`<statement>`)
 
   def parse(input: String): Result[String, Program] =
-    `<program>`.parse(input)
+    fully(`<program>`).parse(input)
 }

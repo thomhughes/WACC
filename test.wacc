@@ -1,0 +1,23 @@
+# recursively calculate the nth fibonacci number
+
+# Input: 30
+
+# Output:
+# This program calculates the nth fibonacci number recursively.
+# Please enter n (should not be too large): The input n is 30
+# The nth fibonacci number is 832040
+#
+
+# Program:
+
+begin
+  int fibonacci(int n) is
+    if n <= 1
+    then
+      return n
+    else
+      skip
+    fi
+  end
+  skip;
+end

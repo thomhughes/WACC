@@ -1,8 +1,12 @@
+package wacc
+
 object io {
   import scala.io.Source
 
-  def readFile(filename: String): String = {
-    Source.fromFile(filename).getLines.mkString
+  def readFile(fileName: String): String = {
+    val source = Source.fromFile(fileName)
+    try source.getLines.mkString("\n")
+    finally source.close
   }
 
 }
