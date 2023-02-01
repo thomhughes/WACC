@@ -13,7 +13,7 @@ object parser {
   import parsley.debug._
 
   // TODO: rewrite attempt
-  private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`).debug("function")), `<statements>` <* "end")
+  private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`)), `<statements>` <* "end")
   private lazy val `<func>` = Func(`<type>`, Identifier(`<identifier>`), `<param-list>`, "is" *> `<statements>` <* "end")
   private lazy val `<param-list>` = enclosing.parens(separators.commaSep(`<param>`))
   private lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
