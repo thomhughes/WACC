@@ -97,8 +97,8 @@ object ast {
   object Identifier extends LValue with Expression with ParserBridge1[String, Identifier]
   object PairElem extends LValue with RValue with ParserBridge2[PairIndex, LValue, LValue with RValue]
   object ArrayElem extends LValue with Expression with ParserBridge2[Identifier, List[Expression], LValue with Expression]
-  object IdentOrArrayElem extends ParserBridge2[String, List[Expression], Expression] {
-    def apply(ident: String, exprs: List[Expression]): Expression = exprs match {
+  object IdentOrArrayElem extends ParserBridge2[String, List[Expression], LValue with Expression] {
+    def apply(ident: String, exprs: List[Expression]) = exprs match {
         case Nil  => Identifier(ident)
         case _ => ArrayElem(Identifier(ident), exprs)
     }

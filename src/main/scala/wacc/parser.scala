@@ -18,7 +18,7 @@ object parser {
   private lazy val `<param-list>` = enclosing.parens(separators.commaSep(`<param>`))
   private lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
-  lazy val `<base-expression>`: Parsley[Expression] = {
+  private lazy val `<base-expression>`: Parsley[Expression] = {
     IntLiteral(number) <|>
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
@@ -57,9 +57,8 @@ object parser {
 
   // TODO: attempt not ideal?
   private lazy val `<lvalue>`: Parsley[LValue] = {
-    attempt(`<array-elem>`) <|>
-    Identifier(`<identifier>`) <|>
-    `<pair-elem>`
+    `<pair-elem>` <|>
+    IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`)))
   }
 
   private lazy val `<pair-elem>` = {
