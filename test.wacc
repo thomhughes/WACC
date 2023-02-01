@@ -10,14 +10,4 @@
 
 # Program:
 
-begin
-  int fibonacci(int n) is
-    if n <= 1
-    then
-      return n
-    else
-      skip
-    fi
-  end
-  skip;
-end
+begin skip end

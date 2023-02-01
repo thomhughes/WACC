@@ -7,13 +7,11 @@ import wacc.io.readFile
 
 object Main {
     def main(args: Array[String]): Unit = {
-        println("Hello WACC_42!")
-
         parse(readFile(args.head)) match {
-            case Success(x) => println("exit:\n0")
+            case Success(x) => sys.exit(0)
             case Failure(msg) => {
                 println(msg)
-                println("exit:\n100")                     
+                sys.exit(100)                   
             }
         }
     }
