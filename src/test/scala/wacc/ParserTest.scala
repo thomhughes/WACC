@@ -28,6 +28,10 @@ class ParserTest extends AnyFlatSpec {
         parseExpression("3 / 4") should be (Success(BinaryOpApp(Div, IntLiteral(3), IntLiteral(4))))
     }
 
+    "Parser" should "correctly parse a basic modular arithmetic calculation" in {
+        parseExpression("3 % 4") should be (Success(BinaryOpApp(Mod, IntLiteral(3), IntLiteral(4))))
+    }
+
     "Parser" should "correctly parse the negation of a variable" in {
         parseExpression("!x") should be (Success(UnaryOpApp(Not, Identifier("x"))))
     }
@@ -71,5 +75,47 @@ class ParserTest extends AnyFlatSpec {
     "Parser" should "correctly parse a basic 'greater than or equal to'" in {
         parseExpression("3 >= 4") should be (Success(BinaryOpApp(Ge, IntLiteral(3), IntLiteral(4))))
     }
+
+    "Parser" should "correctly complex equality expressions" in {
+        parseExpression("3 + 4 == 5") should be (Success(BinaryOpApp(Eq, BinaryOpApp(Plus, IntLiteral(3), IntLiteral(4)), IntLiteral(5))))
+    }
+
+    "Parser" should "correctly parse a basic 'and'" in {
+        parseExpression("3 && 4") should be (Success(BinaryOpApp(And, IntLiteral(3), IntLiteral(4))))
+    }
+
+    "Parser" should "correctly parse a basic 'or'" in {
+        parseExpression("3 || 4") should be (Success(BinaryOpApp(Or, IntLiteral(3), IntLiteral(4))))
+    }
+
+    "Parser" should "correctly parse a basic 'and' with 'or'" in {
+        parseExpression("3 && 4 || 5") should be (Success(BinaryOpApp(Or, BinaryOpApp(And, IntLiteral(3), IntLiteral(4)), IntLiteral(5))))
+    }
+
+    "Parser" should "correctly parse negative numbers" in {
+        parseExpression("-3") should be (Success(IntLiteral(-3)))
+    }
+
+    "Parser" should "correctly parse negative numbers in expressions" in {
+        parseExpression("3 + -4") should be (Success(BinaryOpApp(Plus, IntLiteral(3), IntLiteral(-4))))
+    }
+
+    "Parser" should "correctly parse the length of an array" in {
+        parseExpression("len(arr)") should be (Success(UnaryOpApp(Len, Identifier("arr"))))
+    }
+
+    "Parser" should "correctly parse the length of an array given any input format" in {
+        parseExpression("len arr") should be(Success(UnaryOpApp(Len, Identifier("arr"))))
+    }
+
+    "Parser" should "correctly parse the ord of a character" in {
+        parseExpression("ord('a')") should be (Success(UnaryOpApp(Ord, CharLiteral('a'))))
+    }
+
+    "Parser" should "correctly parse the chr of an integer" in {
+        parseExpression("chr(97)") should be (Success(UnaryOpApp(Chr, IntLiteral(97))))
+    }
+
+
     
 }
