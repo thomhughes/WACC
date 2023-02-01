@@ -143,5 +143,5 @@ object parser {
   lazy val `<base-type>` = ("int" #> IntType) <|> ("bool" #> BoolType) <|> ("char" #> CharType) <|> ("string" #> StringType)
 
   def parse(input: String): Result[String, Expression] =
-    `<expression>`.parse(input)
+    fully(`<expression>`).parse(input)
 }
