@@ -1,5 +1,6 @@
 package wacc
 import parsley.Parsley
+import parsley.token.descriptions.text.EscapeDesc
 
 object lexer {
   import parsley.token.{Lexer, predicate}
@@ -43,9 +44,12 @@ object lexer {
           binaryExponentDesc = NoExponents
         ),
       // TODO: Look at text descriptions.
-    //  textDesc = TextDesc.plain.copy(
-    //     stringEnds = Set("\"", "'")
-    //   ),
+      textDesc = TextDesc.plain.copy(
+        escapeSequences = EscapeDesc.plain.copy(
+          escBegin = '\\',
+          literals = Set('0', 'b', 't', 'n', 'f', 'r', '"', '\'', '\\')
+        )
+      ),
       spaceDesc = SpaceDesc.plain.copy(
           commentStart = "",
           commentEnd = "",
@@ -59,7 +63,7 @@ object lexer {
 
     val `<identifier>` = lexer.lexeme.names.identifier
     val number = lexer.lexeme.numeric.integer.decimal32
-    val `<string>` = lexer.lexeme.text.string.fullUtf16
+    val `<string>` = lexer.lexeme.text.string.ascii
     val char = lexer.lexeme.text.character.fullUtf16
     val ascii = lexer.lexeme.text.character.ascii
 
