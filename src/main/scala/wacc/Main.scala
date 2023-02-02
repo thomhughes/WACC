@@ -10,15 +10,15 @@ object Main {
         parse(readFile(args.head)) match {
             case Success(x) => {
                 println(x)
-                System.err.println("exit:\n0")
-                // sys.exit(0)
+                //System.err.println("exit:\n0")
+                sys.exit(0)
             }
             case Failure(msg) => {
                 System.err.println("#syntax error#")
                 // This is for us during debugging
                 // println(msg)
-                System.err.println("exit:\n100")
-                // sys.exit(100)                   
+                // System.err.println("exit:\n100")
+                sys.exit(100)                   
             }
         }
     }
