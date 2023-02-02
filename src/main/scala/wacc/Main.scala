@@ -16,7 +16,7 @@ object Main {
             case Failure(msg) => {
                 System.err.println("#syntax error#")
                 // This is for us during debugging
-                println(msg)
+                // println(msg)
                 System.err.println("exit:\n100")
                 // sys.exit(100)                   
             }
