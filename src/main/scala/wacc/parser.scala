@@ -11,6 +11,7 @@ object parser {
   import lexer._
   import wacc.lexer.implicits._
   import parsley.debug._
+  import parsley.implicits.character.charLift
 
   // TODO: rewrite attempt
   private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`)), `<statements>` <* "end")
@@ -23,9 +24,22 @@ object parser {
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
     StringLiteral(`<string>`) <|>
-    CharLiteral(ascii) <|> 
+    CharLiteral(`<character>`) <|> 
     UnaryOpApp(`<unary-op>`, `<expression>`) <|>
     IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`)))
+  }
+
+  private lazy val `<character>`: Parsley[Char] = {
+    ascii <|>
+    '\n' <|>
+    '\b' <|>
+    '\\' <|>
+    '\u0000' <|>
+    '\t' <|>
+    '\f' <|>
+    '\r' <|>
+    '\"' <|>
+    '\''
   }
 
   private lazy val `<unary-op>`: Parsley[UnaryOp] = {

@@ -10,7 +10,6 @@ object lexer {
   import parsley.token.descriptions.numeric.PlusSignPresence.Optional
   import parsley.token.descriptions.numeric.ExponentDesc.NoExponents
   import parsley.token.descriptions.text.TextDesc
-  import parsley.character.newline
 
   val desc = LexicalDesc.plain.copy(
       nameDesc = NameDesc.plain.copy(
@@ -47,7 +46,8 @@ object lexer {
       textDesc = TextDesc.plain.copy(
         escapeSequences = EscapeDesc.plain.copy(
           escBegin = '\\',
-          literals = Set('0', 'b', 't', 'n', 'f', 'r', '"', '\'', '\\')
+          literals = Set('\\'),
+          singleMap = Map(('n', 0x0a), ('0', 0x00), ('b', 0x08), ('t', 0x09), ('f', 0x0c), ('r', 0x0d), ('\"', 0x22), ('\'', 0x27))
         )
       ),
       spaceDesc = SpaceDesc.plain.copy(
