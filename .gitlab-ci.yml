@@ -29,17 +29,9 @@ build-job:       # This job runs in the build stage, which runs first.
     - make
     - echo "Compile complete."
 
-clone-job:
-  stage: build
-  script:
-    - echo "Cloning examples for test suite"
-    - rm -rf wacc_examples
-    - git clone https://gitlab.doc.ic.ac.uk/lab2223_spring/wacc_examples.git
-    - echo "Finished cloning examples for test suite"
-
 test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   script:
     - echo "Running tests..."
-    - sbt test
+    - ./test.sh
     - echo "Tests complete"
