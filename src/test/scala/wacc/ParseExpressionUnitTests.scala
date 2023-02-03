@@ -6,7 +6,7 @@ import wacc.ast._
 import wacc.parser.{parse, parseExpression}
 import org.scalatest.matchers.should.Matchers._
 
-class ParserTest extends AnyFlatSpec {
+class ParseExpressionUnitTests extends AnyFlatSpec {
 
     "Parser" should "correctly parse a basic sum" in {
         parseExpression("3 + 4") should be (Success(BinaryOpApp(Plus, IntLiteral(3), IntLiteral(4))))
@@ -116,6 +116,55 @@ class ParserTest extends AnyFlatSpec {
         parseExpression("chr(97)") should be (Success(UnaryOpApp(Chr, IntLiteral(97))))
     }
 
+    "Parser" should "correctly parse true bool literals" in {
+        parseExpression("true") should be (Success(BoolLiteral(true)))
+    }
 
-    
+    "Parser" should "correctly parse false bool literals" in {
+        parseExpression("false") should be (Success(BoolLiteral(false)))
+    }
+
+    "Parser" should "correctly parse boolean expressions with 'and' and 'or'" in {
+        parseExpression("(true || false) && false") should be (Success(BinaryOpApp(And, BinaryOpApp(Or, BoolLiteral(true), BoolLiteral(false)), BoolLiteral(false))))
+    }
+
+    "Parser" should "correctly follow precedence for 'and' and 'or'" in {
+        parseExpression("true && false || true") should be (Success(BinaryOpApp(Or, BinaryOpApp(And, BoolLiteral(true), BoolLiteral(false)), BoolLiteral(true))))
+    }
+
+    "Parser" should "correctly parse character literals" in {
+        parseExpression("'a'") should be (Success(CharLiteral('a')))
+    }
+
+    "Parser" should "correctly parse string literals" in {
+        parseExpression("\"hello\"") should be (Success(StringLiteral("hello")))
+    }
+
+    "Parser" should "correctly parse string literals with escaped characters" in {
+        parseExpression("\"hello\\\"\"") should be (Success(StringLiteral("hello\"")))
+    }
+
+    "Parser" should "correctly parse null pair literals" in {
+        parseExpression("null") should be (Success(PairLiteral))
+    }
+
+    "Parser" should "correctly parse identifier" in {
+        parseExpression("x") should be (Success(Identifier("x")))
+    }
+
+    "Parser" should "correctly parse identifier with underscore" in {
+        parseExpression("x_y") should be (Success(Identifier("x_y")))
+    }
+
+    "Parser" should "correctly parse identifier with numbers" in {
+        parseExpression("x1") should be (Success(Identifier("x1")))
+    }
+
+    "Parser" should "correctly parse identifier with numbers and underscore" in {
+        parseExpression("x_1") should be (Success(Identifier("x_1")))
+    }
+
+    "Parser" should "correctly parse expressions containing identifiers" in {
+        parseExpression("x + 1") should be (Success(BinaryOpApp(Plus, Identifier("x"), IntLiteral(1))))
+    }
 }
