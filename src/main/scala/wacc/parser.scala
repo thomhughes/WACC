@@ -23,23 +23,27 @@ object parser {
     IntLiteral(number) <|>
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
-    StringLiteral(`<string>`) <|>
-    CharLiteral(`<character>`) <|> 
     UnaryOpApp(`<unary-op>`, `<expression>`) <|>
-    IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`)))
+    IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`))) <|>
+    CharLiteral(`<character>`) <|>
+    StringLiteral(`<string>`)
   }
 
   private lazy val `<character>`: Parsley[Char] = {
-    ascii <|>
-    '\n' <|>
-    '\b' <|>
-    '\\' <|>
-    '\u0000' <|>
-    '\t' <|>
-    '\f' <|>
-    '\r' <|>
+    attempt("\'\\") *> `<escaped-char>` <* "\'" <|>
+    ascii.filterNot((x => x == '\"' || x == '\'' || x == '\\'))
+  }
+
+  private lazy val `<escaped-char>` = {
+    '0' #> '\u0000' <|>
+    'b' #> '\b' <|>
+    't' #> '\t' <|>
+    'n' #> '\n' <|>
+    'f' #> '\f' <|>
+    'r' #> '\r' <|>
     '\"' <|>
-    '\''
+    '\'' <|>
+    '\\'
   }
 
   private lazy val `<unary-op>`: Parsley[UnaryOp] = {
@@ -103,7 +107,7 @@ object parser {
     BeginStatement("begin" *> `<statements>` <* "end")
   }
   
-  private lazy val `<statements>` = separators.semiSep(`<statement>`)
+  private lazy val `<statements>` = separators.semiSep1(`<statement>`)
 
   def parseExpression(input: String): Result[String, Expression] =
     fully(`<expression>`).parse(input)

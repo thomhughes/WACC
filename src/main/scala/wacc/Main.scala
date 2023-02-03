@@ -18,17 +18,21 @@ object Main {
         // }
         parse(readFile(args.head)) match {
             case Success(x) => {
-                // println(x)
-                // System.err.println("exit:\n0")
+                if (args.length >= 2 && args(1) == "--debug") {
+                    println(x)
+                    println("exit:\n0")
+                }
                 sys.exit(0)
             }
             case Failure(msg) => {
-                if (args(1) != "--suppress") {
-                    System.err.println("#syntax error#")
+                if (args.length >= 2) {
+                    if (args(1) != "--suppress") {
+                        System.err.println("#syntax error#")
+                    } else if (args(1) == "--debug") {
+                        println(msg)
+                        System.err.println("exit:\n100")
+                    }
                 }
-                // This is for us during debugging
-                // println(msg)
-                // System.err.println("exit:\n100")
                 sys.exit(100)                   
             }
         }
