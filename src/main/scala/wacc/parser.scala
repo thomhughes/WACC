@@ -3,21 +3,29 @@ package wacc
 import parsley.Parsley
 
 object parser {
-  import parsley.combinator.{many, some}
+  import parsley.combinator.many
   import parsley.Parsley.{attempt, pure}
   import parsley.expr.{chain, precedence, Ops, InfixL}
   import parsley.Result
   import ast._
   import lexer._
   import wacc.lexer.implicits._
-  import parsley.debug._
   import parsley.implicits.character.charLift
 
   // TODO: rewrite attempt
   private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`)), `<statements>` <* "end")
-  private lazy val `<func>` = Func(attempt(IdentBinding(`<type>`, Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>` <* "end")
+  private lazy val `<func>` = Func(attempt(IdentBinding(`<type>`, Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>`.filter(returnStatementAtEndOfAllPaths) <* "end")
   private lazy val `<param-list>` = separators.commaSep(`<param>`)
   private lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
+
+  def returnStatementAtEndOfAllPaths(statements: List[Statement]): Boolean = {
+    statements.last match {
+      case ReturnStatement(_) => true
+      case (IfStatement(_, s1, s2)) => (returnStatementAtEndOfAllPaths(s1) && returnStatementAtEndOfAllPaths(s2))
+      case ExitStatement(_) => true
+      case default => false
+    }
+  }
 
   private lazy val `<base-expression>`: Parsley[Expression] = {
     IntLiteral(number) <|>

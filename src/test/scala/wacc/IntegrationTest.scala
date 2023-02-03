@@ -8,7 +8,7 @@ class IntegrationTest extends AnyFlatSpec {
     import org.scalatest.matchers.should.Matchers._
     import scala.sys.process._
 
-    val directoriesToRunTestsOn = List("valid")
+    val directoriesToRunTestsOn = List("invalid/syntaxErr", "valid")
 
     directoriesToRunTestsOn.foreach(runTestOnDirectory)
     
