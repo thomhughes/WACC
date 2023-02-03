@@ -33,5 +33,6 @@ test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   script:
     - echo "Running tests..."
+    - sbt assembly
     - ./test.sh
     - echo "Tests complete"
