@@ -1,6 +1,6 @@
 package wacc
 
-object io {
+object IO {
   import scala.io.Source
   import scala.io.Codec
 
@@ -10,5 +10,4 @@ object io {
     try source.getLines().mkString("\n")
     finally source.close
   }
-
 }

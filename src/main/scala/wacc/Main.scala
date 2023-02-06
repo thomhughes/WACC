@@ -1,10 +1,9 @@
 package wacc
 
 import parsley.{Success, Failure}
-// import wacc.io.readFile
-import wacc.parser.parse
-import wacc.parser.parseExpression
-import wacc.io.readFile
+import wacc.Parser.parse
+// import wacc.Parser.parseExpression
+import wacc.IO.readFile
 
 object Main {
     def main(args: Array[String]): Unit = {

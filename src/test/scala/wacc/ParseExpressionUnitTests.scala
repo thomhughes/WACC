@@ -1,9 +1,9 @@
 package wacc
 
 import org.scalatest.flatspec.AnyFlatSpec
-import parsley.{Failure, Success}
-import wacc.ast._
-import wacc.parser.{parse, parseExpression}
+import parsley.Success
+import wacc.AST._
+import wacc.Parser.parseExpression
 import org.scalatest.matchers.should.Matchers._
 
 class ParseExpressionUnitTests extends AnyFlatSpec {
