@@ -10,11 +10,11 @@ object Parser {
   import AST._
   import Lexer._
   import wacc.Lexer.implicits._
-  import parsley.implicits.character.charLift
+  import parsley.errors.combinator.ErrorMethods
 
   // TODO: rewrite attempt
-  private lazy val `<program>` = Program("begin" *> many(attempt(`<func>`)), `<statements>` <* "end")
-  private lazy val `<func>` = Func(attempt(IdentBinding(`<type>`, Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>`.filter(returnStatementAtEndOfAllPaths) <* "end")
+  private lazy val `<program>` = Program("begin" *> many(`<func>`), `<statements>` <* "end")
+  private lazy val `<func>` = Func(attempt(IdentBinding(`<type>`, Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>`.filter(returnStatementAtEndOfAllPaths).explain("is missing a return on all exit paths.") <* "end")
   private lazy val `<param-list>` = separators.commaSep(`<param>`)
   private lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
@@ -35,23 +35,6 @@ object Parser {
     IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`))) <|>
     CharLiteral(`<character>`) <|>
     StringLiteral(`<string>`)
-  }
-
-  private lazy val `<character>`: Parsley[Char] = {
-    attempt("\'\\") *> `<escaped-char>` <* "\'" <|>
-    ascii.filterNot((x => x == '\"' || x == '\'' || x == '\\'))
-  }
-
-  private lazy val `<escaped-char>` = {
-    '0' #> '\u0000' <|>
-    'b' #> '\b' <|>
-    't' #> '\t' <|>
-    'n' #> '\n' <|>
-    'f' #> '\f' <|>
-    'r' #> '\r' <|>
-    '\"' <|>
-    '\'' <|>
-    '\\'
   }
 
   private lazy val `<unary-op>`: Parsley[UnaryOp] = {

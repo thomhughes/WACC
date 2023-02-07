@@ -48,7 +48,8 @@ object Lexer {
           escBegin = '\\',
           literals = Set('\\'),
           singleMap = Map(('n', 0x0a), ('0', 0x00), ('b', 0x08), ('t', 0x09), ('f', 0x0c), ('r', 0x0d), ('\"', 0x22), ('\'', 0x27))
-        )
+        ),
+        graphicCharacter = predicate.Basic((x: Char) => x >= ' '.toInt && x != '\"'.toInt && x != '\''.toInt)
       ),
       spaceDesc = SpaceDesc.plain.copy(
           commentStart = "",
@@ -64,8 +65,8 @@ object Lexer {
     val `<identifier>` = lexer.lexeme.names.identifier
     val number = lexer.lexeme.numeric.integer.decimal32
     val `<string>` = lexer.lexeme.text.string.ascii
-    val char = lexer.lexeme.text.character.fullUtf16
-    val ascii = lexer.lexeme.text.character.ascii
+    val `<character>` = lexer.lexeme.text.character.ascii
+    // val ascii = lexer.lexeme.text.character.ascii
 
     def fully[A](p: Parsley[A]) = lexer.fully(p)
     val implicits = lexer.lexeme.symbol.implicits

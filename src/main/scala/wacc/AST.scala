@@ -38,7 +38,7 @@ object AST {
   case object CharType extends BaseType with ParserBridge0[BaseType]
   case object StringType extends BaseType with ParserBridge0[BaseType]
   case object PairRefType extends PairElemType with ParserBridge0[PairElemType]
-  case class ArrayType(arrayType: Type) extends Type with PairElemType
+  case class ArrayType(arrayType: Type, arity: Int) extends Type with PairElemType
   case class PairType(fstType: PairElemType, sndType: PairElemType) extends Type
 
   sealed trait UnaryOp
@@ -106,7 +106,12 @@ object AST {
     }
   }
 
-  object ArrayType extends Type with ParserBridge1[Type, ArrayType]
+  object ArrayType extends Type with ParserBridge1[Type, ArrayType] {
+    override def apply(t: Type): ArrayType = t match {
+      case ArrayType(t, i) => ArrayType(t, i + 1)
+      case _ => ArrayType(t, 1)
+    }
+  }
   object PairType extends Type with ParserBridge2[PairElemType, PairElemType, PairType]
 
   object NewPair extends RValue with ParserBridge2[Expression, Expression, RValue]
