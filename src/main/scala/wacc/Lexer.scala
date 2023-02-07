@@ -10,6 +10,7 @@ object Lexer {
   import parsley.token.descriptions.numeric.PlusSignPresence.Optional
   import parsley.token.descriptions.numeric.ExponentDesc.NoExponents
   import parsley.token.descriptions.text.TextDesc
+  import wacc.Keywords.keywords
 
   val desc = LexicalDesc.plain.copy(
       nameDesc = NameDesc.plain.copy(
@@ -19,9 +20,7 @@ object Lexer {
           // operatorStart = predicate.Basic(x => false)
         ),
       symbolDesc = SymbolDesc.plain.copy(
-          hardKeywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print", "println", "if", "then", "else", "fi", 
-            "while", "do", "done", "fst", "snd", "newpair", "call", "int", "bool", "char", "string", "pair", "len", "ord", "chr", "true", "false",
-            "null"),
+          hardKeywords = keywords,
           hardOperators = Set("=", "!", "-", "*", "/", "%", "+", "-", ">", ">=", "<=", "<", "==", "!=", "&&", "||") // might be pessimistic
         ),
       numericDesc = NumericDesc.plain.copy(

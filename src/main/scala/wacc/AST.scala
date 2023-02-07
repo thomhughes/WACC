@@ -3,13 +3,13 @@ package wacc
 object AST {
   import parsley.genericbridges._
 
-  case class Program(functions: List[Func], statement: List[Statement])
+  case class Program(val functions: List[Func], val statements: List[Statement])
   case class Func(identBinding: IdentBinding, params: List[Parameter], body: List[Statement])
   case class Parameter(typeName: Type, identifier: Identifier)
   case class IdentBinding(typeName: Type, identifier: Identifier)
 
   sealed trait Statement
-  case class DeclarationStatement(typeName: Type, identifier: Identifier, rvalue: RValue) extends Statement
+  case class DeclarationStatement(typeName: Type, val identifier: Identifier, rvalue: RValue) extends Statement
   case class AssignmentStatement(lvalue: LValue, rvalue: RValue) extends Statement
   case class ReadStatement(lvalue: LValue) extends Statement
   case class FreeStatement(expression: Expression) extends Statement
@@ -38,7 +38,7 @@ object AST {
   case object CharType extends BaseType with ParserBridge0[BaseType]
   case object StringType extends BaseType with ParserBridge0[BaseType]
   case object PairRefType extends PairElemType with ParserBridge0[PairElemType]
-  case class ArrayType(arrayType: Type) extends Type with PairElemType
+  case class ArrayType(arrayType: Type, arity: Int) extends Type with PairElemType
   case class PairType(fstType: PairElemType, sndType: PairElemType) extends Type
 
   sealed trait UnaryOp
@@ -106,7 +106,12 @@ object AST {
     }
   }
 
-  object ArrayType extends Type with ParserBridge1[Type, ArrayType]
+  object ArrayType extends Type with ParserBridge1[Type, ArrayType] {
+    override def apply(t: Type): ArrayType = t match {
+      case ArrayType(t, i) => ArrayType(t, i + 1)
+      case _ => ArrayType(t, 1)
+    }
+  }
   object PairType extends Type with ParserBridge2[PairElemType, PairElemType, PairType]
 
   object NewPair extends RValue with ParserBridge2[Expression, Expression, RValue]

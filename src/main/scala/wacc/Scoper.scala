@@ -1,0 +1,23 @@
+package wacc
+
+import scala.collection.mutable.Stack
+
+class Scoper {
+  var curr = 0
+  var next = 0
+  val stack = Stack[Int]()
+
+  def enterScope() = {
+    next += 1
+    stack.push(curr)
+    curr = next
+  }
+
+  def getScope() = curr
+
+  def exitScope() = {
+    curr = stack.pop()
+  }
+
+  def getIterator() = stack.iterator
+}
