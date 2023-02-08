@@ -137,7 +137,7 @@ object Analyser {
         } else {
             ("Identifier " + identifier.name + " already declared in the current scope") :: errorList
         }
-        return true
+        return false
     }
     
     private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
