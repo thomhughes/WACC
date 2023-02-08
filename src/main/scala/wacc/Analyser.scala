@@ -8,18 +8,18 @@ object Analyser {
 
     val scoper = new Scoper()
     val functionTable = Map[String, (SAType, List[SAType])]()
-    var symbolTable = Map[(String, Int), SAType]()
+    var symbolTable = SymbolTable(scoper)
     val errorList = List[String]()
 
     private def checkUnOp(op: UnaryOp, expression: Expression): Option[SAType] = {
         op match {
             case Chr | Negation => if (checkExpression(expression, SAIntType)) Some(SAIntType) else None
             case Len => expression match {
-                case Identifier(id) => lookupVar(id) match {
+                case Identifier(id) => symbolTable.lookupVar(id) match {
                     case Some(SAArrayType(_, _)) => Some(SAIntType) 
                     case default => None
                 }
-                case ArrayElem(id, indices) => lookupVar(id.name) match {
+                case ArrayElem(id, indices) => symbolTable.lookupVar(id.name) match {
                     case Some(SAArrayType(_, arity)) => if (indices.length < arity) Some(SAIntType) else None
                     case default => None
                 }
@@ -46,8 +46,8 @@ object Analyser {
                 val lhsVar = getVarName(lhs)
                 val rhsVar = getVarName(rhs)
                 if (lhsVar.isDefined && rhsVar.isDefined) {
-                    val lhsLookup = lookupVar(lhsVar.get)
-                    val rhsLookup = lookupVar(rhsVar.get)
+                    val lhsLookup = symbolTable.lookupVar(lhsVar.get)
+                    val rhsLookup = symbolTable.lookupVar(rhsVar.get)
                     if (lhsLookup.isDefined && rhsLookup.isDefined 
                     && equalsType(lhsLookup.get, rhsLookup.get)) lhsLookup
                 }
@@ -81,7 +81,7 @@ object Analyser {
                 case SAPairType(_, _) => true
                 case default => false
             }
-            case Identifier(id) => lookupVar(id).isDefined && equalsType(t, lookupVar(id).get)
+            case Identifier(id) => symbolTable.lookupVar(id).isDefined && equalsType(t, symbolTable.lookupVar(id).get)
             case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
                 case Some(typeName) => equalsType(t, typeName)
                 case None => false
@@ -127,7 +127,7 @@ object Analyser {
             ("Identifier " + identifier.name + " is a WACC keyword") :: errorList
             return false
         }
-        val idenNotInSymTable = insertVar(identifier.name, typeName)
+        val idenNotInSymTable = symbolTable.insertVar(identifier.name, typeName)
         if (idenNotInSymTable) {
             if (!checkRValue(rvalue, typeName)) {
                 ("RHS of declaration statment is not of type " + typeName) :: errorList
@@ -160,7 +160,7 @@ object Analyser {
 
     private def checkPairElem(index: PairIndex, pair: LValue, typeName: SAType): Boolean = {
         pair match {
-            case Identifier(id) => lookupVar(id) match {
+            case Identifier(id) => symbolTable.lookupVar(id) match {
                 case Some(SAPairType(fstType, sndType)) => index match {
                     case Fst => equalsType(fstType, typeName)
                     case Snd => equalsType(sndType, typeName)
@@ -184,7 +184,7 @@ object Analyser {
 
     private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue): Boolean = {
         val typeName = lvalue match {
-            case Identifier(id) => lookupVar(id)
+            case Identifier(id) => symbolTable.lookupVar(id)
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
             case PairElem(index, pair) => getPairElemType(index, pair)
         }
@@ -196,7 +196,7 @@ object Analyser {
 
     private def getPairElemType(index: PairIndex, pair: LValue): Option[SAType] = {
         pair match {
-            case Identifier(id) => lookupVar(id) match {
+            case Identifier(id) => symbolTable.lookupVar(id) match {
                 case Some(SAPairType(fstType, sndType)) => index match {
                     case Fst => Some(fstType)
                     case Snd => Some(sndType)
@@ -219,7 +219,7 @@ object Analyser {
 
     private def checkLValue(lvalue: LValue, typeName: SAType): Boolean = {
         lvalue match {
-            case Identifier(id) => lookupVar(id) match {
+            case Identifier(id) => symbolTable.lookupVar(id) match {
                 case Some(t) => t == typeName
                 case default => false
             }
@@ -233,7 +233,7 @@ object Analyser {
     }
 
     private def getArrayElemType(id: Identifier, indices: List[Expression]): Option[SAType] =
-        lookupVar(id.name) match {
+        symbolTable.lookupVar(id.name) match {
             case Some(SAArrayType(arrayType, arity)) => {
                 if (indices.length < arity)
                     Some(SAArrayType(arrayType, arity - indices.length))
@@ -265,7 +265,7 @@ object Analyser {
     
     private def isExpressionArrayType(expression: Expression): Boolean = {
         val typeName = expression match {
-            case Identifier(id) => lookupVar(id) 
+            case Identifier(id) => symbolTable.lookupVar(id) 
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
         }
         typeName match {
@@ -276,7 +276,7 @@ object Analyser {
 
     private def isExpressionPairType(expression: Expression): Boolean = {
         val typeName = expression match {
-            case Identifier(id) => lookupVar(id)
+            case Identifier(id) => symbolTable.lookupVar(id)
             case PairLiteral => return true
             case ArrayElem(id, indices) => getArrayElemType(id, indices) 
         }
@@ -310,23 +310,6 @@ object Analyser {
         if (!statements.forall(checkStatement)) false
         scoper.exitScope()
         true
-    }
-
-    private def lookupVar(v: String): Option[SAType] = {
-        val iter = scoper.getIterator()
-        while (iter.hasNext) {
-            val curr = iter.next()
-            val key = (v, curr)
-            if (symbolTable.contains(key)) return Some(symbolTable(key))
-        }
-        return None
-    }
-
-    private def insertVar(v: String, t: SAType): Boolean = {
-        val key = (v, scoper.getScope())
-        if (symbolTable.contains(key)) return false
-        symbolTable += (key -> t)
-        return true
     }
 
     // private def insertFunction(f: String, params: (SAType, List[SAType])) {
