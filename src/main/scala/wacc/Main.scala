@@ -3,6 +3,7 @@ package wacc
 import parsley.{Success, Failure}
 import wacc.Parser.parse
 import wacc.IO.readFile
+import wacc.Analyser.checkProgram
 
 object Main {
     def main(args: Array[String]): Unit = {
@@ -19,7 +20,6 @@ object Main {
                     if (args(1) != "--suppress") {
                         System.err.println("#semantic error#")
                     } else if (args(1) == "--debug") {
-                        println(msg)
                         System.err.println("exit:\n200")
                     }
                 }

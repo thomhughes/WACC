@@ -3,15 +3,15 @@ package wacc
 object TypeConverter {
     import AST._
     import Types._
-    def convertSyntaxToTypeSys(t: Type with PairElemType): SAType = {
+    def convertSyntaxToTypeSys(t: ASTType): SAType = {
         t match {
             case IntType => SAIntType
             case BoolType => SABoolType
             case CharType => SACharType
             case StringType => SAStringType
-            case ArrayType(arrayType) => SAArrayType(convertSyntaxToTypeSys(arrayType))
+            case ArrayType(arrayType, arity) => SAArrayType(convertSyntaxToTypeSys(arrayType), arity)
             case PairType(fstType, sndType) => SAPairType(convertSyntaxToTypeSys(fstType), convertSyntaxToTypeSys(sndType))
-            case PairRefType => error("Placeholder for lookup to symbol table")
+            case PairRefType => throw new Exception("PairRefType should not be used in the type system")
         }
     }
 }

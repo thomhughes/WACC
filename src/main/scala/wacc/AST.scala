@@ -30,9 +30,10 @@ object AST {
   case class PairElem(index: PairIndex, value: LValue) extends LValue with RValue
   case class ArrayElem(identifier: Identifier, indices: List[Expression]) extends LValue with Expression
 
-  sealed trait Type
+  sealed trait ASTType
+  sealed trait Type extends ASTType
   sealed trait BaseType extends Type with PairElemType
-  sealed trait PairElemType
+  sealed trait PairElemType extends ASTType
   case object IntType extends BaseType with ParserBridge0[BaseType]
   case object BoolType extends BaseType with ParserBridge0[BaseType]
   case object CharType extends BaseType with ParserBridge0[BaseType]
