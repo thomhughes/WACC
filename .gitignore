@@ -62,3 +62,4 @@ project/**/metals.sbt
 
 # jarfile
 wacc-42-compiler.jar
+/wacc_examples

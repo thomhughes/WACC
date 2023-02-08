@@ -10,15 +10,15 @@ object Types {
     case class SAArrayType(arrayType: SAType, arity: Int) extends SAType
     case class SAPairType(val fstType: SAType, val sndType: SAType) extends SAType
 
-    def equals(firstType: SAType, secondType: SAType): Boolean =
+    def equalsType(firstType: SAType, secondType: SAType): Boolean =
         firstType match {
             case SAArrayType(firstArrayType, firstArity) => secondType match {
-                case SAArrayType(secondArrayType, secondArity) => firstArity == secondArity && equals(firstArrayType, secondArrayType)
+                case SAArrayType(secondArrayType, secondArity) => firstArity == secondArity && equalsType(firstArrayType, secondArrayType)
                 case SAAnyType => true
                 case _ => false
             }
             case SAPairType(firstFstType, firstSndType) => secondType match {
-                case SAPairType(secondFstType, secondSndType) => equals(firstFstType, secondFstType) && equals(firstSndType, secondSndType)
+                case SAPairType(secondFstType, secondSndType) => equalsType(firstFstType, secondFstType) && equalsType(firstSndType, secondSndType)
                 case SAAnyType => true
                 case _ => false
             }

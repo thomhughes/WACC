@@ -40,17 +40,17 @@ object Analyser {
 
     private def checkExpression(expression: Expression, t: SAType): Boolean = {
         expression match {
-            case IntLiteral(_) => equals(t, SAIntType)
-            case BoolLiteral(_) => equals(t, SABoolType)
-            case CharLiteral(_) => equals(t, SACharType)
-            case StringLiteral(_) => equals(t, SAStringType)
+            case IntLiteral(_) => equalsType(t, SAIntType)
+            case BoolLiteral(_) => equalsType(t, SABoolType)
+            case CharLiteral(_) => equalsType(t, SACharType)
+            case StringLiteral(_) => equalsType(t, SAStringType)
             case PairLiteral => t match {
                 case SAPairType(_, _) => true
                 case default => false
             }
-            case Identifier(id) => lookupVar(id).isDefined && equals(t, lookupVar(id).get)
+            case Identifier(id) => lookupVar(id).isDefined && equalsType(t, lookupVar(id).get)
             case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
-                case Some(typeName) => equals(t, typeName)
+                case Some(typeName) => equalsType(t, typeName)
                 case None => false
             }
             case UnaryOpApp(op, expr) => checkUnOp(op, expr)
@@ -104,7 +104,7 @@ object Analyser {
     private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
         rvalue match {
             case NewPair(fst, snd) => typeName match {
-                case SAPairType(fstType, sndType) => equals(fstType, fst) && equals(snd, sndType)
+                case SAPairType(fstType, sndType) => checkExpression(fst, fstType) && checkExpression(snd, sndType)
                 case default => false
             }
             case ArrayLiteral(list) => typeName match {
@@ -123,8 +123,8 @@ object Analyser {
         pair match {
             case Identifier(id) => lookupVar(id) match {
                 case Some(SAPairType(fstType, sndType)) => index match {
-                    case Fst => equals(fstType, typeName)
-                    case Snd => equals(sndType, typeName)
+                    case Fst => equalsType(fstType, typeName)
+                    case Snd => equalsType(sndType, typeName)
                 }
                 case default => false
             }
@@ -134,8 +134,8 @@ object Analyser {
             }
             case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
                 case Some(SAPairType(fstType, sndType)) => index match {
-                    case Fst => equals(fstType, typeName)
-                    case Snd => equals(sndType, typeName)
+                    case Fst => equalsType(fstType, typeName)
+                    case Snd => equalsType(sndType, typeName)
                 }
                 case _ => false
             }
@@ -262,13 +262,13 @@ object Analyser {
         true
     }
 
-    private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement]) = {
-        if (!checkExpression(condition, SABoolType)) false
+    private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement]): Boolean = {
+    if (!checkExpression(condition, SABoolType)) return false
         scoper.enterScope()
-        if (!thenStatements.forall(checkStatement)) false
+        if (!thenStatements.forall(checkStatement)) return false
         scoper.exitScope()
         scoper.enterScope()
-        if (!elseStatements.forall(checkStatement)) false
+        if (!elseStatements.forall(checkStatement)) return false
         scoper.exitScope()
         true
     }
