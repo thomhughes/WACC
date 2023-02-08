@@ -33,7 +33,11 @@ object Analyser {
     private def checkBinOp(op: BinaryOp, lhs: Expression, rhs: Expression): Option[SAType] = op match {
         case Mul | Div | Mod | Plus | Minus => if (checkExpression(lhs, SAIntType) && checkExpression(rhs, SAIntType)) Some(SAIntType) else None
         case And | Or => if (checkExpression(lhs, SABoolType) && checkExpression(rhs, SABoolType)) Some(SABoolType) else None
-        case Gt | Ge | Lt | Le => bothTypesMatch(lhs, rhs, List(SAIntType, SACharType))
+        case Gt | Ge | Lt | Le => {bothTypesMatch(lhs, rhs, List(SAIntType, SACharType)) match {
+            case Some(_) => Some(SABoolType)
+            case default => None
+        }
+    }
         case Eq | Neq => {
             val btmRes = bothTypesMatch(lhs, rhs, List(SAIntType, SACharType, SABoolType, SAStringType)) 
             if (btmRes.isDefined) Some(SABoolType)
@@ -125,7 +129,7 @@ object Analyser {
         }
         val idenNotInSymTable = insertVar(identifier.name, typeName)
         if (idenNotInSymTable) {
-            if (checkRValue(rvalue, typeName)) {
+            if (!checkRValue(rvalue, typeName)) {
                 ("RHS of declaration statment is not of type " + typeName) :: errorList
             } else {
                 return true
