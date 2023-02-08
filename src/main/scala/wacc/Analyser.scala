@@ -11,30 +11,29 @@ object Analyser {
     val symbolTable = Map[(String, Int), SAType]()
     val errorList = List[String]()
 
-    private def checkUnOp(op: UnaryOp, expression: Expression): Boolean = {
+    private def checkUnOp(op: UnaryOp, expression: Expression): Option[SAType] = {
         op match {
-            case Chr => checkExpression(expression, SAIntType)
+            case Chr | Negation => if (checkExpression(expression, SAIntType)) Some(SAIntType) else None
             case Len => expression match {
                 case Identifier(id) => lookupVar(id) match {
-                    case Some(SAArrayType(_, _)) => true
-                    case default => false
+                    case Some(SAArrayType(_, _)) => Some(SAIntType) 
+                    case default => None
                 }
                 case ArrayElem(id, indices) => lookupVar(id.name) match {
-                    case Some(SAArrayType(_, arity)) => indices.length < arity
-                    case default => false
+                    case Some(SAArrayType(_, arity)) => if (indices.length < arity) Some(SAIntType) else None
+                    case default => None
                 }
-                case default => false
+                case default => None
             }
-            case Negation => checkExpression(expression, SAIntType)
-            case Not => checkExpression(expression, SABoolType)
-            case Ord => checkExpression(expression, SACharType)
+            case Not => if (checkExpression(expression, SABoolType)) Some(SABoolType) else None
+            case Ord => if (checkExpression(expression, SACharType)) Some(SACharType) else None
         }
     }
 
-    private def checkBinOp(op: BinaryOp, lhs: Expression, rhs: Expression): Boolean = {
+    private def checkBinOp(op: BinaryOp, lhs: Expression, rhs: Expression): Option[SAType] = {
         op match {
-            case And | Or => checkExpression(lhs, SABoolType) && checkExpression(rhs, SABoolType)
-            case default => checkExpression(lhs, SAIntType) && checkExpression(rhs, SAIntType)
+            case And | Or => if (checkExpression(lhs, SABoolType) && checkExpression(rhs, SABoolType)) Some(SABoolType) else None
+            case default => if (checkExpression(lhs, SAIntType) && checkExpression(rhs, SAIntType)) Some(SAIntType) else None
         }
     }
 
@@ -53,8 +52,14 @@ object Analyser {
                 case Some(typeName) => equalsType(t, typeName)
                 case None => false
             }
-            case UnaryOpApp(op, expr) => checkUnOp(op, expr)
-            case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs)
+            case UnaryOpApp(op, expr) => checkUnOp(op, expr) match {
+                case Some(exprType) => equalsType(exprType, t)
+                case _ => false
+            }
+            case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs) match {
+                case Some(exprType) => equalsType(exprType, t)
+                case _ => false
+            }
             case default => false
         }
     }
@@ -214,13 +219,13 @@ object Analyser {
     // TODO: change AST node to include print type info with inferType
     private def checkPrintLnStatement(expression: Expression) = isValidExpression(expression)
 
-    private def isValidExpression(expression: Expression) =
+    private def isValidExpression(expression: Expression): Boolean =
         expression match {
             case IntLiteral(_) | BoolLiteral(_) | CharLiteral(_) | StringLiteral(_) | PairLiteral => true
             case Identifier(id) => lookupVar(id).isDefined
             case ArrayElem(id, indices) => getArrayElemType(id, indices).isDefined
-            case UnaryOpApp(op, expr) => checkUnOp(op, expr)
-            case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs)
+            case UnaryOpApp(op, expr) => checkUnOp(op, expr).isDefined
+            case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs).isDefined
         }
     
     // TODO: change AST node to include print type info with inferType
@@ -254,12 +259,12 @@ object Analyser {
         }
     }
 
-    private def checkWhileStatement(condition: Expression, doStatements: List[Statement]) = {
-        if (!checkExpression(condition, SABoolType)) false
+    private def checkWhileStatement(condition: Expression, doStatements: List[Statement]): Boolean = {
+        if (!checkExpression(condition, SABoolType)) return false
         scoper.enterScope()
-        if (!doStatements.forall(checkStatement)) false
+        if (!doStatements.forall(checkStatement)) return false
         scoper.exitScope()
-        true
+        return true
     }
 
     private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement]): Boolean = {
