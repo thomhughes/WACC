@@ -8,7 +8,7 @@ object Analyser {
 
     val scoper = new Scoper()
     val functionTable = Map[String, (SAType, List[SAType])]()
-    val symbolTable = Map[(String, Int), SAType]()
+    var symbolTable = Map[(String, Int), SAType]()
     val errorList = List[String]()
 
     private def checkUnOp(op: UnaryOp, expression: Expression): Option[SAType] = {
@@ -30,11 +30,40 @@ object Analyser {
         }
     }
 
-    private def checkBinOp(op: BinaryOp, lhs: Expression, rhs: Expression): Option[SAType] = {
-        op match {
-            case And | Or => if (checkExpression(lhs, SABoolType) && checkExpression(rhs, SABoolType)) Some(SABoolType) else None
-            case default => if (checkExpression(lhs, SAIntType) && checkExpression(rhs, SAIntType)) Some(SAIntType) else None
+    private def checkBinOp(op: BinaryOp, lhs: Expression, rhs: Expression): Option[SAType] = op match {
+        case Mul | Div | Mod | Plus | Minus => if (checkExpression(lhs, SAIntType) && checkExpression(rhs, SAIntType)) Some(SAIntType) else None
+        case And | Or => if (checkExpression(lhs, SABoolType) && checkExpression(rhs, SABoolType)) Some(SABoolType) else None
+        case Gt | Ge | Lt | Le => bothTypesMatch(lhs, rhs, List(SAIntType, SACharType))
+        case Eq | Neq => {
+            val btmRes = bothTypesMatch(lhs, rhs, List(SAIntType, SACharType, SABoolType, SAStringType)) 
+            if (btmRes.isDefined) Some(SABoolType)
+            else {
+                // at this point, they must be composites, so they can only be from var lookups
+                val lhsVar = getVarName(lhs)
+                val rhsVar = getVarName(rhs)
+                if (lhsVar.isDefined && rhsVar.isDefined) {
+                    val lhsLookup = lookupVar(lhsVar.get)
+                    val rhsLookup = lookupVar(rhsVar.get)
+                    if (lhsLookup.isDefined && rhsLookup.isDefined 
+                    && equalsType(lhsLookup.get, rhsLookup.get)) lhsLookup
+                }
+                None
+            }
         }
+        case default => None
+    }
+    
+
+    private def getVarName(expression: Expression): Option[String] = expression match {
+        case Identifier(str) => Some(str)
+        case _ => None
+    }
+
+    private def bothTypesMatch(lhs: Expression, rhs: Expression, validTypes: List[SAType]): Option[SAType] = {
+        for (saType <- validTypes) {
+            if (checkExpression(lhs, saType) && checkExpression(rhs, saType)) return Some(saType)
+        }
+        return None
     }
 
     private def checkExpression(expression: Expression, t: SAType): Boolean = {
@@ -43,6 +72,7 @@ object Analyser {
             case BoolLiteral(_) => equalsType(t, SABoolType)
             case CharLiteral(_) => equalsType(t, SACharType)
             case StringLiteral(_) => equalsType(t, SAStringType)
+            // pairliteral logic is bs
             case PairLiteral => t match {
                 case SAPairType(_, _) => true
                 case default => false
@@ -219,14 +249,7 @@ object Analyser {
     // TODO: change AST node to include print type info with inferType
     private def checkPrintLnStatement(expression: Expression) = isValidExpression(expression)
 
-    private def isValidExpression(expression: Expression): Boolean =
-        expression match {
-            case IntLiteral(_) | BoolLiteral(_) | CharLiteral(_) | StringLiteral(_) | PairLiteral => true
-            case Identifier(id) => lookupVar(id).isDefined
-            case ArrayElem(id, indices) => getArrayElemType(id, indices).isDefined
-            case UnaryOpApp(op, expr) => checkUnOp(op, expr).isDefined
-            case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs).isDefined
-        }
+    private def isValidExpression(expression: Expression): Boolean = checkExpression(expression, SAAnyType)
     
     // TODO: change AST node to include print type info with inferType
     // need to check whether pairelem, arrayelem, var is either int or char
@@ -288,17 +311,18 @@ object Analyser {
     private def lookupVar(v: String): Option[SAType] = {
         val iter = scoper.getIterator()
         while (iter.hasNext) {
-            val key = (v, iter.next())
-            if (symbolTable.contains(key)) Some(symbolTable(key))
+            val curr = iter.next()
+            val key = (v, curr)
+            if (symbolTable.contains(key)) return Some(symbolTable(key))
         }
-        None
+        return None
     }
 
     private def insertVar(v: String, t: SAType): Boolean = {
         val key = (v, scoper.getScope())
-        if (symbolTable.contains(key)) false
-        symbolTable + (key -> t)
-        true
+        if (symbolTable.contains(key)) return false
+        symbolTable += (key -> t)
+        return true
     }
 
     // private def insertFunction(f: String, params: (SAType, List[SAType])) {
