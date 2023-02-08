@@ -87,23 +87,23 @@ object Analyser {
         }
     }
 
-    private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue) = {
+    private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue): Boolean = {
         val idenIsKeyword = keywords.contains(identifier.name)
         if (idenIsKeyword) {
             ("Identifier " + identifier.name + " is a WACC keyword") :: errorList
-            false
+            return false
         }
         val idenNotInSymTable = insertVar(identifier.name, typeName)
         if (idenNotInSymTable) {
             if (checkRValue(rvalue, typeName)) {
                 ("RHS of declaration statment is not of type " + typeName) :: errorList
             } else {
-                true
+                return true
             }
         } else {
             ("Identifier " + identifier.name + " already declared in the current scope") :: errorList
         }
-        false
+        return true
     }
     
     private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
