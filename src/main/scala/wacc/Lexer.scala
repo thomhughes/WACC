@@ -1,6 +1,8 @@
 package wacc
 import parsley.Parsley
 import parsley.token.descriptions.text.EscapeDesc
+import parsley.token.errors.LabelConfig
+import parsley.token.errors.LabelWithExplainConfig
 
 object Lexer {
   import parsley.token.{Lexer, predicate}
@@ -10,6 +12,15 @@ object Lexer {
   import parsley.token.descriptions.numeric.PlusSignPresence.Optional
   import parsley.token.descriptions.numeric.ExponentDesc.NoExponents
   import parsley.token.descriptions.text.TextDesc
+  import parsley.token.errors.Label
+  import parsley.token.errors.ErrorConfig
+
+  object errConfig extends ErrorConfig {
+    override def labelSymbolOpenSquare: LabelConfig = Label("index (`identifier[index]`)") 
+    override def labelSymbolOpenParen: LabelConfig = Label("open parenthesis")
+    override def labelStringAscii(multi: Boolean, raw: Boolean): LabelWithExplainConfig = Label("string literal")
+    override def labelCharAscii: LabelWithExplainConfig = Label("char literal")
+  }
 
   val desc = LexicalDesc.plain.copy(
       nameDesc = NameDesc.plain.copy(
@@ -42,7 +53,6 @@ object Lexer {
           octalExponentDesc = NoExponents,
           binaryExponentDesc = NoExponents
         ),
-      // TODO: Look at text descriptions.
       textDesc = TextDesc.plain.copy(
         escapeSequences = EscapeDesc.plain.copy(
           escBegin = '\\',
@@ -60,13 +70,12 @@ object Lexer {
         )
     )
 
-    val lexer = new Lexer(desc)
+    val lexer = new Lexer(desc, errConfig)
 
     val `<identifier>` = lexer.lexeme.names.identifier
     val number = lexer.lexeme.numeric.integer.decimal32
     val `<string>` = lexer.lexeme.text.string.ascii
     val `<character>` = lexer.lexeme.text.character.ascii
-    // val ascii = lexer.lexeme.text.character.ascii
 
     def fully[A](p: Parsley[A]) = lexer.fully(p)
     val implicits = lexer.lexeme.symbol.implicits

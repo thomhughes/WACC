@@ -1,7 +1,10 @@
 package wacc
 
+import parsley.Parsley
+
 object AST {
   import parsley.genericbridges._
+  import parsley.errors.combinator.ErrorMethods
 
   case class Program(functions: List[Func], statement: List[Statement])
   case class Func(identBinding: IdentBinding, params: List[Parameter], body: List[Statement])
@@ -22,8 +25,8 @@ object AST {
   case class BeginStatement(statement: List[Statement]) extends Statement
 
   sealed trait PairIndex
-  case object Fst extends PairIndex
-  case object Snd extends PairIndex
+  case object Fst extends PairIndex with ParserBridge0[PairIndex]
+  case object Snd extends PairIndex with ParserBridge0[PairIndex]
 
   sealed trait LValue
   case class Identifier(name: String) extends LValue with Expression
@@ -73,13 +76,30 @@ object AST {
   case class BoolLiteral(value: Boolean) extends Expression
   case class CharLiteral(value: Char) extends Expression
   case class StringLiteral(value: String) extends Expression
-  case object PairLiteral extends Expression
+  case object PairLiteral extends Expression with ParserBridge0[Expression]
   case class UnaryOpApp(op: UnaryOp, expr: Expression) extends Expression
   case class BinaryOpApp(op: BinaryOp, lhs: Expression, rhs: Expression) extends Expression
 
   // Bridges
   object Program extends ParserBridge2[List[Func], List[Statement], Program]
-  object Func extends ParserBridge3[IdentBinding, List[Parameter], List[Statement], Func]
+  object Func extends ParserBridge3[IdentBinding, List[Parameter], List[Statement], Func] {
+  override def apply(x1: Parsley[IdentBinding], x2: => Parsley[List[Parameter]], x3: => Parsley[List[Statement]]): Parsley[Func] = {
+      def noReturnStatementAtEndOfPath(statements: List[Statement]): Boolean = {
+        statements.last match {
+          case (IfStatement(_, s1, s2)) => (noReturnStatementAtEndOfPath(s1) || noReturnStatementAtEndOfPath(s2))
+          case ReturnStatement(_) => false
+          case ExitStatement(_) => false
+          case default => true
+        }
+      }
+      super.apply(x1, x2, x3).guardAgainst {
+        case Func(x1, x2, x3) if x3.isEmpty =>
+          Seq(s"Function `" + x1.identifier.name + "` has no statements.")
+        case Func(x1, x2, x3) if noReturnStatementAtEndOfPath(x3)  =>
+          Seq(s"Function `" + x1.identifier.name + "` does not have all code paths ending with return or exit statement.")
+      }
+    }
+  }
   object Parameter extends ParserBridge2[Type, Identifier, Parameter]
   
   case object SkipStatement extends Statement with ParserBridge0[Statement]

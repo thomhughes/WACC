@@ -1,0 +1,160 @@
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:3:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.{Parsley, Success, Failure}[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:4:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.character.digit[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:5:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.expr.chain[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:6:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.implicits.character.charLift[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:12:28: not found: value digit[0m
+[0m[[0m[31merror[0m] [0m[0m        lazy val integer = digit.foldLeft1[BigInt](0)((n, d) => n * 10 + d.asDigit)[0m
+[0m[[0m[31merror[0m] [0m[0m                           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:17:24: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        lazy val expr: Parsley[BigInt] =[0m
+[0m[[0m[31merror[0m] [0m[0m                       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:18:13: not found: value chain[0m
+[0m[[0m[31merror[0m] [0m[0m            chain.left1[BigInt]([0m
+[0m[[0m[31merror[0m] [0m[0m            ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:19:22: value ~> is not a member of Char[0m
+[0m[[0m[31merror[0m] [0m[0m                ('(' ~> expr <~ ')') <|> integer,[0m
+[0m[[0m[31merror[0m] [0m[0m                     ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:20:22: value #> is not a member of Char[0m
+[0m[[0m[31merror[0m] [0m[0m                ('+' #> add) <|> ('-' #> sub)[0m
+[0m[[0m[31merror[0m] [0m[0m                     ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:20:39: value #> is not a member of Char[0m
+[0m[[0m[31merror[0m] [0m[0m                ('+' #> add) <|> ('-' #> sub)[0m
+[0m[[0m[31merror[0m] [0m[0m                                      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:24:18: not found: value Success[0m
+[0m[[0m[31merror[0m] [0m[0m            case Success(x) => println(s"${args.head} = $x")[0m
+[0m[[0m[31merror[0m] [0m[0m                 ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/Main.scala:25:18: not found: value Failure[0m
+[0m[[0m[31merror[0m] [0m[0m            case Failure(msg) => println(msg)[0m
+[0m[[0m[31merror[0m] [0m[0m                 ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:1:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:1:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:22:54: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B]): Parsley[C] = (x, y).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                                                     ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:22:24: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B]): Parsley[C] = (x, y).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:22:41: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B]): Parsley[C] = (x, y).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                                        ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:28:71: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B], z: =>Parsley[C]): Parsley[D] = (x, y, z).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                                                                      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:28:24: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B], z: =>Parsley[C]): Parsley[D] = (x, y, z).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:28:41: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B], z: =>Parsley[C]): Parsley[D] = (x, y, z).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                                        ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:28:58: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A], y: =>Parsley[B], z: =>Parsley[C]): Parsley[D] = (x, y, z).zipped(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                                                         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:66:38: not found: type Param[0m
+[0m[[0m[31merror[0m] [0m[0m  object Param extends ParserBridge2[Param, Type, Identifier][0m
+[0m[[0m[31merror[0m] [0m[0m                                     ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:67:32: illegal inheritance;[0m
+[0m[[0m[31merror[0m] [0m[0m self-type ast.SkipStatement.type does not conform to genericbridges.ParserBridge0[ast.SkipStatement]'s selftype genericbridges.ParserBridge0[ast.SkipStatement] with ast.SkipStatement[0m
+[0m[[0m[31merror[0m] [0m[0m  object SkipStatement extends ParserBridge0[SkipStatement][0m
+[0m[[0m[31merror[0m] [0m[0m                               ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:16:37: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A]): Parsley[B] = x.map(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                                    ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:16:24: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def apply(x: =>Parsley[A]): Parsley[B] = x.map(this.con)[0m
+[0m[[0m[31merror[0m] [0m[0m                       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:76:30: wrong number of type arguments for genericbridges.ParserBridge3, should be 4[0m
+[0m[[0m[31merror[0m] [0m[0m  object IfStatement extends ParserBridge3[Expression, Statement, Statement][0m
+[0m[[0m[31merror[0m] [0m[0m                             ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:82:26: illegal inheritance;[0m
+[0m[[0m[31merror[0m] [0m[0m self-type ast.IntType.type does not conform to genericbridges.ParserBridge0[ast.IntType]'s selftype genericbridges.ParserBridge0[ast.IntType] with ast.IntType[0m
+[0m[[0m[31merror[0m] [0m[0m  object IntType extends ParserBridge0[IntType][0m
+[0m[[0m[31merror[0m] [0m[0m                         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:83:27: illegal inheritance;[0m
+[0m[[0m[31merror[0m] [0m[0m self-type ast.BoolType.type does not conform to genericbridges.ParserBridge0[ast.BoolType]'s selftype genericbridges.ParserBridge0[ast.BoolType] with ast.BoolType[0m
+[0m[[0m[31merror[0m] [0m[0m  object BoolType extends ParserBridge0[BoolType][0m
+[0m[[0m[31merror[0m] [0m[0m                          ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:84:27: illegal inheritance;[0m
+[0m[[0m[31merror[0m] [0m[0m self-type ast.CharType.type does not conform to genericbridges.ParserBridge0[ast.CharType]'s selftype genericbridges.ParserBridge0[ast.CharType] with ast.CharType[0m
+[0m[[0m[31merror[0m] [0m[0m  object CharType extends ParserBridge0[CharType][0m
+[0m[[0m[31merror[0m] [0m[0m                          ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:85:29: illegal inheritance;[0m
+[0m[[0m[31merror[0m] [0m[0m self-type ast.StringType.type does not conform to genericbridges.ParserBridge0[ast.StringType]'s selftype genericbridges.ParserBridge0[ast.StringType] with ast.StringType[0m
+[0m[[0m[31merror[0m] [0m[0m  object StringType extends ParserBridge0[StringType][0m
+[0m[[0m[31merror[0m] [0m[0m                            ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/ast.scala:92:30: illegal inheritance;[0m
+[0m[[0m[31merror[0m] [0m[0m self-type ast.PairLiteral.type does not conform to genericbridges.ParserBridge0[ast.PairLiteral]'s selftype genericbridges.ParserBridge0[ast.PairLiteral] with ast.PairLiteral[0m
+[0m[[0m[31merror[0m] [0m[0m  object PairLiteral extends ParserBridge0[PairLiteral][0m
+[0m[[0m[31merror[0m] [0m[0m                             ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:4:12: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m    import parsley.implicits.zipped.{Zipped2, Zipped3}[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:7:35: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def <#(op: =>Parsley[_]): Parsley[A] = op #> con[0m
+[0m[[0m[31merror[0m] [0m[0m                                  ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/genericbridges.scala:7:22: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m        def <#(op: =>Parsley[_]): Parsley[A] = op #> con[0m
+[0m[[0m[31merror[0m] [0m[0m                     ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:1:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:4:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.{Lexer, predicate}[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:5:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.descriptions.{LexicalDesc, NameDesc, SymbolDesc, SpaceDesc}[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:6:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.descriptions.numeric.NumericDesc[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:7:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.descriptions.numeric.BreakCharDesc.NoBreakChar[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:8:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.descriptions.numeric.PlusSignPresence.Optional[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:9:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.descriptions.numeric.ExponentDesc.NoExponents[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:10:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.token.descriptions.text.TextDesc[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:11:10: not found: value parsley[0m
+[0m[[0m[31merror[0m] [0m[0m  import parsley.character.newline[0m
+[0m[[0m[31merror[0m] [0m[0m         ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:13:14: not found: value LexicalDesc[0m
+[0m[[0m[31merror[0m] [0m[0m  val desc = LexicalDesc.plain.copy([0m
+[0m[[0m[31merror[0m] [0m[0m             ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:14:7: not found: value nameDesc[0m
+[0m[[0m[31merror[0m] [0m[0m      nameDesc = NameDesc.plain.copy([0m
+[0m[[0m[31merror[0m] [0m[0m      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:20:7: not found: value symbolDesc[0m
+[0m[[0m[31merror[0m] [0m[0m      symbolDesc = SymbolDesc.plain.copy([0m
+[0m[[0m[31merror[0m] [0m[0m      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:26:7: not found: value numericDesc[0m
+[0m[[0m[31merror[0m] [0m[0m      numericDesc = NumericDesc.plain.copy([0m
+[0m[[0m[31merror[0m] [0m[0m      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:48:7: not found: value spaceDesc[0m
+[0m[[0m[31merror[0m] [0m[0m      spaceDesc = SpaceDesc.plain.copy([0m
+[0m[[0m[31merror[0m] [0m[0m      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:57:21: not found: type Lexer[0m
+[0m[[0m[31merror[0m] [0m[0m    val lexer = new Lexer(desc)[0m
+[0m[[0m[31merror[0m] [0m[0m                    ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/lexer.scala:64:21: not found: type Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m    def fully[A](p: Parsley[A]) = lexer.fully(p)[0m
+[0m[[0m[31merror[0m] [0m[0m                    ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/thomhughes/Documents/Y2/T2/wacc/WACC_42/src/main/scala/wacc/parser.scala:1:8: not found: object parsley[0m
+[0m[[0m[31merror[0m] [0m[0mimport parsley.Parsley[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0m51 errors found[0m
