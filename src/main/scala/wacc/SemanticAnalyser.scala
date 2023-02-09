@@ -1,5 +1,0 @@
-package wacc
-
-object SemanticAnalyser {
-  
-}

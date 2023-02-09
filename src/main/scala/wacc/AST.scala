@@ -6,13 +6,13 @@ object AST {
   import parsley.genericbridges._
   import parsley.errors.combinator.ErrorMethods
 
-  case class Program(functions: List[Func], statement: List[Statement])
+  case class Program(val functions: List[Func], val statements: List[Statement])
   case class Func(identBinding: IdentBinding, params: List[Parameter], body: List[Statement])
   case class Parameter(typeName: Type, identifier: Identifier)
   case class IdentBinding(typeName: Type, identifier: Identifier)
 
   sealed trait Statement
-  case class DeclarationStatement(typeName: Type, identifier: Identifier, rvalue: RValue) extends Statement
+  case class DeclarationStatement(typeName: Type, val identifier: Identifier, rvalue: RValue) extends Statement
   case class AssignmentStatement(lvalue: LValue, rvalue: RValue) extends Statement
   case class ReadStatement(lvalue: LValue) extends Statement
   case class FreeStatement(expression: Expression) extends Statement
@@ -33,9 +33,10 @@ object AST {
   case class PairElem(index: PairIndex, value: LValue) extends LValue with RValue
   case class ArrayElem(identifier: Identifier, indices: List[Expression]) extends LValue with Expression
 
-  sealed trait Type
+  sealed trait ASTType
+  sealed trait Type extends ASTType
   sealed trait BaseType extends Type with PairElemType
-  sealed trait PairElemType
+  sealed trait PairElemType extends ASTType
   case object NoneType extends Type with ParserBridge0[Type]
   case object IntType extends BaseType with ParserBridge0[BaseType]
   case object BoolType extends BaseType with ParserBridge0[BaseType]
@@ -46,11 +47,11 @@ object AST {
   case class PairType(fstType: PairElemType, sndType: PairElemType) extends Type
 
   sealed trait UnaryOp
-  case object Not extends UnaryOp with ParserBridge0[UnaryOp]
-  case object Negation extends UnaryOp with ParserBridge0[UnaryOp]
-  case object Len extends UnaryOp with ParserBridge0[UnaryOp]
-  case object Ord extends UnaryOp with ParserBridge0[UnaryOp]
-  case object Chr extends UnaryOp with ParserBridge0[UnaryOp]
+  case object Not extends UnaryOp
+  case object Negation extends UnaryOp
+  case object Len extends UnaryOp
+  case object Ord extends UnaryOp
+  case object Chr extends UnaryOp
 
   sealed trait BinaryOp 
   case object Mul extends BinaryOp
@@ -88,6 +89,7 @@ object AST {
       def noReturnStatementAtEndOfPath(statements: List[Statement]): Boolean = {
         statements.last match {
           case (IfStatement(_, s1, s2)) => (noReturnStatementAtEndOfPath(s1) || noReturnStatementAtEndOfPath(s2))
+          case (BeginStatement(s)) => noReturnStatementAtEndOfPath(s)
           case ReturnStatement(_) => false
           case ExitStatement(_) => false
           case default => true

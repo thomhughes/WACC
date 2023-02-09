@@ -21,6 +21,7 @@ object Lexer {
     override def labelStringAscii(multi: Boolean, raw: Boolean): LabelWithExplainConfig = Label("string literal")
     override def labelCharAscii: LabelWithExplainConfig = Label("char literal")
   }
+  import wacc.Keywords.keywords
 
   val desc = LexicalDesc.plain.copy(
       nameDesc = NameDesc.plain.copy(
@@ -30,9 +31,7 @@ object Lexer {
           // operatorStart = predicate.Basic(x => false)
         ),
       symbolDesc = SymbolDesc.plain.copy(
-          hardKeywords = Set("begin", "end", "is", "skip", "read", "free", "return", "exit", "print", "println", "if", "then", "else", "fi", 
-            "while", "do", "done", "fst", "snd", "newpair", "call", "int", "bool", "char", "string", "pair", "len", "ord", "chr", "true", "false",
-            "null"),
+          hardKeywords = keywords,
           hardOperators = Set("=", "!", "-", "*", "/", "%", "+", "-", ">", ">=", "<=", "<", "==", "!=", "&&", "||") // might be pessimistic
         ),
       numericDesc = NumericDesc.plain.copy(

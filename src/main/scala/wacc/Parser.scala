@@ -3,6 +3,7 @@ package wacc
 import parsley.Parsley
 import parsley.errors.DefaultErrorBuilder
 import scala.util.Try
+import parsley.expr.Prefix
 
 object Parser {
   import parsley.combinator.many
@@ -21,6 +22,9 @@ object Parser {
   import parsley.errors.tokenextractors._
   import parsley.io._
 
+  import wacc.SyntaxErrorBuilder
+  import wacc.Errors.SyntaxError
+
   import scala.io.Codec
   import java.io.File
 
@@ -30,30 +34,41 @@ object Parser {
   lazy val `<param-list>` = separators.commaSep(`<param>`)
   lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
+
+  def returnStatementAtEndOfAllPaths(statements: List[Statement]): Boolean = {
+    statements.last match {
+      case (IfStatement(_, s1, s2)) => (returnStatementAtEndOfAllPaths(s1) && returnStatementAtEndOfAllPaths(s2))
+      case WhileStatement(_, s) => returnStatementAtEndOfAllPaths(s)
+      case BeginStatement(s) => returnStatementAtEndOfAllPaths(s)
+      case ReturnStatement(_) => true
+      case ExitStatement(_) => true
+      case default => false
+    }
+  }
+
   lazy val `<base-expression>`: Parsley[Expression] = {
-    IntLiteral(number).label("int literal") <|>
-    BoolLiteral(("true" #> true) <|> "false" #> false).label("bool literal") <|>
+    IntLiteral(number) <|>
+    BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
-    UnaryOpApp(`<unary-op>`, `<expression>`) <|>
     IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`))) <|>
     CharLiteral(`<character>`) <|>
     StringLiteral(`<string>`)
   }
-
-  lazy val `<unary-op>`: Parsley[UnaryOp] = choice(
-    Not <# "!",
-    Negation <# "-",
-    Len <# "len",
-    Ord <# "ord",
-    Chr <# "chr",
-  ).label("unary operation (not, negation, len, ord, chr)")
 
   private def _invalidFunctionCall = "()".hide *> unexpected("function call")
   .explain("function calls need to be prefixed with call and can't be used as an operand in an expression")
   private def binopParser(opString: String, binOp: BinaryOp) =
     (opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y))).label("binary operation") <|> amend(_invalidFunctionCall)
 
-  lazy val `<expression>`: Parsley[Expression] = precedence[Expression](enclosing.parens(`<expression>`), `<base-expression>`)(
+  private def unaryopParser(opString: String, unaryOp: UnaryOp) =
+    opString #> ((x:Expression) => UnaryOpApp(unaryOp, x)) <|> amend(_invalidFunctionCall)
+
+  lazy val `<unary-op>`: Parsley[Expression] = precedence[Expression](`<base-expression>`, "(" *> `<expression>` <* ")")(
+    Ops(Prefix)(unaryopParser("!", Not), unaryopParser("-", Negation), unaryopParser("len", Len), 
+    unaryopParser("ord", Ord), unaryopParser("chr", Chr))
+  )
+
+  lazy val `<expression>`: Parsley[Expression] = precedence[Expression](`<base-expression>` <|> `<unary-op>`, "(" *> `<expression>` <* ")")(
     Ops(InfixL)(binopParser("*", Mul), binopParser("/", Div), binopParser("%", Mod)),
     Ops(InfixL)(binopParser("+", Plus), binopParser("-", Minus)),
     Ops(InfixL)(
@@ -110,17 +125,14 @@ object Parser {
   def parseExpression(input: String): Result[String, Expression] =
     fully(`<expression>`).parse(input)
 
-  class NewErrorBuilder extends DefaultErrorBuilder with SingleChar
-
   //   // override def tokens: Seq[Parsley[String]] = Seq(lexer.nonlexeme.names.identifier.map(s"identifier " + _)) ++ desc.symbolDesc.hardKeywords.toSeq.map(string(_).map(s"keyword" + _))
   //   //++ desc.symbolDesc.hardKeywords.toSeq.map(string(_).map("keyword" + _)) ++ desc.symbolDesc.hardOperators.toSeq.map(string(_).map("keyword" + _))
 
   //   // override def trimToParserDemand: Boolean = false
   // }
-
-  implicit val errBuilder: NewErrorBuilder = new NewErrorBuilder
+  implicit val errBuilder = SyntaxErrorBuilder
   // def parse(input: String): Result[String, Program] = fully(`<program>`).parse(input)
 
   implicit val codec: Codec = Codec.UTF8
-  def parse(input: File): Try[parsley.Result[String, Program]] = (fully(`<program>`)).parseFromFile(input)
+  def parse(input: File): Try[parsley.Result[SyntaxError, Program]] = (fully(`<program>`)).parseFromFile(input)
 }

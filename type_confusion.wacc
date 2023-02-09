@@ -1,0 +1,17 @@
+
+# Output:
+# #semantic_error#
+
+# Exit:
+# 200
+
+# Program:
+
+begin
+  pair(int, int) p = newpair(4, 5);
+  pair(pair, int) q = newpair(p, 6);
+  fst fst q = newpair("a", "b");
+  fst p = fst fst q;
+  int a = fst p;
+  print a
+end
