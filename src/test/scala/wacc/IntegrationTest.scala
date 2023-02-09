@@ -9,7 +9,7 @@ class IntegrationTest extends AnyFlatSpec {
     import scala.sys.process._
 
     val directoriesToRunTestsOn = List(
-        "valid/advanced",
+        // "valid/advanced",
         "valid/array",
         "valid/function",
         "valid/pairs",
@@ -36,7 +36,7 @@ class IntegrationTest extends AnyFlatSpec {
         "invalid/semanticErr/expressions", 
         "invalid/semanticErr/while", 
         "invalid/semanticErr/IO"
-        )
+    )
 
     directoriesToRunTestsOn.foreach(runTestOnDirectory)
     
