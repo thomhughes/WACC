@@ -67,4 +67,4 @@ wacc-42-compiler.jar
 /wacc_examples
 
 # testing file for cli
-test.wacc
+/test.wacc
