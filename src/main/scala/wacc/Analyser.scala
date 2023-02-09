@@ -70,6 +70,7 @@ object Analyser {
             case PairLiteral => t match {
                 case SAPairType(_, _) => true
                 case SAAnyType => true
+                case SAPairRefType => true
                 case default => false
             }
             case Identifier(id) => symbolTable.lookupVar(id).isDefined && equalsType(t, symbolTable.lookupVar(id).get)
@@ -113,16 +114,15 @@ object Analyser {
     }
 
     private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue): Boolean = {
-        val idenIsKeyword = keywords.contains(identifier.name)
-        if (idenIsKeyword) {
-            ("Identifier " + identifier.name + " is a WACC keyword") :: errorList
-            return false
-        }
         val idenNotInSymTable = symbolTable.insertVar(identifier.name, typeName)
         if (!idenNotInSymTable) {
             ("Identifier " + identifier.name + " already declared in the current scope") :: errorList
+            return false
         }
-        return idenNotInSymTable
+        if (!checkRValue(rvalue, typeName)) {
+            return false
+        }
+        return true
     }
     
     private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
@@ -143,29 +143,11 @@ object Analyser {
         }
     }
 
-    private def checkPairElem(index: PairIndex, pair: LValue, typeName: SAType): Boolean = {
-        pair match {
-            case Identifier(id) => symbolTable.lookupVar(id) match {
-                case Some(SAPairType(fstType, sndType)) => index match {
-                    case Fst => equalsType(fstType, typeName)
-                    case Snd => equalsType(sndType, typeName)
-                }
-                case default => false
-            }
-            case PairElem(anotherIndex, anotherPair) => index match {
-                case Fst => checkPairElem(anotherIndex, anotherPair, SAPairType(typeName, SAAnyType))
-                case Snd => checkPairElem(anotherIndex, anotherPair, SAPairType(SAAnyType, typeName))
-            }
-            case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
-                case Some(SAPairType(fstType, sndType)) => index match {
-                    case Fst => equalsType(fstType, typeName)
-                    case Snd => equalsType(sndType, typeName)
-                }
-                case _ => false
-            }
+    private def checkPairElem(index: PairIndex, pair: LValue, typeName: SAType): Boolean =
+        getPairElemType(index, pair) match {
+            case Some(pairElemType) => equalsType(pairElemType, typeName)
             case default => false
         }
-    }
 
     private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue): Boolean = {
         val typeName = lvalue match {
@@ -174,39 +156,55 @@ object Analyser {
             case PairElem(index, pair) => getPairElemType(index, pair)
         }
         typeName match {
-            case Some(typeName) => checkRValue(rvalue, typeName)
+            case Some(typeN) => checkRValue(rvalue, typeN)
             case default => false
         }
     }
 
     private def getPairElemType(index: PairIndex, pair: LValue): Option[SAType] = {
-        pair match {
-            case Identifier(id) => symbolTable.lookupVar(id) match {
-                case Some(SAPairType(fstType, sndType)) => index match {
-                    case Fst => Some(fstType)
-                    case Snd => Some(sndType)
-                }
-                case default => None
+        val typeName = pair match {
+            case Identifier(id) => symbolTable.lookupVar(id) 
+            case PairElem(anotherIndex, anotherPair) => getPairElemType(anotherIndex, anotherPair)
+            case ArrayElem(id, indices) => getArrayElemType(id, indices)
+        }
+        typeName match {
+            case Some(SAPairType(fstType, sndType)) => index match {
+                case Fst => Some(fstType)
+                case Snd => Some(sndType)
             }
-            case PairElem(anotherIndex, anotherPair) => index match {
-                case Fst => getPairElemType(anotherIndex, anotherPair) match {
-                    case Some(SAPairType(fstType, _)) => Some(fstType)
-                    case default => None
-                }
-                case Snd => getPairElemType(anotherIndex, anotherPair) match {
-                    case Some(SAPairType(_, sndType)) => Some(sndType)
-                    case default => None
-                }
-            }
-            case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
-                case Some(SAPairType(fstType, sndType)) => index match {
-                    case Fst => Some(fstType)
-                    case Snd => Some(sndType)
-                }
-                case _ => None
-            }
+            case Some(SAPairRefType) => Some(SAUnknownType)
+            case default => None
         }
     }
+
+    // private def getPairElemType(index: PairIndex, pair: LValue): Option[SAType] = {
+    //     pair match {
+    //         case Identifier(id) => symbolTable.lookupVar(id) match {
+    //             case Some(SAPairType(fstType, sndType)) => index match {
+    //                 case Fst => Some(fstType)
+    //                 case Snd => Some(sndType)
+    //             }
+    //             case default => None
+    //         }
+    //         case PairElem(anotherIndex, anotherPair) => index match {
+    //             case Fst => getPairElemType(anotherIndex, anotherPair) match {
+    //                 case Some(SAPairType(fstType, _)) => Some(fstType)
+    //                 case default => None
+    //             }
+    //             case Snd => getPairElemType(anotherIndex, anotherPair) match {
+    //                 case Some(SAPairType(_, sndType)) => Some(sndType)
+    //                 case default => None
+    //             }
+    //         }
+    //         case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
+    //             case Some(SAPairType(fstType, sndType)) => index match {
+    //                 case Fst => Some(fstType)
+    //                 case Snd => Some(sndType)
+    //             }
+    //             case _ => None
+    //         }
+    //     }
+    // }
 
     private def checkLValue(lvalue: LValue, typeName: SAType): Boolean = {
         lvalue match {
@@ -305,19 +303,45 @@ object Analyser {
         true
     }
 
+    private def getRValueType(rValue: RValue): Option[SAType] = {
+        rValue match {
+            case expr:Expression => getExpressionType(expr)
+            case PairElem(pairIndex, pair) => getPairElemType(pairIndex, pair)
+            case ArrayLiteral(exprs) => getArrayLiteralType(exprs)
+            case NewPair(fst, snd) => getNewPairType(fst, snd)
+            case FunctionCall(identifier, exprs) => ???
+        }
+    }
+
+    private def getArrayLiteralType(exprs: List[Expression]): Option[SAType] = {
+        if (exprs.isEmpty) return None
+        val firstType = getExpressionType(exprs.head)
+        if (firstType.isEmpty) return None
+        if (exprs.tail.forall(expr => getExpressionType(expr) == firstType)) Some(SAArrayType(firstType.get, 1)) else None
+    }
+
+    private def getNewPairType(fstExpr: Expression, sndExpr: Expression): Option[SAType] =
+        getExpressionType(fstExpr) match {
+            case Some(fstType) => getExpressionType(sndExpr) match {
+                case Some(sndType) => Some(SAPairType(fstType, sndType))
+                case None => None
+            }
+            case None => None
+        }
+
     private def getExpressionType(expression: Expression): Option[SAType] =
         expression match {
             case IntLiteral(_) => Some(SAIntType)
             case BoolLiteral(_) => Some(SABoolType)
             case CharLiteral(_) => Some(SACharType)
             case StringLiteral(_) => Some(SAStringType)
-            case PairLiteral => Some(SAPairType(SAAnyType, SAAnyType))
+            case PairLiteral => Some(SAPairRefType)
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
             case Identifier(id) => symbolTable.lookupVar(id)
             case UnaryOpApp(op, expr) => getUnOpType(op, expr)
             case BinaryOpApp(op, lhs, rhs) => getBinOpType(op, lhs, rhs)
         }
-    
+
     def convertSyntaxToTypeSys(lhsType: ASTType): SAType =
         lhsType match {
             case IntType => SAIntType
@@ -326,6 +350,6 @@ object Analyser {
             case StringType => SAStringType
             case ArrayType(arrayType, arity) => SAArrayType(convertSyntaxToTypeSys(arrayType), arity)
             case PairType(fstType, sndType) => SAPairType(convertSyntaxToTypeSys(fstType), convertSyntaxToTypeSys(sndType))
-            case PairRefType => SAPairType(SAAnyType, SAAnyType)
+            case PairRefType => SAPairRefType
         }
 }
