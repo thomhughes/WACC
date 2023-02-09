@@ -25,18 +25,17 @@ class IntegrationTest extends AnyFlatSpec {
         // "invalid/syntaxErr",
         // // "invalid/semanticErr/array",
         // "invalid/semanticErr/function",
-        // // "invalid/semanticErr/multiple",
-        // // "invalid/semanticErr/pairs",
-        // // "invalid/semanticErr/read",
-        // // "invalid/semanticErr/scope",
-        // "invalid/semanticErr/exit", 
-        // "invalid/semanticErr/if", 
-        // "invalid/semanticErr/print", 
-        // "invalid/semanticErr/variables", 
-        // "invalid/semanticErr/expressions", 
-        // "invalid/semanticErr/while", 
-        // "invalid/semanticErr/IO"
-        )
+        // "invalid/semanticErr/multiple",
+        // "invalid/semanticErr/pairs",
+        // "invalid/semanticErr/read",
+        // "invalid/semanticErr/scope",
+        "invalid/semanticErr/exit", 
+        "invalid/semanticErr/if", 
+        "invalid/semanticErr/print", 
+        "invalid/semanticErr/variables", 
+        "invalid/semanticErr/expressions", 
+        "invalid/semanticErr/while", 
+        "invalid/semanticErr/IO")
 
     directoriesToRunTestsOn.foreach(runTestOnDirectory)
     
