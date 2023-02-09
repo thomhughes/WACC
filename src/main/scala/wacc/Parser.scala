@@ -58,15 +58,20 @@ object Parser {
   private def _invalidFunctionCall = "()".hide *> unexpected("function call")
   .explain("function calls need to be prefixed with call and can't be used as an operand in an expression")
   private def binopParser(opString: String, binOp: BinaryOp) =
-    (opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y))).label("binary operation") <|> amend(_invalidFunctionCall)
+    (opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y) _)).label("binary operation") //<|> amend(_invalidFunctionCall)
 
-  private def unaryopParser(opString: String, unaryOp: UnaryOp) =
-    opString #> ((x:Expression) => UnaryOpApp(unaryOp, x)) <|> amend(_invalidFunctionCall)
 
+  // private def unaryopParser(opString: String, unaryOp: UnaryOp) =
+    // opString #> ((x:Expression) => UnaryOpApp(unaryOp, x) _) //<|> amend(_invalidFunctionCall)
+  import parsley.position.pos
+  private def unaryopParser(opString: String, unaryOp: UnaryOp) = opString #> ((pos: (Int, Int)) => (x:Expression) => UnaryOpApp(unaryOp, x)(pos))
+
+  lazy val `<unary-operator>` = choice("!" #> Not, "-" #> Negation, "len" #> Len, "ord" #> Ord, "chr" #> Chr)
   lazy val `<unary-op>`: Parsley[Expression] = precedence[Expression](`<base-expression>`, "(" *> `<expression>` <* ")")(
-    Ops(Prefix)(unaryopParser("!", Not), unaryopParser("-", Negation), unaryopParser("len", Len), 
-    unaryopParser("ord", Ord), unaryopParser("chr", Chr))
+    Ops(Prefix)(pos <**> unaryopParser("!", Not), pos <**> unaryopParser("-", Negation), pos <**> unaryopParser("len", Len), 
+    pos <**> unaryopParser("ord", Ord), pos <**> unaryopParser("chr", Chr))
   )
+
 
   lazy val `<expression>`: Parsley[Expression] = precedence[Expression](`<base-expression>` <|> `<unary-op>`, "(" *> `<expression>` <* ")")(
     Ops(InfixL)(binopParser("*", Mul), binopParser("/", Div), binopParser("%", Mod)),
