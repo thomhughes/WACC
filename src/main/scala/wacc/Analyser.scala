@@ -311,11 +311,13 @@ object Analyser {
         true
     }
 
-    private def checkBeginStatement(statements: List[Statement]) = {
+    private def checkBeginStatement(statements: List[Statement]): Boolean = {
         scoper.enterScope()
-        if (!statements.forall(checkStatement)) false
+        if (!statements.forall(checkStatement)) {
+            return false
+        }
         scoper.exitScope()
-        true
+        return true
     }
 
     private def checkFunctions(program: Program): Boolean = program.functions.forall(mapDefs) && program.functions.forall(checkFunction)
