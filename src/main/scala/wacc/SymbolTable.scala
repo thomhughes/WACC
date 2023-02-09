@@ -16,6 +16,7 @@ case class SymbolTable(val scoper: Scoper) {
             val key = (v, curr)
             if (map.contains(key)) return Some(map(key))
         }
+        println("Failed to lookup symbol: " + v)
         return None
     }
 

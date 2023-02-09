@@ -9,6 +9,7 @@ object Analyser {
     val functionTable = new FunctionTable()
     var symbolTable = SymbolTable(scoper)
     val errorList = List[String]()
+    implicit val returnVal: SAType = SAAnyType
 
     private def getUnOpType(op: UnaryOp, expression: Expression): Option[SAType] = {
         op match {
@@ -97,18 +98,26 @@ object Analyser {
     def checkProgram(program: Program) =
         checkFunctions(program) && program.statements.forall(checkStatement)
 
-    private def checkStatement(statement: Statement): Boolean = {
+    private def checkStatement(statement: Statement)(implicit returnVal: SAType): Boolean = {
         statement match {
             case SkipStatement => true
             case DeclarationStatement(typeName, identifier, rvalue) => checkDeclarationStatement(convertSyntaxToTypeSys(typeName), identifier, rvalue)
             case AssignmentStatement(lvalue, rvalue) => checkAssignmentStatement(lvalue, rvalue)
             case ReadStatement(lvalue) => checkReadStatement(lvalue)
             case FreeStatement(expression) => checkFreeStatement(expression)
-            case ReturnStatement(expression) => false
+            case ReturnStatement(expression) => returnVal match {
+              case SAAnyType => {
+                // println(statement)
+                false
+              }
+              case default => checkExpression(expression, returnVal)
+            }
             case ExitStatement(expression) => checkExitStatement(expression)
             case PrintStatement(expression) => checkPrintStatement(expression)
             case PrintLnStatement(expression) => checkPrintLnStatement(expression)
-            case IfStatement(condition, thenStatements, elseStatements) => checkIfStatement(condition, thenStatements, elseStatements)
+            case IfStatement(condition, thenStatements, elseStatements) => {
+              checkIfStatement(condition, thenStatements, elseStatements)
+            }
             case WhileStatement(condition, doStatements) => checkWhileStatement(condition, doStatements)
             case BeginStatement(statements) => checkBeginStatement(statements)
         }
@@ -116,8 +125,10 @@ object Analyser {
 
     private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue): Boolean = {
         val idenNotInSymTable = symbolTable.insertVar(identifier.name, typeName)
+        // println("Declaring " + identifier.name + " in scope: " + scoper.getScope())
         if (!idenNotInSymTable) {
             ("Identifier " + identifier.name + " already declared in the current scope") :: errorList
+            // println("Identifier " + identifier.name + " already declared in the current scope")
             return false
         }
         if (!checkRValue(rvalue, typeName)) {
@@ -148,7 +159,9 @@ object Analyser {
                 case SAArrayType(arrayType: SAType, x) => checkArrayConstraints(list, arrayType, x)
                 case default => false
             }
-            case PairElem(index, pair) => checkPairElem(index, pair, typeName)
+            case PairElem(index, pair) => {
+              checkPairElem(index, pair, typeName)
+            }
             // TODO
             case FunctionCall(id, args) => checkFunctionCall(id, args, typeName)
             case expr:Expression => checkExpression(expr, typeName)
@@ -292,7 +305,7 @@ object Analyser {
         }
     }
 
-    private def checkWhileStatement(condition: Expression, doStatements: List[Statement]): Boolean = {
+    private def checkWhileStatement(condition: Expression, doStatements: List[Statement])(implicit returnVal: SAType): Boolean = {
         if (!checkExpression(condition, SABoolType)) return false
         scoper.enterScope()
         if (!doStatements.forall(checkStatement)) return false
@@ -300,7 +313,7 @@ object Analyser {
         return true
     }
 
-    private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement]): Boolean = {
+    private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement])(implicit returnVal: SAType): Boolean = {
     if (!checkExpression(condition, SABoolType)) return false
         scoper.enterScope()
         if (!thenStatements.forall(checkStatement)) return false
@@ -311,7 +324,7 @@ object Analyser {
         true
     }
 
-    private def checkBeginStatement(statements: List[Statement]) = {
+    private def checkBeginStatement(statements: List[Statement])(implicit returnVal: SAType) = {
         scoper.enterScope()
         if (!statements.forall(checkStatement)) false
         scoper.exitScope()
@@ -338,30 +351,12 @@ object Analyser {
         // must be a return as last statement. We explicity test for this as there is
         // no situation where this should happen otherwise
         val funcName = func.identBinding.identifier.name
-        if (!(func.body.forall(s => checkFunctionStatements(s, funcName)))) return false
+        // println("Entering function: " ++ func.identBinding.identifier.name)
+        if (!(func.body.forall(s => checkStatement(s)(functionTable.getFunctionRet(funcName).get)))) return false
+        // println("Leaving function: " ++ func.identBinding.identifier.name)
         scoper.exitScope()
         scoper.exitScope()
         true
-    }
-
-    private def checkFunctionStatements(statement: Statement, funcName: String): Boolean = {
-        val returnType = functionTable.getFunctionRet(funcName).get
-        statement match {
-            case ReturnStatement(expression) => checkExpression(expression, returnType)
-            case (IfStatement(expression, s1, s2)) => {
-              checkExpression(expression, SABoolType) &&
-              s1.forall(s => checkFunctionStatements(s, funcName)) &&
-              s2.forall(s => checkFunctionStatements(s, funcName))
-            }
-            case WhileStatement(expression, s) => {
-              checkExpression(expression, SABoolType) && 
-              s.forall(s => checkFunctionStatements(s, funcName))
-            }
-            case BeginStatement(s) => {
-              s.forall(s => checkFunctionStatements(s, funcName))
-            }
-            case default => checkStatement(statement)
-        }
     }
 
     private def checkFunctionCall(id: Identifier, args: List[Expression], typeName: SAType): Boolean = {

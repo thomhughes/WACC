@@ -11,7 +11,7 @@ object Main {
             case Success(x) => {
                 if (checkProgram(x)) {
                     if (args.length >= 2 && args(1) == "--debug") {
-                        println(x)
+                        // println(x)
                         println("exit:\n0")
                     }
                     sys.exit(0)
@@ -19,7 +19,7 @@ object Main {
                 if (args.length >= 2) {
                     if (args(1) != "--suppress") {
                         System.err.println("#semantic error#")
-                        System.err.println(x)
+                        // System.err.println(x)
                     } else if (args(1) == "--debug") {
                         System.err.println("exit:\n200")
                     }

@@ -9,6 +9,7 @@ class Scoper {
 
   def enterScope() = {
     next += 1
+    // println("Entering scope: " + next)
     curr = next
     stack.push(curr)
   }
@@ -16,8 +17,10 @@ class Scoper {
   def getScope() = curr
 
   def exitScope() = {
+    val old = curr
     stack.pop()
     curr = stack.top
+    // println("Exiting scope: " + old + ", now in scope: " + curr)
   }
 
   def getIterator() = stack.iterator
