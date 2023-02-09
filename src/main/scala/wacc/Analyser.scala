@@ -370,7 +370,7 @@ object Analyser {
             return equalsType(returnType.get, typeName)
         }
     }
-    
+
     // private def getRValueType(rValue: RValue): Option[SAType] = {
     //     rValue match {
     //         case expr:Expression => getExpressionType(expr)
@@ -381,21 +381,21 @@ object Analyser {
     //     }
     // }
 
-    private def getArrayLiteralType(exprs: List[Expression]): Option[SAType] = {
-        if (exprs.isEmpty) return None
-        val firstType = getExpressionType(exprs.head)
-        if (firstType.isEmpty) return None
-        if (exprs.tail.forall(expr => getExpressionType(expr) == firstType)) Some(SAArrayType(firstType.get, 1)) else None
-    }
+    // private def getArrayLiteralType(exprs: List[Expression]): Option[SAType] = {
+    //     if (exprs.isEmpty) return None
+    //     val firstType = getExpressionType(exprs.head)
+    //     if (firstType.isEmpty) return None
+    //     if (exprs.tail.forall(expr => getExpressionType(expr) == firstType)) Some(SAArrayType(firstType.get, 1)) else None
+    // }
 
-    private def getNewPairType(fstExpr: Expression, sndExpr: Expression): Option[SAType] =
-        getExpressionType(fstExpr) match {
-            case Some(fstType) => getExpressionType(sndExpr) match {
-                case Some(sndType) => Some(SAPairType(fstType, sndType))
-                case None => None
-            }
-            case None => None
-        }
+    // private def getNewPairType(fstExpr: Expression, sndExpr: Expression): Option[SAType] =
+    //     getExpressionType(fstExpr) match {
+    //         case Some(fstType) => getExpressionType(sndExpr) match {
+    //             case Some(sndType) => Some(SAPairType(fstType, sndType))
+    //             case None => None
+    //         }
+    //         case None => None
+    //     }
 
     private def getExpressionType(expression: Expression): Option[SAType] =
         expression match {
