@@ -35,22 +35,18 @@ object Analyser {
         case Gt | Ge | Lt | Le => {bothTypesMatch(lhs, rhs, List(SAIntType, SACharType)) match {
             case Some(_) => Some(SABoolType)
             case default => None
-        }
-    }
+        }}
         case Eq | Neq => {
             val btmRes = bothTypesMatch(lhs, rhs, List(SAIntType, SACharType, SABoolType, SAStringType)) 
             if (btmRes.isDefined) Some(SABoolType)
             else {
-                // at this point, they must be composites, so they can only be from var lookups
-                val lhsVar = getVarName(lhs)
-                val rhsVar = getVarName(rhs)
-                if (lhsVar.isDefined && rhsVar.isDefined) {
-                    val lhsLookup = symbolTable.lookupVar(lhsVar.get)
-                    val rhsLookup = symbolTable.lookupVar(rhsVar.get)
-                    if (lhsLookup.isDefined && rhsLookup.isDefined 
-                    && equalsType(lhsLookup.get, rhsLookup.get)) lhsLookup
+                getExpressionType(lhs) match {
+                    case Some(lhsType) => getExpressionType(rhs) match {
+                        case Some(rhsType) => if (equalsType(lhsType, rhsType)) Some(SABoolType) else None
+                        case None => None
+                    }
+                    case None => None
                 }
-                None
             }
         }
         case default => None
@@ -201,8 +197,14 @@ object Analyser {
                 case default => None
             }
             case PairElem(anotherIndex, anotherPair) => index match {
-                case Fst => getPairElemType(anotherIndex, anotherPair)
-                case Snd => getPairElemType(anotherIndex, anotherPair)
+                case Fst => getPairElemType(anotherIndex, anotherPair) match {
+                    case Some(SAPairType(fstType, _)) => Some(fstType)
+                    case default => None
+                }
+                case Snd => getPairElemType(anotherIndex, anotherPair) match {
+                    case Some(SAPairType(_, sndType)) => Some(sndType)
+                    case default => None
+                }
             }
             case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
                 case Some(SAPairType(fstType, sndType)) => index match {
@@ -383,12 +385,4 @@ object Analyser {
                 case default => false
             }
         }
-
-    // private def insertFunction(f: String, params: (SAType, List[SAType])) {
-    //     if (functionTable.contains(f)) false
-    //     functionTable + (key -> params)
-    //     true
-    // }
-
-    // private def retrieveFunction(f: String) = functionTable.getOrElse(f, (Nothing, Nil))
 }
