@@ -1,4 +1,5 @@
-# if condition type mismatch
+# Trying to place an incorrect type into a parameterless pair.
+# Thanks to Ethan Range, Fawwaz Abdullah, Robbie Buxton, and Edward Hartley
 
 # Output:
 # #semantic_error#
@@ -9,9 +10,9 @@
 # Program:
 
 begin
-  if 15 + 6 then 
-    skip 
-  else 
-    skip
-  fi
+  int c = 5;
+  pair(int, int) p = newpair(c, c);
+  pair(pair, int) oops = newpair(p, 0);
+
+  fst oops = c
 end

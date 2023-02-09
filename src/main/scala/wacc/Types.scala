@@ -18,10 +18,17 @@ object Types {
                 case _ => false
             }
             case SAPairType(firstFstType, firstSndType) => secondType match {
-                case SAPairType(secondFstType, secondSndType) => equalsType(firstFstType, secondFstType) && equalsType(firstSndType, secondSndType)
+                case SAPairType(secondFstType, secondSndType) => (equalsType(firstFstType, secondFstType)/* || firstFstType == SAAnyType || secondFstType == SAAnyType*/) && (equalsType(firstSndType, secondSndType)/* || firstSndType == SAAnyType || secondSndType == SAAnyType*/)
                 case SAAnyType => true
                 case _ => false
             }
-            case _ => firstType == SAAnyType || secondType == SAAnyType || firstType == secondType
+            case SAAnyType => {
+                println("free loading")
+                println(firstType)
+                println(secondType)
+                println("eeee")
+                secondType != SAAnyType
+            }
+            case _ => firstType == secondType
         }
 }
