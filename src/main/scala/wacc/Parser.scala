@@ -1,6 +1,7 @@
 package wacc
 
 import parsley.Parsley
+import parsley.expr.Prefix
 
 object Parser {
   import parsley.combinator.many
@@ -22,6 +23,7 @@ object Parser {
     statements.last match {
       case ReturnStatement(_) => true
       case (IfStatement(_, s1, s2)) => (returnStatementAtEndOfAllPaths(s1) && returnStatementAtEndOfAllPaths(s2))
+      case WhileStatement(_, s) => returnStatementAtEndOfAllPaths(s)
       case ExitStatement(_) => true
       case default => false
     }
@@ -31,7 +33,6 @@ object Parser {
     IntLiteral(number) <|>
     BoolLiteral(("true" #> true) <|> "false" #> false) <|>
     "null" #> PairLiteral <|>
-    UnaryOpApp(`<unary-op>`, `<expression>`) <|>
     IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`))) <|>
     CharLiteral(`<character>`) <|>
     StringLiteral(`<string>`)
@@ -54,18 +55,15 @@ object Parser {
     '\\'
   }
 
-  private lazy val `<unary-op>`: Parsley[UnaryOp] = {
-    "!" #> Not <|>
-    "-" #> Negation <|>
-    "len" #> Len <|>
-    "ord" #> Ord <|>
-    "chr" #> Chr
-  }
-
   private def binopParser(opString: String, binOp: BinaryOp) =
     opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y))
 
-  private lazy val `<expression>`: Parsley[Expression] = precedence[Expression]("(" *> `<expression>` <* ")", `<base-expression>`)(
+  private def unaryopParser(opString: String, unaryOp: UnaryOp) =
+    opString #> ((x:Expression) => UnaryOpApp(unaryOp, x))
+
+  private lazy val `<expression>`: Parsley[Expression] = precedence[Expression](`<base-expression>`, "(" *> `<expression>` <* ")")(
+    Ops(Prefix)(unaryopParser("!", Not), unaryopParser("-", Negation), unaryopParser("len", Len), 
+    unaryopParser("ord", Ord), unaryopParser("chr", Chr)),
     Ops(InfixL)(binopParser("*", Mul), binopParser("/", Div), binopParser("%", Mod)),
     Ops(InfixL)(binopParser("+", Plus),binopParser("-", Minus)),
     Ops(InfixL)(

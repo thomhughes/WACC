@@ -13,7 +13,8 @@ object Analyser {
 
     private def checkUnOp(op: UnaryOp, expression: Expression): Option[SAType] = {
         op match {
-            case Chr | Negation => if (checkExpression(expression, SAIntType)) Some(SAIntType) else None
+            case Negation => if (checkExpression(expression, SAIntType)) Some(SAIntType) else None
+            case Chr => if (checkExpression(expression, SAIntType)) Some(SACharType) else None
             case Len => expression match {
                 case Identifier(id) => symbolTable.lookupVar(id) match {
                     case Some(SAArrayType(_, _)) => Some(SAIntType) 
@@ -26,7 +27,7 @@ object Analyser {
                 case default => None
             }
             case Not => if (checkExpression(expression, SABoolType)) Some(SABoolType) else None
-            case Ord => if (checkExpression(expression, SACharType)) Some(SACharType) else None
+            case Ord => if (checkExpression(expression, SACharType)) Some(SAIntType) else None
         }
     }
 
@@ -102,9 +103,13 @@ object Analyser {
                 case Some(typeName) => equalsType(t, typeName)
                 case None => false
             }
-            case UnaryOpApp(op, expr) => checkUnOp(op, expr) match {
-                case Some(exprType) => equalsType(exprType, t)
-                case _ => false
+            case UnaryOpApp(op, expr) => {
+                checkUnOp(op, expr) match {
+                    case Some(exprType) => {
+                        equalsType(exprType, t)
+                    }
+                    case _ => false
+                }
             }
             case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs) match {
                 case Some(exprType) => equalsType(exprType, t)
@@ -331,16 +336,13 @@ object Analyser {
         true
     }
 
-    private def checkFunctions(program: Program): Boolean = {
-        program.functions.forall(mapDefs)
-        program.functions.forall(checkFunction)
-    }
+    private def checkFunctions(program: Program): Boolean = program.functions.forall(mapDefs) && program.functions.forall(checkFunction)
 
     private def mapDefs(function: Func): Boolean = {
         val funcName = function.identBinding.identifier.name
         val retType = convertSyntaxToTypeSys(function.identBinding.typeName)
         val params = function.params.map(_.typeName).map(convertSyntaxToTypeSys)
-        functionTable.insertFunction(funcName, (retType, params))
+        return functionTable.insertFunction(funcName, (retType, params))
     }
 
     // TODO: implement checkFunction
@@ -353,20 +355,28 @@ object Analyser {
         scoper.enterScope()
         // must be a return as last statement. We explicity test for this as there is
         // no situation where this should happen otherwise
-        if (!(func.body.init.forall(checkStatement) 
-            && checkReturnStatement(func.body.last, func.identBinding.identifier.name))) return false
+        val funcName = func.identBinding.identifier.name
+        if (!(func.body.forall(s => checkFunctionStatements(s, funcName)))) return false
         scoper.exitScope()
         scoper.exitScope()
         true
     }
 
-    private def checkReturnStatement(statement: Statement, funcName: String): Boolean = statement match {
-        // safe to get unconditionally as only called having previously checked
-        case ReturnStatement(expression) => {
-            val returnType = functionTable.getFunctionRet(funcName).get
-            checkExpression(expression, returnType) 
+    private def checkFunctionStatements(statement: Statement, funcName: String): Boolean = {
+        val returnType = functionTable.getFunctionRet(funcName).get
+        statement match {
+            case ReturnStatement(expression) => checkExpression(expression, returnType)
+            case (IfStatement(expression, s1, s2)) => {
+                checkExpression(expression, SABoolType) &&
+                s1.forall(s => checkFunctionStatements(s, funcName)) &&
+                s2.forall(s => checkFunctionStatements(s, funcName))
+            }
+            case WhileStatement(expression, s) => {
+                checkExpression(expression, SABoolType) && 
+                s.forall(s => checkFunctionStatements(s, funcName))
+            }
+            case default => checkStatement(statement)
         }
-        case default => false
     }
 
     private def checkFunctionCall(id: Identifier, args: List[Expression], typeName: SAType): Boolean = {
@@ -375,10 +385,10 @@ object Analyser {
             val expectedTypes = functionTable.getFunctionParams(id.name).get
             if (args.length != expectedTypes.length) return false
             var paramsMatch = true
-            for (i <- 0 until args.length) paramsMatch |= checkExpression(args(i), expectedTypes(i))
+            for (i <- 0 until args.length) if (!checkExpression(args(i), expectedTypes(i))) return false
             val returnType = functionTable.getFunctionRet(id.name)
             if (!returnType.isDefined) return false
-            return paramsMatch && equalsType(returnType.get, typeName)
+            return equalsType(returnType.get, typeName)
         }
     }
 }

@@ -93,11 +93,11 @@ class ParseExpressionUnitTests extends AnyFlatSpec {
     }
 
     "Parser" should "correctly parse negative numbers" in {
-        parseExpression("-3") should be (Success(IntLiteral(-3)))
+        parseExpression("-3") should be (Success(UnaryOpApp(Negation, IntLiteral(3))))
     }
 
     "Parser" should "correctly parse negative numbers in expressions" in {
-        parseExpression("3 + -4") should be (Success(BinaryOpApp(Plus, IntLiteral(3), IntLiteral(-4))))
+        parseExpression("3 + -4") should be (Success(BinaryOpApp(Plus, IntLiteral(3), UnaryOpApp(Negation, IntLiteral(4)))))
     }
 
     "Parser" should "correctly parse the length of an array" in {
