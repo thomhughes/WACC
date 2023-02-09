@@ -146,6 +146,7 @@ object Analyser {
             case ArrayLiteral(list) => typeName match {
                 case SAArrayType(arrayType: SAType, 1) => list.forall((x) => checkExpression(x, arrayType))
                 case SAArrayType(arrayType: SAType, x) => checkArrayConstraints(list, arrayType, x)
+                case default => false
             }
             case PairElem(index, pair) => checkPairElem(index, pair, typeName)
             // TODO
@@ -236,7 +237,9 @@ object Analyser {
     private def getArrayElemType(id: Identifier, indices: List[Expression]): Option[SAType] =
         symbolTable.lookupVar(id.name) match {
             case Some(SAArrayType(arrayType, arity)) => {
-                if (indices.length < arity)
+                if (!indices.forall(checkExpression(_, SAIntType)))
+                    None
+                else if (indices.length < arity)
                     Some(SAArrayType(arrayType, arity - indices.length))
                 else if (indices.length == arity)
                     Some(arrayType)
@@ -346,13 +349,16 @@ object Analyser {
         statement match {
             case ReturnStatement(expression) => checkExpression(expression, returnType)
             case (IfStatement(expression, s1, s2)) => {
-                checkExpression(expression, SABoolType) &&
-                s1.forall(s => checkFunctionStatements(s, funcName)) &&
-                s2.forall(s => checkFunctionStatements(s, funcName))
+              checkExpression(expression, SABoolType) &&
+              s1.forall(s => checkFunctionStatements(s, funcName)) &&
+              s2.forall(s => checkFunctionStatements(s, funcName))
             }
             case WhileStatement(expression, s) => {
-                checkExpression(expression, SABoolType) && 
-                s.forall(s => checkFunctionStatements(s, funcName))
+              checkExpression(expression, SABoolType) && 
+              s.forall(s => checkFunctionStatements(s, funcName))
+            }
+            case BeginStatement(s) => {
+              s.forall(s => checkFunctionStatements(s, funcName))
             }
             case default => checkStatement(statement)
         }

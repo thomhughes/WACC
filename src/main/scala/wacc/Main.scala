@@ -31,9 +31,10 @@ object Main {
                     if (args(1) != "--suppress") {
                         System.err.println("#syntax error#")
                     } else if (args(1) == "--debug") {
-                        println(msg)
-                        System.err.println("exit:\n100")
+                      System.err.println("exit:\n100")
                     }
+                    println("Message:")
+                    println(msg)
                 }
                 sys.exit(100)                   
             }
