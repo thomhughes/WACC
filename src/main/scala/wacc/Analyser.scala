@@ -3,7 +3,6 @@ package wacc
 object Analyser {
     import wacc.AST._
     import wacc.Types._
-    import wacc.TypeConverter.convertSyntaxToTypeSys
     import wacc.Keywords.keywords
 
     val scoper = new Scoper()
@@ -11,7 +10,7 @@ object Analyser {
     var symbolTable = SymbolTable(scoper)
     val errorList = List[String]()
 
-    private def checkUnOp(op: UnaryOp, expression: Expression): Option[SAType] = {
+    private def getUnOpType(op: UnaryOp, expression: Expression): Option[SAType] = {
         op match {
             case Chr | Negation => if (checkExpression(expression, SAIntType)) Some(SAIntType) else None
             case Len => expression match {
@@ -30,7 +29,7 @@ object Analyser {
         }
     }
 
-    private def checkBinOp(op: BinaryOp, lhs: Expression, rhs: Expression): Option[SAType] = op match {
+    private def getBinOpType(op: BinaryOp, lhs: Expression, rhs: Expression): Option[SAType] = op match {
         case Mul | Div | Mod | Plus | Minus => if (checkExpression(lhs, SAIntType) && checkExpression(rhs, SAIntType)) Some(SAIntType) else None
         case And | Or => if (checkExpression(lhs, SABoolType) && checkExpression(rhs, SABoolType)) Some(SABoolType) else None
         case Gt | Ge | Lt | Le => {bothTypesMatch(lhs, rhs, List(SAIntType, SACharType)) match {
@@ -79,6 +78,7 @@ object Analyser {
             // pairliteral logic is bs
             case PairLiteral => t match {
                 case SAPairType(_, _) => true
+                case SAAnyType => true
                 case default => false
             }
             case Identifier(id) => symbolTable.lookupVar(id).isDefined && equalsType(t, symbolTable.lookupVar(id).get)
@@ -86,11 +86,11 @@ object Analyser {
                 case Some(typeName) => equalsType(t, typeName)
                 case None => false
             }
-            case UnaryOpApp(op, expr) => checkUnOp(op, expr) match {
+            case UnaryOpApp(op, expr) => getUnOpType(op, expr) match {
                 case Some(exprType) => equalsType(exprType, t)
                 case _ => false
             }
-            case BinaryOpApp(op, lhs, rhs) => checkBinOp(op, lhs, rhs) match {
+            case BinaryOpApp(op, lhs, rhs) => getBinOpType(op, lhs, rhs) match {
                 case Some(exprType) => equalsType(exprType, t)
                 case _ => false
             }
@@ -107,7 +107,7 @@ object Analyser {
     private def checkStatement(statement: Statement): Boolean = {
         statement match {
             case SkipStatement => true
-            case DeclarationStatement(typeName, identifier, rvalue) => checkDeclarationStatement(convertSyntaxToTypeSys(typeName), identifier, rvalue)
+            case DeclarationStatement(typeName, identifier, rvalue) => checkDeclarationStatement(getActualType(typeName, rvalue), identifier, rvalue)
             case AssignmentStatement(lvalue, rvalue) => checkAssignmentStatement(lvalue, rvalue)
             case ReadStatement(lvalue) => checkReadStatement(lvalue)
             case FreeStatement(expression) => checkFreeStatement(expression)
@@ -121,23 +121,20 @@ object Analyser {
         }
     }
 
-    private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue): Boolean = {
+    private def checkDeclarationStatement(typeName: Option[SAType], identifier: Identifier, rvalue: RValue): Boolean = {
+        if (!typeName.isDefined) {
+            return false
+        }
         val idenIsKeyword = keywords.contains(identifier.name)
         if (idenIsKeyword) {
             ("Identifier " + identifier.name + " is a WACC keyword") :: errorList
             return false
         }
-        val idenNotInSymTable = symbolTable.insertVar(identifier.name, typeName)
-        if (idenNotInSymTable) {
-            if (!checkRValue(rvalue, typeName)) {
-                ("RHS of declaration statment is not of type " + typeName) :: errorList
-            } else {
-                return true
-            }
-        } else {
+        val idenNotInSymTable = symbolTable.insertVar(identifier.name, typeName.get)
+        if (!idenNotInSymTable) {
             ("Identifier " + identifier.name + " already declared in the current scope") :: errorList
         }
-        return false
+        return idenNotInSymTable
     }
     
     private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
@@ -267,10 +264,11 @@ object Analyser {
         val typeName = expression match {
             case Identifier(id) => symbolTable.lookupVar(id) 
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
+            case _ => return false
         }
         typeName match {
             case Some(SAArrayType(_, _)) => true
-            case default => false
+            case _ => false
         }
     }
 
@@ -278,7 +276,8 @@ object Analyser {
         val typeName = expression match {
             case Identifier(id) => symbolTable.lookupVar(id)
             case PairLiteral => return true
-            case ArrayElem(id, indices) => getArrayElemType(id, indices) 
+            case ArrayElem(id, indices) => getArrayElemType(id, indices)
+            case _ => return false
         }
         typeName match {
             case Some(SAPairType(_, _)) => true
@@ -311,6 +310,79 @@ object Analyser {
         scoper.exitScope()
         true
     }
+
+    private def getRValueType(rValue: RValue): Option[SAType] = {
+        rValue match {
+            case expr:Expression => getExpressionType(expr)
+            case PairElem(pairIndex, pair) => getPairElemType(pairIndex, pair)
+            case ArrayLiteral(exprs) => getArrayLiteralType(exprs)
+            case NewPair(fst, snd) => getNewPairType(fst, snd)
+            case FunctionCall(identifier, exprs) => ???
+        }
+    }
+
+    private def getArrayLiteralType(exprs: List[Expression]): Option[SAType] = {
+        if (exprs.isEmpty) return None
+        val firstType = getExpressionType(exprs.head)
+        if (firstType.isEmpty) return None
+        if (exprs.tail.forall(expr => getExpressionType(expr) == firstType)) Some(SAArrayType(firstType.get, 1)) else None
+    }
+
+    private def getNewPairType(fstExpr: Expression, sndExpr: Expression): Option[SAType] =
+        getExpressionType(fstExpr) match {
+            case Some(fstType) => getExpressionType(sndExpr) match {
+                case Some(sndType) => Some(SAPairType(fstType, sndType))
+                case None => None
+            }
+            case None => None
+        }
+        // for {
+        //     fstType <- getExpressionType(fstExpr)
+        //     sndType <- getExpressionType(sndExpr)
+        // } yield SAPairType(fstType, sndType)
+    
+    private def getActualType(lhsType: ASTType, rValue: RValue): Option[SAType] = {
+        getRValueType(rValue) match {
+            case Some(rValueType) => if (doesASTSyntaxEqualType(lhsType, rValueType)) Some(rValueType) else None
+            case None => None
+        }
+    }
+
+    private def getExpressionType(expression: Expression): Option[SAType] =
+        expression match {
+            case IntLiteral(_) => Some(SAIntType)
+            case BoolLiteral(_) => Some(SABoolType)
+            case CharLiteral(_) => Some(SACharType)
+            case StringLiteral(_) => Some(SAStringType)
+            case PairLiteral => Some(SAPairType(SAAnyType, SAAnyType))
+            case ArrayElem(id, indices) => getArrayElemType(id, indices)
+            case Identifier(id) => symbolTable.lookupVar(id)
+            case UnaryOpApp(op, expr) => getUnOpType(op, expr)
+            case BinaryOpApp(op, lhs, rhs) => getBinOpType(op, lhs, rhs)
+        }
+
+    def doesASTSyntaxEqualType(lhsType: ASTType, rhsType: SAType): Boolean =
+        lhsType match {
+            case IntType => equalsType(rhsType, SAIntType)
+            case BoolType => equalsType(rhsType, SABoolType)
+            case CharType => equalsType(rhsType, SACharType)
+            case StringType => equalsType(rhsType, SAStringType)
+            case ArrayType(arrayType, arity) => rhsType match {
+                case SAArrayType(actualArrayType, actualArity) => doesASTSyntaxEqualType(arrayType, actualArrayType) && arity == actualArity
+                case SAAnyType => true
+                case default => false
+            }
+            case PairType(fstType, sndType) => rhsType match {
+                case SAPairType(actualFstType, actualSndType) => doesASTSyntaxEqualType(fstType, actualFstType) && doesASTSyntaxEqualType(sndType, actualSndType)
+                case SAAnyType => true
+                case default => false
+            }
+            case PairRefType => rhsType match {
+                case SAPairType(_, _) => true
+                case SAAnyType => true
+                case default => false
+            }
+        }
 
     // private def insertFunction(f: String, params: (SAType, List[SAType])) {
     //     if (functionTable.contains(f)) false
