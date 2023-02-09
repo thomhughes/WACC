@@ -26,7 +26,7 @@ object Parser {
 
   // TODO: rewrite attempt
   lazy val `<program>` = Program("begin" *> many(`<func>`), `<statements>` <* "end")
-  lazy val `<func>` = Func(attempt(IdentBinding(`<type>` <|> pure(NoneType), Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>` <* "end")
+  lazy val `<func>` = Func(attempt(IdentBinding(`<type>` <|> pure(NoneType), Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> separators.semiSep(`<statement>`) <* "end")
   lazy val `<param-list>` = separators.commaSep(`<param>`)
   lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
@@ -48,11 +48,10 @@ object Parser {
     Chr <# "chr",
   ).label("unary operation (not, negation, len, ord, chr)")
 
-  private def _invalidFunctionCall = "()" *> unexpected("function call")
+  private def _invalidFunctionCall = "()".hide *> unexpected("function call")
   .explain("function calls need to be prefixed with call and can't be used as an operand in an expression")
   private def binopParser(opString: String, binOp: BinaryOp) =
-    (opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y))).label("binary operation")// <|>
-    // amend(_invalidFunctionCall)
+    (opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y))).label("binary operation") <|> amend(_invalidFunctionCall)
 
   lazy val `<expression>`: Parsley[Expression] = precedence[Expression](enclosing.parens(`<expression>`), `<base-expression>`)(
     Ops(InfixL)(binopParser("*", Mul), binopParser("/", Div), binopParser("%", Mod)),
@@ -75,7 +74,7 @@ object Parser {
   lazy val `<lvalue>`: Parsley[LValue] = {
     `<pair-elem>` <|>
     IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`)))
-  }.explain("because an lvalue needed")
+  }
 
   lazy val `<pair-elem>` = {
     ("fst" *> PairElem(pure(Fst), `<lvalue>`)) <|>
@@ -90,10 +89,10 @@ object Parser {
     `<pair-elem>`
   }.explain("because an rvalue needed")
 
-  lazy val `<assignment>` = ("=" *> `<rvalue>`).label("assignment") //<|> (enclosing.parens(pure(true)) *> "is").hide.verifiedFail("aaa")
+  lazy val `<assignment>` = ("=" *> `<rvalue>`).label("assignment") <|> dislodge(enclosing.parens(pure(true)) *> "is").hide.verifiedFail("aaa")
   lazy val `<statement>`: Parsley[Statement] = {
     "skip" *> pure(SkipStatement) <|>
-    amend(DeclarationStatement(entrench(`<type>`), entrench(Identifier(`<identifier>`)), `<assignment>`)) <|>
+    amend(DeclarationStatement(entrench(`<type>`), entrench(Identifier(`<identifier>`)), entrench(`<assignment>`))) <|>
     AssignmentStatement(`<lvalue>`, `<assignment>`) <|> 
     "read" *> ReadStatement(`<lvalue>`) <|>
     "free" *> FreeStatement(`<expression>`) <|>
@@ -106,7 +105,7 @@ object Parser {
     BeginStatement("begin" *> `<statements>` <* "end")
    }.explain("because a statement is required")
   
-  lazy val `<statements>` = separators.semiSep(`<statement>`)
+  lazy val `<statements>` = separators.semiSep1(`<statement>`)
 
   def parseExpression(input: String): Result[String, Expression] =
     fully(`<expression>`).parse(input)
