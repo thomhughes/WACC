@@ -43,15 +43,28 @@ object Analyser {
             if (btmRes.isDefined) Some(SABoolType)
             else {
                 // at this point, they must be composites, so they can only be from var lookups
-                val lhsVar = getVarName(lhs)
-                val rhsVar = getVarName(rhs)
-                if (lhsVar.isDefined && rhsVar.isDefined) {
-                    val lhsLookup = symbolTable.lookupVar(lhsVar.get)
-                    val rhsLookup = symbolTable.lookupVar(rhsVar.get)
-                    if (lhsLookup.isDefined && rhsLookup.isDefined 
-                    && equalsType(lhsLookup.get, rhsLookup.get)) lhsLookup
+                lhs match {
+                    case Identifier(_) => {
+                        val lhsVar = getVarName(lhs)
+                        val rhsVar = getVarName(rhs)
+                        if (lhsVar.isDefined && rhsVar.isDefined) {
+                            val lhsLookup = symbolTable.lookupVar(lhsVar.get)
+                            val rhsLookup = symbolTable.lookupVar(rhsVar.get)
+                            if (lhsLookup.isDefined && rhsLookup.isDefined 
+                            && equalsType(lhsLookup.get, rhsLookup.get)) lhsLookup
                 }
                 None
+                }
+                    case ArrayElem(idLeft, indicesLeft) => {
+                        rhs match {
+                            case ArrayElem(idRight, indicesRight) => if (getArrayElemType(idLeft, indicesLeft) == getArrayElemType(idRight, indicesRight)) Some(SABoolType)
+                            else None
+                            case default => None
+                        }
+                    }
+                    case default => None 
+                }
+                
             }
         }
         case default => None
@@ -81,7 +94,10 @@ object Analyser {
                 case SAPairType(_, _) => true
                 case default => false
             }
-            case Identifier(id) => symbolTable.lookupVar(id).isDefined && equalsType(t, symbolTable.lookupVar(id).get)
+            case Identifier(id) => {
+                val lookupResult = symbolTable.lookupVar(id)
+                lookupResult.isDefined && equalsType(t, lookupResult.get)
+            }
             case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
                 case Some(typeName) => equalsType(t, typeName)
                 case None => false
@@ -139,6 +155,17 @@ object Analyser {
         }
         return false
     }
+
+    private def checkArrayConstraints(list: List[Expression], expectedType: SAType, expectedArity: Int): Boolean = {
+        list match {
+            case Identifier(id) :: next => symbolTable.lookupVar(id) match {
+                case Some(SAArrayType(actualType, innerArity)) => actualType == expectedType && (innerArity + 1) == expectedArity && checkArrayConstraints(next, expectedType, expectedArity)
+                case default => false
+            }
+            case _ :: next => false
+            case Nil => true
+        }
+    }
     
     private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
         rvalue match {
@@ -147,8 +174,8 @@ object Analyser {
                 case default => false
             }
             case ArrayLiteral(list) => typeName match {
-                case SAArrayType(arrayType: SAType, _) => list.forall((x) => checkExpression(x, arrayType))
-                case _ => false   
+                case SAArrayType(arrayType: SAType, 1) => list.forall((x) => checkExpression(x, arrayType))
+                case SAArrayType(arrayType: SAType, x) => checkArrayConstraints(list, arrayType, x)
             }
             case PairElem(index, pair) => checkPairElem(index, pair, typeName)
             // TODO

@@ -9,8 +9,8 @@ class Scoper {
 
   def enterScope() = {
     next += 1
-    stack.push(curr)
     curr = next
+    stack.push(curr)
   }
 
   def getScope() = curr

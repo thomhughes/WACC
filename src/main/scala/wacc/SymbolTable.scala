@@ -5,6 +5,10 @@ case class SymbolTable(val scoper: Scoper) {
 
     var map = Map[(String, Int), SAType]()
 
+    override def toString(): String = {
+        map.toString()
+    }
+
     def lookupVar(v: String): Option[SAType] = {
         val iter = scoper.getIterator()
         while (iter.hasNext) {
