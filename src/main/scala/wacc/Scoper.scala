@@ -17,7 +17,6 @@ class Scoper {
   def getScope() = curr
 
   def exitScope() = {
-    val old = curr
     stack.pop()
     curr = stack.top
     // println("Exiting scope: " + old + ", now in scope: " + curr)

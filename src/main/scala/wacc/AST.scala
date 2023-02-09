@@ -172,9 +172,4 @@ object AST {
   object BoolLiteral extends Expression with ParserBridgePos1[Boolean, BoolLiteral]
   object CharLiteral extends Expression with ParserBridgePos1[Char, CharLiteral]
   object StringLiteral extends Expression with ParserBridgePos1[String, StringLiteral]
-
-  object UnaryOpApp extends Expression with ParserBridgePos2[UnaryOp, Expression, UnaryOpApp] {
-    def apply(unaryOp: UnaryOp, expression: Parsley[Expression]): Parsley[UnaryOpApp] = pos <**> expression.map(this.apply(unaryOp, _) _)
-  }
-  object BinaryOpApp extends Expression with ParserBridgePos3[BinaryOp, Expression, Expression, BinaryOpApp]
 }

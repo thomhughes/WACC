@@ -1,14 +1,12 @@
 package wacc
 
 import parsley.Parsley
-import parsley.errors.DefaultErrorBuilder
 import scala.util.Try
 import parsley.expr.Prefix
 
 object Parser {
   import parsley.combinator.many
   import parsley.combinator.choice
-  import parsley.combinator.some
   import parsley.Parsley.{attempt, pure}
   import parsley.expr.{chain, precedence, Ops, InfixL}
   import parsley.Result
@@ -16,11 +14,10 @@ object Parser {
   import Lexer._
   import wacc.Lexer.implicits._
   import parsley.errors.combinator.ErrorMethods
-  import parsley.errors.ErrorBuilder
   import parsley.errors.patterns.VerifiedErrors
   import parsley.errors.combinator._
-  import parsley.errors.tokenextractors._
   import parsley.io._
+  import parsley.position.pos
 
   import wacc.SyntaxErrorBuilder
   import wacc.Errors.SyntaxError
@@ -57,14 +54,9 @@ object Parser {
 
   private def _invalidFunctionCall = "()".hide *> unexpected("function call")
   .explain("function calls need to be prefixed with call and can't be used as an operand in an expression")
-  private def binopParser(opString: String, binOp: BinaryOp) =
-    (opString #> ((x:Expression, y:Expression) => BinaryOpApp(binOp, x, y) _)).label("binary operation") //<|> amend(_invalidFunctionCall)
+  private def binopParser(opString: String, binOp: BinaryOp) = (opString #> ((pos: (Int, Int)) => (x:Expression, y:Expression) => BinaryOpApp(binOp, x, y)(pos))).label("binary operation") <|> amend(_invalidFunctionCall)
 
-
-  // private def unaryopParser(opString: String, unaryOp: UnaryOp) =
-    // opString #> ((x:Expression) => UnaryOpApp(unaryOp, x) _) //<|> amend(_invalidFunctionCall)
-  import parsley.position.pos
-  private def unaryopParser(opString: String, unaryOp: UnaryOp) = opString #> ((pos: (Int, Int)) => (x:Expression) => UnaryOpApp(unaryOp, x)(pos))
+  private def unaryopParser(opString: String, unaryOp: UnaryOp) = (opString #> ((pos: (Int, Int)) => (x:Expression) => UnaryOpApp(unaryOp, x)(pos))).label("unary operation") <|> amend(_invalidFunctionCall)
 
   lazy val `<unary-operator>` = choice("!" #> Not, "-" #> Negation, "len" #> Len, "ord" #> Ord, "chr" #> Chr)
   lazy val `<unary-op>`: Parsley[Expression] = precedence[Expression](`<base-expression>`, "(" *> `<expression>` <* ")")(
@@ -74,14 +66,14 @@ object Parser {
 
 
   lazy val `<expression>`: Parsley[Expression] = precedence[Expression](`<base-expression>` <|> `<unary-op>`, "(" *> `<expression>` <* ")")(
-    Ops(InfixL)(binopParser("*", Mul), binopParser("/", Div), binopParser("%", Mod)),
-    Ops(InfixL)(binopParser("+", Plus), binopParser("-", Minus)),
+    Ops(InfixL)(pos <**> binopParser("*", Mul), pos <**> binopParser("/", Div), pos <**> binopParser("%", Mod)),
+    Ops(InfixL)(pos <**> binopParser("+", Plus), pos <**> binopParser("-", Minus)),
     Ops(InfixL)(
-      binopParser("<", Lt), binopParser("<=", Le), binopParser(">", Gt),
-      binopParser(">=", Ge), binopParser("!=", Neq), binopParser("==", Eq)
+      pos <**> binopParser("<", Lt), pos <**> binopParser("<=", Le), pos <**> binopParser(">", Gt),
+      pos <**> binopParser(">=", Ge), pos <**> binopParser("!=", Neq), pos <**> binopParser("==", Eq)
     ),
-    Ops(InfixL)(binopParser("&&", And)),
-    Ops(InfixL)(binopParser("||", Or))
+    Ops(InfixL)(pos <**> binopParser("&&", And)),
+    Ops(InfixL)(pos <**> binopParser("||", Or))
   )
 
   lazy val `<array-type>` = (ArrayType <# "[" *> "]").label("[] (array type)")
