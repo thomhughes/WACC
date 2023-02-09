@@ -7,6 +7,7 @@ import scala.util.Try
 object Parser {
   import parsley.combinator.many
   import parsley.combinator.choice
+  import parsley.combinator.some
   import parsley.Parsley.{attempt, pure}
   import parsley.expr.{chain, precedence, Ops, InfixL}
   import parsley.Result
@@ -25,7 +26,7 @@ object Parser {
 
   // TODO: rewrite attempt
   lazy val `<program>` = Program("begin" *> many(`<func>`), `<statements>` <* "end")
-  lazy val `<func>` = Func(attempt(IdentBinding(`<type>`, Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>` <* "end")
+  lazy val `<func>` = Func(attempt(IdentBinding(`<type>` <|> pure(NoneType), Identifier(`<identifier>`)) <* "("), `<param-list>` <~ ")", "is" *> `<statements>` <* "end")
   lazy val `<param-list>` = separators.commaSep(`<param>`)
   lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
@@ -89,7 +90,7 @@ object Parser {
     `<pair-elem>`
   }.explain("because an rvalue needed")
 
-  lazy val `<assignment>` = ("=" *> `<rvalue>`).label("assignment") <|> (enclosing.parens(pure(true)) *> "is").hide.verifiedFail("aaa")
+  lazy val `<assignment>` = ("=" *> `<rvalue>`).label("assignment") //<|> (enclosing.parens(pure(true)) *> "is").hide.verifiedFail("aaa")
   lazy val `<statement>`: Parsley[Statement] = {
     "skip" *> pure(SkipStatement) <|>
     amend(DeclarationStatement(entrench(`<type>`), entrench(Identifier(`<identifier>`)), `<assignment>`)) <|>
@@ -103,7 +104,6 @@ object Parser {
     IfStatement("if" *> `<expression>`, "then" *> `<statements>`, "else" *> `<statements>` <* "fi") <|>
     WhileStatement("while" *> `<expression>`, "do" *> `<statements>` <* "done") <|>
     BeginStatement("begin" *> `<statements>` <* "end")
-    // amend(entrench(`<func>` *> unexpected("function declaration").explain("all functions must be declared at the top of the main block")))
    }.explain("because a statement is required")
   
   lazy val `<statements>` = separators.semiSep(`<statement>`)

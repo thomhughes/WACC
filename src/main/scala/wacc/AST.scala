@@ -36,6 +36,7 @@ object AST {
   sealed trait Type
   sealed trait BaseType extends Type with PairElemType
   sealed trait PairElemType
+  case object NoneType extends Type with ParserBridge0[Type]
   case object IntType extends BaseType with ParserBridge0[BaseType]
   case object BoolType extends BaseType with ParserBridge0[BaseType]
   case object CharType extends BaseType with ParserBridge0[BaseType]
@@ -93,6 +94,8 @@ object AST {
         }
       }
       super.apply(x1, x2, x3).guardAgainst {
+        case Func(x1, x2, x3) if x1.typeName == NoneType =>
+          Seq(s"Function `" + x1.identifier.name + "` missing type")
         case Func(x1, x2, x3) if x3.isEmpty =>
           Seq(s"Function `" + x1.identifier.name + "` has no statements.")
         case Func(x1, x2, x3) if noReturnStatementAtEndOfPath(x3)  =>
