@@ -16,7 +16,8 @@ class Scoper {
   def getScope() = curr
 
   def exitScope() = {
-    curr = stack.pop()
+    stack.pop()
+    curr = stack.top
   }
 
   def getIterator() = stack.iterator
