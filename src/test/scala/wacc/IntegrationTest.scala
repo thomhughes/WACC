@@ -36,7 +36,7 @@ class IntegrationTest extends AnyFlatSpec {
         "invalid/semanticErr/expressions", 
         "invalid/semanticErr/while", 
         "invalid/semanticErr/IO"
-        )
+    )
 
     directoriesToRunTestsOn.foreach(runTestOnDirectory)
     
