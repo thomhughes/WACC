@@ -7,7 +7,7 @@ object Analyser {
     import wacc.Keywords.keywords
 
     val scoper = new Scoper()
-    val functionTable = Map[String, (SAType, List[SAType])]()
+    val functionTable = new FunctionTable()
     var symbolTable = Map[(String, Int), SAType]()
     val errorList = List[String]()
 
@@ -81,7 +81,9 @@ object Analyser {
                 case SAPairType(_, _) => true
                 case default => false
             }
-            case Identifier(id) => lookupVar(id).isDefined && equalsType(t, lookupVar(id).get)
+            case Identifier(id) => {
+                lookupVar(id).isDefined && equalsType(t, lookupVar(id).get)
+            }
             case ArrayElem(id, indices) => getArrayElemType(id, indices) match {
                 case Some(typeName) => equalsType(t, typeName)
                 case None => false
@@ -99,10 +101,7 @@ object Analyser {
     }
 
     def checkProgram(program: Program) =
-        program.functions.forall(checkFunction) && program.statements.forall(checkStatement)
-    
-    // TODO: implement checkFunction
-    private def checkFunction(func: Func) = true
+        checkFunctions(program) && program.statements.forall(checkStatement)
 
     private def checkStatement(statement: Statement): Boolean = {
         statement match {
@@ -122,11 +121,6 @@ object Analyser {
     }
 
     private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue): Boolean = {
-        val idenIsKeyword = keywords.contains(identifier.name)
-        if (idenIsKeyword) {
-            ("Identifier " + identifier.name + " is a WACC keyword") :: errorList
-            return false
-        }
         val idenNotInSymTable = insertVar(identifier.name, typeName)
         if (idenNotInSymTable) {
             if (!checkRValue(rvalue, typeName)) {
@@ -152,7 +146,7 @@ object Analyser {
             }
             case PairElem(index, pair) => checkPairElem(index, pair, typeName)
             // TODO
-            case FunctionCall(id, args) => ???
+            case FunctionCall(id, args) => checkFunctionCall(id, args, typeName)
             case expr:Expression => checkExpression(expr, typeName)
             case default => false
         }
@@ -329,11 +323,54 @@ object Analyser {
         return true
     }
 
-    // private def insertFunction(f: String, params: (SAType, List[SAType])) {
-    //     if (functionTable.contains(f)) false
-    //     functionTable + (key -> params)
-    //     true
-    // }
+    private def checkFunctions(program: Program): Boolean = {
+        program.functions.forall(mapDefs)
+        program.functions.forall(checkFunction)
+    }
 
-    // private def retrieveFunction(f: String) = functionTable.getOrElse(f, (Nothing, Nil))
+    private def mapDefs(function: Func): Boolean = {
+        val funcName = function.identBinding.identifier.name
+        val retType = convertSyntaxToTypeSys(function.identBinding.typeName)
+        val params = function.params.map(_.typeName).map(convertSyntaxToTypeSys)
+        functionTable.insertFunction(funcName, (retType, params))
+    }
+
+    // TODO: implement checkFunction
+    private def checkFunction(func: Func): Boolean = {
+        scoper.enterScope()
+        // add all params to symbol table, now in scope
+        val params = func.params
+        if (!params.forall(p => 
+            insertVar(p.identifier.name, convertSyntaxToTypeSys(p.typeName)))) return false
+        scoper.enterScope()
+        // must be a return as last statement. We explicity test for this as there is
+        // no situation where this should happen otherwise
+        if (!(func.body.init.forall(checkStatement) 
+            && checkReturnStatement(func.body.last, func.identBinding.identifier.name))) return false
+        scoper.exitScope()
+        scoper.exitScope()
+        true
+    }
+
+    private def checkReturnStatement(statement: Statement, funcName: String): Boolean = statement match {
+        // safe to get unconditionally as only called having previously checked
+        case ReturnStatement(expression) => {
+            val returnType = functionTable.getFunctionRet(funcName).get
+            checkExpression(expression, returnType) 
+        }
+        case default => false
+    }
+
+    private def checkFunctionCall(id: Identifier, args: List[Expression], typeName: SAType): Boolean = {
+        if (!functionTable.containsFunction(id.name)) return false
+        else {
+            val expectedTypes = functionTable.getFunctionParams(id.name).get
+            if (args.length != expectedTypes.length) return false
+            var paramsMatch = true
+            for (i <- 0 until args.length) paramsMatch |= checkExpression(args(i), expectedTypes(i))
+            val returnType = functionTable.getFunctionRet(id.name)
+            if (!returnType.isDefined) return false
+            return paramsMatch && equalsType(returnType.get, typeName)
+        }
+    }
 }

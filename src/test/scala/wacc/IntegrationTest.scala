@@ -8,7 +8,35 @@ class IntegrationTest extends AnyFlatSpec {
     import org.scalatest.matchers.should.Matchers._
     import scala.sys.process._
 
-    val directoriesToRunTestsOn = List("valid/")
+    val directoriesToRunTestsOn = List(
+        // "valid/advanced",
+        // "valid/array",
+        // "valid/function",
+        // "valid/pairs",
+        // "valid/runtimeErr",
+        "valid/if", 
+        "valid/basic", 
+        "valid/variables", 
+        "valid/sequence", 
+        "valid/expressions", 
+        "valid/while", 
+        "valid/IO", 
+        // "valid/scope", 
+        "invalid/syntaxErr",
+        // "invalid/semanticErr/array",
+        "invalid/semanticErr/function",
+        // "invalid/semanticErr/multiple",
+        // "invalid/semanticErr/pairs",
+        // "invalid/semanticErr/read",
+        // "invalid/semanticErr/scope",
+        "invalid/semanticErr/exit", 
+        "invalid/semanticErr/if", 
+        "invalid/semanticErr/print", 
+        "invalid/semanticErr/variables", 
+        "invalid/semanticErr/expressions", 
+        "invalid/semanticErr/while", 
+        "invalid/semanticErr/IO"
+        )
 
     directoriesToRunTestsOn.foreach(runTestOnDirectory)
     
