@@ -25,7 +25,6 @@ object Parser {
   import scala.io.Codec
   import java.io.File
 
-  // TODO: rewrite attempt
   lazy val `<program>` =
     Program("begin" *> many(`<func>`), `<statements>` <* "end")
   lazy val `<func>` = Func(attempt(
@@ -120,7 +119,6 @@ object Parser {
     "pair element type")
   lazy val `<base-type>` = (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string")
 
-  // TODO: attempt not ideal?
   lazy val `<lvalue>` : Parsley[LValue] = {
     `<pair-elem>` <|>
       IdentOrArrayElem(`<identifier>`, many(enclosing.brackets(`<expression>`)))
@@ -168,13 +166,7 @@ object Parser {
   def parseExpression(input: String): Result[String, Expression] =
     fully(`<expression>`).parse(input)
 
-  //   // override def tokens: Seq[Parsley[String]] = Seq(lexer.nonlexeme.names.identifier.map(s"identifier " + _)) ++ desc.symbolDesc.hardKeywords.toSeq.map(string(_).map(s"keyword" + _))
-  //   //++ desc.symbolDesc.hardKeywords.toSeq.map(string(_).map("keyword" + _)) ++ desc.symbolDesc.hardOperators.toSeq.map(string(_).map("keyword" + _))
-
-  //   // override def trimToParserDemand: Boolean = false
-  // }
   implicit val errBuilder = SyntaxErrorBuilder
-  // def parse(input: String): Result[String, Program] = fully(`<program>`).parse(input)
 
   implicit val codec: Codec = Codec.UTF8
   def parse(input: File): Try[parsley.Result[SyntaxError, Program]] =
