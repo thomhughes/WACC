@@ -55,17 +55,13 @@ object Analyser {
           }
         }
         case Eq | Neq => {
-            bothTypesMatch(binaryOp.lhs, binaryOp.rhs, List(SAIntType, SACharType, SABoolType, SAStringType)) match {
-              case Left(_) => Left(SABoolType)
-              case default => getExpressionType(binaryOp.lhs) match {
+            getExpressionType(binaryOp.lhs) match {
                 case Left(lhsType) => getExpressionType(binaryOp.rhs) match {
                   case Left(rhsType) if equalsType(lhsType, rhsType) => Left(SABoolType)
                   case Left(rhsType) => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
                   case Right(errorList) => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
                 }
                 case Right(errorList) => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
-              }
-                // Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
             }
         }
     }

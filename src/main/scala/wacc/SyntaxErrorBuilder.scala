@@ -5,7 +5,6 @@ import parsley.errors.ErrorBuilder
 import parsley.errors.tokenextractors.TillNextWhitespace
 
 object SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] with TillNextWhitespace {
-    import wacc.Errors.Position
     import scala.util.matching.Regex
     
     override def format(pos: Position, source: Source, lines: ErrorInfoLines): SyntaxError = SyntaxError(pos, lines)
