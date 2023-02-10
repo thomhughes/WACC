@@ -37,6 +37,9 @@ test-setup-job:
   script:
     - rm -rf wacc_examples
     - git clone https://gitlab.doc.ic.ac.uk/lab2223_spring/wacc_examples.git
+  artifacts:
+    paths:
+      - wacc_examples
 
 valid-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
