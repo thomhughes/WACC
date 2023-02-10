@@ -3,14 +3,28 @@ package wacc
 object Types {
     sealed trait SAType
     case object SAAnyType extends SAType
-    case object SAIntType extends SAType
-    case object SABoolType extends SAType
-    case object SACharType extends SAType
-    case object SAStringType extends SAType
-    case class SAArrayType(arrayType: SAType, arity: Int) extends SAType
-    case object SAPairRefType extends SAType
+    case object SAIntType extends SAType {
+        override def toString() = "int"
+    }
+    case object SABoolType extends SAType{
+        override def toString() = "bool"
+    }
+    case object SACharType extends SAType{
+        override def toString() = "char"
+    }
+    case object SAStringType extends SAType {
+        override def toString() = "string"
+    }
+    case class SAArrayType(arrayType: SAType, arity: Int) extends SAType {
+        override def toString() = arrayType.toString() + ("[]" * arity)
+    }
+    case object SAPairRefType extends SAType {
+        override def toString() = "pair"
+    }
     case object SAUnknownType extends SAType
-    case class SAPairType(val fstType: SAType, val sndType: SAType) extends SAType
+    case class SAPairType(val fstType: SAType, val sndType: SAType) extends SAType {
+        override def toString() = "pair(" + fstType.toString() + ", " + sndType.toString() + ")"
+    }
 
     def equalsType(firstType: SAType, secondType: SAType): Boolean =
         firstType match {

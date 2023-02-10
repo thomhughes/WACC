@@ -3,11 +3,11 @@ package wacc
 object Analyser {
     import wacc.AST._
     import wacc.Types._
+    import wacc.Errors._
 
     val scoper = new Scoper()
     val functionTable = new FunctionTable()
     var symbolTable = SymbolTable(scoper)
-    val errorList = List[String]()
     implicit val returnVal: SAType = SAAnyType
 
     private def getUnOpType(op: UnaryOp, expression: Expression): Option[SAType] = {
@@ -56,27 +56,27 @@ object Analyser {
     private def bothTypesMatch(lhs: Expression, rhs: Expression, validTypes: List[SAType]): Option[SAType] =
         validTypes.find(t => checkExpression(lhs, t) && checkExpression(rhs, t))
 
-    private def checkExpression(expression: Expression, t: SAType): Boolean =
+    private def checkExpression(expression: Expression, t: SAType) (implicit errorList: List[Error]): List[Error] =
         getExpressionType(expression) match {
             case Some(otherType) => equalsType(t, otherType)
             case None => false
         }
 
-    def checkProgram(program: Program) =
-        checkFunctions(program) && program.statements.forall(checkStatement)
+    def checkProgram(program: Program) = {
+        implicit val errorList = List[Error]()
+        checkFunctions(program)
+        program.statements.foreach(checkStatement)
+    }
 
-    private def checkStatement(statement: Statement)(implicit returnVal: SAType): Boolean = {
+    private def checkStatement(statement: Statement) (implicit errorList: List[Error], returnVal: SAType): List[Error] = {
         statement match {
-            case SkipStatement => true
+            case SkipStatement => errorList
             case DeclarationStatement(typeName, identifier, rvalue) => checkDeclarationStatement(convertSyntaxToTypeSys(typeName), identifier, rvalue)
             case AssignmentStatement(lvalue, rvalue) => checkAssignmentStatement(lvalue, rvalue)
             case ReadStatement(lvalue) => checkReadStatement(lvalue)
             case FreeStatement(expression) => checkFreeStatement(expression)
             case ReturnStatement(expression) => returnVal match {
-              case SAAnyType => {
-                // println(statement)
-                false
-              }
+              case SAAnyType => () :: errorList
               case default => checkExpression(expression, returnVal)
             }
             case ExitStatement(expression) => checkExitStatement(expression)
@@ -87,28 +87,29 @@ object Analyser {
             }
             case WhileStatement(condition, doStatements) => checkWhileStatement(condition, doStatements)
             case BeginStatement(statements) => checkBeginStatement(statements)
-            case default => false
+            case default => () :: errorList
         }
     }
 
-    private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue): Boolean = {
+    private def checkDeclarationStatement(typeName: SAType, identifier: Identifier, rvalue: RValue) (implicit errorList: List[Error]): List[Error] = {
         val idenNotInSymTable = symbolTable.insertVar(identifier.name, typeName)
-        // println("Declaring " + identifier.name + " in scope: " + scoper.getScope())
         if (!idenNotInSymTable) {
-            ("Identifier " + identifier.name + " already declared in the current scope") :: errorList
-            // println("Identifier " + identifier.name + " already declared in the current scope")
-            return false
+            return errorList :+ UndeclaredVariableError(rvalue.pos, Seq(identifier.name)) 
         }
         if (!checkRValue(rvalue, typeName)) {
-            return false
+            return errorList
         }
-        return true
+        return errorList
     }
 
-    private def checkArrayConstraints(list: List[Expression], expectedType: SAType, expectedArity: Int): Boolean = {
+    private def checkArrayConstraints(list: List[Expression], expectedType: SAType, expectedArity: Int) (implicit errorList: List[Error]): List[Error] = {
         list match {
             case Identifier(id) :: next => symbolTable.lookupVar(id) match {
-                case Some(SAArrayType(actualType, innerArity)) => actualType == expectedType && (innerArity + 1) == expectedArity && checkArrayConstraints(next, expectedType, expectedArity)
+                case Some(SAArrayType(actualType, innerArity)) => {
+                    if (!equalsType(actualType, expectedType)) return errorList
+                    if ((innerArity + 1) == expectedArity) return TypeError() :+ errorList
+                    if (checkArrayConstraints(next, expectedType, expectedArity)) return TypeError() :+ errorList
+                }
                 case default => false
             }
             case _ :: next => false
@@ -116,7 +117,7 @@ object Analyser {
         }
     }
     
-    private def checkRValue(rvalue: RValue, typeName: SAType): Boolean = {
+    private def checkRValue(rvalue: RValue, typeName: SAType) (implicit errorList: List[Error]): List[Error] = {
         rvalue match {
             case NewPair(fst, snd) => typeName match {
                 case SAPairType(fstType, sndType) => checkExpression(fst, fstType) && checkExpression(snd, sndType)
@@ -134,22 +135,34 @@ object Analyser {
         }
     }
 
-    private def checkPairElem(index: PairIndex, pair: LValue, typeName: SAType): Boolean =
+    private def checkPairElem(index: PairIndex, pair: LValue, typeName: SAType) (implicit errorList: List[Error]): List[Error] =
         getPairElemType(index, pair) match {
             case Some(pairElemType) => equalsType(pairElemType, typeName)
             case default => false
         }
 
-    private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue): Boolean = {
+    private def getLValueName(lvalue: LValue): String = _ match {
+            case Identifier(name) => name
+            case PairElem(_, value) => getLValueName(value)
+            case ArrayElem(identifier, _) => identifier.name
+    }
+
+    private def getLValuePos(lvalue: LValue): Position = _ match {
+            case id @ Identifier(_) => id.pos
+            case pairelem @ PairElem(_, _) => pairelem.pos
+            case arrayelem @ ArrayElem(_, _) => arrayelem.pos
+    }
+    
+    private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue) (implicit errorList: List[Error]): List[Error] = {
         val typeName = lvalue match {
             case Identifier(id) => symbolTable.lookupVar(id)
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
             case PairElem(index, pair) => getPairElemType(index, pair)
-            case default => None
+            case default => throw new Exception("Unresolved Syntax Error")  
         }
         typeName match {
             case Some(typeN) => checkRValue(rvalue, typeN)
-            case default => false
+            case default => errorList :+ UndeclaredVariableError(getLValuePos(lvalue), Seq(getLValueName(lvalue) + "is undefined."))
         }
     }
 
@@ -170,7 +183,7 @@ object Analyser {
         }
     }
 
-    private def checkLValue(lvalue: LValue, typeName: SAType): Boolean = {
+    private def checkLValue(lvalue: LValue, typeName: SAType) (implicit errorList: List[Error]): List[Error] = {
         lvalue match {
             case Identifier(id) => symbolTable.lookupVar(id) match {
                 case Some(t) => t == typeName
@@ -200,24 +213,26 @@ object Analyser {
             case _ => None
         }
 
-    private def checkExitStatement(expression: Expression) = checkExpression(expression, SAIntType)
+    private def checkExitStatement(expression: Expression) (implicit errorList: List[Error]) = checkExpression(expression, SAIntType)
 
     // TODO: change AST node to include print type info with inferType
-    private def checkPrintStatement(expression : Expression) = isValidExpression(expression)
+    private def checkPrintStatement(expression : Expression) (implicit errorList: List[Error]) = isValidExpression(expression)
 
     // TODO: change AST node to include print type info with inferType
-    private def checkPrintLnStatement(expression: Expression) = isValidExpression(expression)
+    private def checkPrintLnStatement(expression: Expression) (implicit errorList: List[Error]) = isValidExpression(expression)
 
-    private def isValidExpression(expression: Expression): Boolean = checkExpression(expression, SAAnyType)
+    private def isValidExpression(expression: Expression) (implicit errorList: List[Error]) = checkExpression(expression, SAAnyType)
     
     // TODO: change AST node to include print type info with inferType
-    private def checkReadStatement(lvalue: LValue): Boolean =
-        checkLValue(lvalue, SAIntType) || checkLValue(lvalue, SACharType)
+    private def checkReadStatement(lvalue: LValue) (implicit errorList: List[Error]): List[Error] = {
+        implicit val errorList = checkLValue(lvalue, SAIntType)
+        returcheckLValue(lvalue, SACharType)
+    }
     
-    private def checkFreeStatement(expression: Expression): Boolean = 
+    private def checkFreeStatement(expression: Expression) (implicit errorList: List[Error]): List[Error] = 
         isExpressionArrayType(expression) || isExpressionPairType(expression)
     
-    private def isExpressionArrayType(expression: Expression): Boolean = {
+    private def isExpressionArrayType(expression: Expression) (implicit errorList: List[Error]): List[Error]= {
         val typeName = expression match {
             case Identifier(id) => symbolTable.lookupVar(id) 
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
@@ -229,7 +244,7 @@ object Analyser {
         }
     }
 
-    private def isExpressionPairType(expression: Expression): Boolean = {
+    private def isExpressionPairType(expression: Expression) (implicit errorList: List[Error]): List[Error]= {
         val typeName = expression match {
             case Identifier(id) => symbolTable.lookupVar(id)
             case PairLiteral => return true
@@ -242,7 +257,7 @@ object Analyser {
         }
     }
 
-    private def checkWhileStatement(condition: Expression, doStatements: List[Statement])(implicit returnVal: SAType): Boolean = {
+    private def checkWhileStatement(condition: Expression, doStatements: List[Statement])(implicit returnVal: SAType, errorList: List[Error]): List[Error] = {
         if (!checkExpression(condition, SABoolType)) return false
         scoper.enterScope()
         if (!doStatements.forall(checkStatement)) return false
@@ -250,7 +265,7 @@ object Analyser {
         return true
     }
 
-    private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement])(implicit returnVal: SAType): Boolean = {
+    private def checkIfStatement(condition: Expression, thenStatements: List[Statement], elseStatements: List[Statement])(implicit returnVal: SAType, errorList: List[Error]): List[Error] = {
     if (!checkExpression(condition, SABoolType)) return false
         scoper.enterScope()
         if (!thenStatements.forall(checkStatement)) return false
@@ -261,7 +276,7 @@ object Analyser {
         true
     }
 
-    private def checkBeginStatement(statements: List[Statement])(implicit returnVal: SAType): Boolean = {
+    private def checkBeginStatement(statements: List[Statement]) (implicit returnVal: SAType, errorList: List[Error]): List[Error]= {
         scoper.enterScope()
         if (!statements.forall(checkStatement)) {
             return false
@@ -270,7 +285,7 @@ object Analyser {
         return true
     }
 
-    private def checkFunctions(program: Program): Boolean = program.functions.forall(mapDefs) && program.functions.forall(checkFunction)
+    private def checkFunctions(program: Program) (implicit errorList: List[Error]): List[Error] = program.functions.forall(mapDefs) && program.functions.forall(checkFunction)
 
     private def mapDefs(function: Func): Boolean = {
         val funcName = function.identBinding.identifier.name
@@ -279,7 +294,7 @@ object Analyser {
         return functionTable.insertFunction(funcName, (retType, params))
     }
 
-    private def checkFunction(func: Func): Boolean = {
+    private def checkFunction(func: Func) (implicit errorList: List[Error]): List[Error] = {
         scoper.enterScope()
         // add all params to symbol table, now in scope
         val params = func.params
@@ -297,7 +312,7 @@ object Analyser {
         true
     }
 
-    private def checkFunctionCall(id: Identifier, args: List[Expression], typeName: SAType): Boolean = {
+    private def checkFunctionCall(id: Identifier, args: List[Expression], typeName: SAType)(implicit errorList: List[Error]): List[Error] = {
         if (!functionTable.containsFunction(id.name)) return false
         else {
             val expectedTypes = functionTable.getFunctionParams(id.name).get
