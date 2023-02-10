@@ -1,8 +1,6 @@
 package wacc
 
 object Errors {
-  import wacc.AST._
-
   type ErrorInfoLines = Seq[String]
   type Position = (Int, Int)
   
@@ -61,12 +59,7 @@ object Errors {
 
   case class ReadStatementError(pos: Position) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
-  }
-
-  case class ArrayIndicesError(pos: Position, expression: Expression) extends Error {
-    override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
+    override def generateErrorSpecifics() = ("Read statement error", Seq("cannot read into non-int or non-char types"))
   }
 
   case class RedeclaredFunctionError(pos: Position, identifier: String) extends Error {
@@ -81,31 +74,28 @@ object Errors {
 
   case class UndeclaredFunctionError(pos: Position, identifier: String) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
-
+    override def generateErrorSpecifics() =
+      ("Undefined function error",
+      Seq(
+        "function " + identifier + " has not been defined"
+      ))
   }
 
   case class NewPairError(pos: Position, message: String) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
-
+    override def generateErrorSpecifics() = ("New pair error", Seq(message))
   }
 
   case class ArrayArityError(pos: Position, desiredArity: Int, expectedArity: Int) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
+    override def generateErrorSpecifics() = ("Array dimension error", Seq("expected dimension " + expectedArity + " but got " + desiredArity))
 
   }
 
   case class ArrayLiteralError(pos: Position, message: String) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
+    override def generateErrorSpecifics() = ("Array literal error", Seq(message))
 
-  }
-
-  case class RValueError(pos: Position, message: String) extends Error {
-    override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
   }
 
   case class UndeclaredVariableError(pos: Position, variableName: String) extends Error {
@@ -119,17 +109,17 @@ object Errors {
 
   case class FunctionCallError(pos: Position, args: Int, required: Int) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
+    override def generateErrorSpecifics() = ("Wrong number of function parameters", Seq("expected " + required + " arguments but got " + args + " arguments"))
   }
 
   case class RedeclaredVariableError(pos: Position, variableName: String) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
+    override def generateErrorSpecifics() = ("Redeclared variable error", Seq("cannot redeclare variable " + variableName))
   }
 
   case class ReturnFromMainError(pos: Position) extends Error {
     override def getPos(): Position = pos
-    override def generateErrorSpecifics() = ("", Seq(""))
+    override def generateErrorSpecifics() = ("Return from main error", Seq("cannot return from the main program"))
   }
 
   private def generateFileDisplay(fileName: String, pos: Position): String = {
