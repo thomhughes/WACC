@@ -9,17 +9,9 @@ object Main {
   import wacc.AST.Program
   import wacc.Analyser.checkProgram
 
-  def generateError(error: Error): String = {
-    error match {
-      case SyntaxError(pos, lines) => lines.toString()
-      case _: Error                => error.toString()
-    }
-  }
-
-  def printErrors(ers: Seq[Error]) =
-    ers.foreach(error => {
-      println(generateError(error))
-    })
+  def printErrors(ers: Seq[Error], fileName: String) = ers.foreach(error => {
+    println(error.generateError(fileName))
+  })
 
   def syntaxCheck(file: File): Either[SyntaxError, Program] = {
     parse(file).get match {
@@ -28,23 +20,17 @@ object Main {
     }
   }
 
-  // def semanticCheck(program: Program): Option[Seq[Error]] = {
-  //   checkProgram(program) match {
-  //     case true => None
-  //     case false => Some(Seq(SyntaxError((2, 3), Seq("semantic error"))))
-  //   }
-  // }
-
   def main(args: Array[String]): Unit = {
-    syntaxCheck(new File(args.head)) match {
+    val fileName = args.head
+    syntaxCheck(new File(fileName)) match {
       case Left(syntaxError) => {
-        println(generateError(syntaxError))
+        println(syntaxError.generateError(fileName))
         sys.exit(100)
       }
       case Right(program) => {
         val errors = checkProgram(program)
         if (!errors.isEmpty) {
-          printErrors(errors)
+          printErrors(errors, fileName)
           sys.exit(200)
         } else {
           sys.exit(0)

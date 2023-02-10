@@ -1,5 +1,3 @@
-
-
 begin
-  
+  x = 'c'  
 end
