@@ -32,9 +32,38 @@ build-job:       # This job runs in the build stage, which runs first.
     paths:
       - wacc-42-compiler.jar
 
-test-job:   # This job runs in the test stage.
-  stage: test    # It only starts when the job in the build stage completes successfully.
+test-setup-job:
+  stage: test
   script:
-    - echo "Running tests..."
-    - ./test.sh
+    - rm -rf wacc_examples
+    - git clone https://gitlab.doc.ic.ac.uk/lab2223_spring/wacc_examples.git
+
+valid-test-job:   # This job runs in the test stage.
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  needs: [test-setup-job]
+  script:
+    - echo "Running valid test cases..."
+    - sbt "testOnly wacc.ValidTests"
     - echo "Tests complete"
+
+invalid-syntax-error-test-job:
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  needs: [test-setup-job]
+  script:
+    - echo "Running invalid syntax error test cases..."
+    - sbt "testOnly wacc.InvalidSyntaxErrorTests"
+    - echo "Tests complete"
+
+invalid-semantic-error-test-job:
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  needs: [test-setup-job]
+  script:
+    - echo "Running invalid semantic error test cases..."
+    - sbt "testOnly wacc.InvalidSemanticErrorTests"
+    - echo "Tests complete"
+
+test-cleanup-job:
+  stage: test
+  needs: [valid-test-job, invalid-syntax-error-test-job, invalid-semantic-error-test-job]
+  script:
+    - rm -rf wacc_examples
