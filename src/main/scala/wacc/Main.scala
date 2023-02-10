@@ -12,11 +12,7 @@ object Main {
   def generateError(error: Error): String = {
     error match {
       case SyntaxError(pos, lines) => lines.toString() 
-<<<<<<< HEAD
-      // case _: Error => "unknown error"
-=======
       case _: Error => error.toString()
->>>>>>> semantic_errors
     }
   }
 
