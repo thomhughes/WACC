@@ -128,10 +128,6 @@ object Analyser {
       collectErrors(program.statements, (x: Statement) => checkStatement(x))(checkFunctions(program))
     }
 
-    private def checkOuterStatements(statement: Statement)(implicit errorList: List[Error]) = {
-      checkStatement(statement)(SAAnyType, errorList)
-    }
-
     private def checkStatement(statement: Statement)(implicit returnVal: SAType, errorList: List[Error]): List[Error] = {
         statement match {
             case SkipStatement => errorList
@@ -308,11 +304,6 @@ object Analyser {
     }
     
     private def checkFreeStatement(expression: Expression)(implicit errorList: List[Error]): List[Error] = isExpressionArrayOrPairType(expression)
-      //  {
-      // val pairError = isExpressionPairType(expression)
-      // val arrayError = isExpressionArrayError(expression)
-      // if ()
-      // isExpressionArrayType(expression)(isExpressionPairType(expression))
     
     private def isExpressionArrayOrPairType(expression: Expression)(implicit errorList: List[Error]): List[Error] = {
         val typeName = expression match {
@@ -399,15 +390,6 @@ object Analyser {
           case Left((returnType, expectedTypes)) => collectErrors2(args.zip(expectedTypes), (x: Expression, y: SAType) => checkExpression(x, y)) :++ equalsTypeNoError(id.pos, typeName, returnType)
           case Right(el) => el
         }
-
-        // if (!functionTable.containsFunction(id.name)) return errorList :+ UndeclaredFunctionError(id.pos, id.name)
-        // else {
-        //     val expectedTypes = functionTable.getFunctionParams(id).get
-        //     if (args.length != expectedTypes.length || !args.zip(expectedTypes).forall(Function.tupled(checkExpression))) return false
-        //     val returnType = functionTable.getFunctionRet(id.name)
-        //     if (!returnType.isDefined) return false
-        //     return equalsType(returnType.get, typeName)
-        // }
     }
 
     private def getExpressionType(expression: Expression)(implicit errorList: List[Error]): Either[SAType, List[Error]] =
