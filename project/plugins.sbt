@@ -1,3 +1,5 @@
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.0")
 addSbtPlugin("com.github.sbt" % "sbt-git" % "2.0.1")
 addSbtPlugin("org.jmotor.sbt" % "sbt-dependency-updates" % "1.2.7")
+addSbtPlugin("com.geirsson" % "sbt-scalafmt" % "1.4.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.10.4")

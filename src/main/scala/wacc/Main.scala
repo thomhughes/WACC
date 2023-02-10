@@ -11,19 +11,20 @@ object Main {
 
   def generateError(error: Error): String = {
     error match {
-      case SyntaxError(pos, lines) => lines.toString() 
-      case _: Error => error.toString()
+      case SyntaxError(pos, lines) => lines.toString()
+      case _: Error                => error.toString()
     }
   }
 
-  def printErrors(ers: Seq[Error]) = ers.foreach(error => {
-    println(generateError(error))
-  })
+  def printErrors(ers: Seq[Error]) =
+    ers.foreach(error => {
+      println(generateError(error))
+    })
 
   def syntaxCheck(file: File): Either[SyntaxError, Program] = {
     parse(file).get match {
       case Success(program) => Right(program)
-      case Failure(error) => Left(error)
+      case Failure(error)   => Left(error)
     }
   }
 
@@ -52,4 +53,3 @@ object Main {
     }
   }
 }
- 
