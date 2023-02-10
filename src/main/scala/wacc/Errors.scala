@@ -30,7 +30,7 @@ object Errors {
 
   case class BinaryOpAppTypeError(pos: Position, expectedTypes: List[String]) extends Error {
     override def toString(): String = {
-      "binary operator arguments should be of type: " + expectedTypes.mkString(", ") + "\n"
+      f"(${pos._1},${pos._2}) binary operator arguments should be of type: " + expectedTypes.mkString(", ") + "\n"
     }
   }
 

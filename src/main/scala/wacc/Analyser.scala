@@ -82,7 +82,7 @@ object Analyser {
               }
               case rel @ Right(_) => rel
             }
-            case Right(el) => getTypeIfExpressionsType(List(lhs, rhs), t, t)
+            case Right(el) => bothTypesMatch(lhs, rhs, tail)
           }
         }
         case Nil => Right(errorList)
