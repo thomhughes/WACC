@@ -40,6 +40,7 @@ test-setup-job:
   artifacts:
     paths:
       - wacc_examples
+      - wacc-42-compiler.jar
 
 valid-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
