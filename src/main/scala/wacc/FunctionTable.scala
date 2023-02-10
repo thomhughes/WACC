@@ -4,33 +4,42 @@ import scala.collection.mutable.Map
 import wacc.Types._
 
 class FunctionTable {
+    import wacc.AST.{Func, Identifier}
+    import wacc.Errors.{Error, UndeclaredFunctionError, RedeclaredFunctionError}
 
     val map = Map[String, (Types.SAType, List[Types.SAType])]()
 
-    def checkNotDuplicate(funcName: String) = map.contains(funcName)
+    def checkDuplicate(function: Func) = map.contains(function.identBinding.identifier.name)
   
-    def insertFunction(funcName: String, params: (SAType, List[SAType])): Boolean = {
-        if (checkNotDuplicate(funcName)) false
+    def insertFunction(function: Func, params: (SAType, List[SAType]))(implicit errorList: List[Error]): List[Error] = {
+        if (checkDuplicate(function)) errorList :+ RedeclaredFunctionError(function.pos, function.identBinding.identifier.name)
         else {
-            map += (funcName -> params)
-            true
+            map += (function.identBinding.identifier.name -> params)
+            errorList
         }
     }
 
-    def getFunctionRet(funcName: String): Option[SAType] = {
-        if (map.contains(funcName)) {
-            val (retType, params) = map(funcName)
-            return Some(retType)
+    def getFunctionRet(function: Func)(implicit errorList: List[Error]): Either[SAType, List[Error]] = {
+        if (map.contains(function.identBinding.identifier.name)) {
+            val (retType, params) = map(function.identBinding.identifier.name)
+            return Left(retType)
         }
-        None
+        Right(errorList :+ UndeclaredFunctionError(function.pos, function.identBinding.identifier.name))
     }
 
-    def getFunctionParams(funcName: String): Option[List[SAType]] = {
-        if (map.contains(funcName)) {
-            val (retType, params) = map(funcName)
-            return Some(params)
+    def getFunctionEntry(identifier: Identifier)(implicit errorList: List[Error]): Either[(SAType, List[SAType]), List[Error]] = {
+        if (map.contains(identifier.name)) {
+            return Left(map(identifier.name))
         }
-        None
+        Right(errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
+    }
+
+    def getFunctionParams(identifier: Identifier)(implicit errorList: List[Error]): Either[List[SAType], List[Error]] = {
+        if (map.contains(identifier.name)) {
+            val (retType, params) = map(identifier.name)
+            return Left(params)
+        }
+        Right(errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
     }
 
     def containsFunction(funcName: String) = map.contains(funcName)

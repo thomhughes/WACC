@@ -80,7 +80,11 @@ object AST {
   case class BoolLiteral(value: Boolean)(val pos: (Int, Int)) extends Expression
   case class CharLiteral(value: Char)(val pos: (Int, Int)) extends Expression
   case class StringLiteral(value: String)(val pos: (Int, Int)) extends Expression
+<<<<<<< HEAD
   case object PairLiteral extends Expression with ParserBridge0[Expression]
+=======
+  case class PairLiteral(pos: (Int, Int)) extends Expression
+>>>>>>> semantic_errors
   case class UnaryOpApp(op: UnaryOp, expr: Expression)(val pos: (Int, Int)) extends Expression
   case class BinaryOpApp(op: BinaryOp, lhs: Expression, rhs: Expression)(val pos: (Int, Int)) extends Expression
 
@@ -89,6 +93,13 @@ object AST {
       def <#(op: Parsley[_]): Parsley[A] = pos.map(this.con(_)) <* op
   }
 
+<<<<<<< HEAD
+=======
+  trait ParserBridgePos0[+A] extends ParserSingletonBridgePos[A] { this: A =>
+      def con(pos: (Int, Int)): A = this
+  }
+
+>>>>>>> semantic_errors
   trait ParserBridgePos1[-A, +B] extends ParserSingletonBridgePos[A => B] {
       def apply(x: A)(pos: (Int, Int)): B
       def apply(x: Parsley[A]): Parsley[B] = pos <**> x.map(this.apply(_) _)
@@ -172,4 +183,8 @@ object AST {
   object BoolLiteral extends Expression with ParserBridgePos1[Boolean, BoolLiteral]
   object CharLiteral extends Expression with ParserBridgePos1[Char, CharLiteral]
   object StringLiteral extends Expression with ParserBridgePos1[String, StringLiteral]
+<<<<<<< HEAD
+=======
+  case object PairLiteral extends Expression with ParserBridgePos0[Expression]
+>>>>>>> semantic_errors
 }
