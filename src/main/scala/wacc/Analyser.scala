@@ -22,7 +22,7 @@ object Analyser {
       SAPairType(convertSyntaxToTypeSys(fstType),
                  convertSyntaxToTypeSys(sndType))
     case PairRefType => SAPairRefType
-    case default     => throw new Exception("Unknown type")
+    case _           => throw new Exception("Unknown type")
   }
 
   private def getTypeIfExpressionsType(expressions: List[Expression],
@@ -50,7 +50,7 @@ object Analyser {
       case true => {
         errorList
       }
-      case default => {
+      case _ => {
         errorList :+ TypeError(pos,
                                firstType.toString,
                                List(secondType.toString))
@@ -70,12 +70,14 @@ object Analyser {
       case e @ BinaryOpApp(_, _, _) => e.pos
       case e @ ArrayElem(_, _)      => e.pos
       case e @ Identifier(_)        => e.pos
+      case _                        => throw new Exception("Unexpected Expression Type")
     }
 
   private def getLValuePos(lvalue: LValue): Position = lvalue match {
     case id @ Identifier(_)          => id.pos
     case pairelem @ PairElem(_, _)   => pairelem.pos
     case arrayelem @ ArrayElem(_, _) => arrayelem.pos
+    case _                           => throw new Exception("Unexpected LValue")
   }
 
   private def getRValuePos(rvalue: RValue): Position = rvalue match {
@@ -84,6 +86,7 @@ object Analyser {
     case pe @ PairElem(index, pair)  => pe.pos
     case fc @ FunctionCall(id, args) => fc.pos
     case expr: Expression            => getExpressionPos(expr)
+    case _                           => throw new Exception("Unexpected RValue")
   }
 
   private def collectErrors[A](a: List[A], collector: A => List[Error])(
@@ -106,6 +109,7 @@ object Analyser {
     case Identifier(name)         => name
     case PairElem(_, value)       => getLValueName(value)
     case ArrayElem(identifier, _) => identifier.name
+    case _                        => throw new Exception("Unexpected LValue")
   }
 
   private def isExpressionArrayOrPairType(expression: Expression)(
@@ -124,7 +128,7 @@ object Analyser {
                                t.toString,
                                List(SAPairType.toString, SAArrayType.toString))
       case Right(el) => el
-      case default   => throw new Exception("This shouldnt happen either.")
+      case _         => throw new Exception("This shouldnt happen either.")
     }
   }
 
@@ -179,10 +183,10 @@ object Analyser {
         typeName match {
           case SAPairType(fstType, sndType) =>
             checkExpression(snd, sndType)(checkExpression(fst, fstType))
-          case default =>
+          case _ =>
             errorList :+ NewPairError(
               getRValuePos(rvalue),
-              "cannot create new pair of type" + typeName)
+              "cannot create new pair of type " + typeName)
         }
       case al @ ArrayLiteral(list) =>
         typeName match {
@@ -191,14 +195,15 @@ object Analyser {
                           (x: Expression) => (checkExpression(x, arrayType)))
           case SAArrayType(arrayType: SAType, x) =>
             checkArrayConstraints(rvalue, list, arrayType, x)
-          case default =>
+          case _ =>
             errorList :+ ArrayLiteralError(
               al.pos,
-              "invalid array literal of type" + typeName)
+              "invalid array literal of type " + typeName)
         }
       case PairElem(index, pair)  => checkPairElem(index, pair, typeName)
       case FunctionCall(id, args) => checkFunctionCall(id, args, typeName)
       case expr: Expression       => checkExpression(expr, typeName)
+      case _                      => throw new Exception("Unexpected RValue")
     }
   }
 
@@ -217,7 +222,7 @@ object Analyser {
       case id @ Identifier(_)     => symbolTable.lookupVar(id)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case PairElem(index, pair)  => getPairElemType(index, pair)
-      case default                => throw new Exception("Unresolved Syntax Error")
+      case _                      => throw new Exception("Unresolved Syntax Error")
     }
     typeName match {
       case Left(typeN) => checkRValue(rvalue, typeN)
@@ -232,7 +237,7 @@ object Analyser {
       case PairElem(anotherIndex, anotherPair) =>
         getPairElemType(anotherIndex, anotherPair)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
-      case default                => throw new Exception("Exhaustive")
+      case _                      => throw new Exception("Exhaustive")
     }
     typeName match {
       case Left(SAPairType(fstType, sndType)) =>
@@ -308,21 +313,20 @@ object Analyser {
     checkExpression(expression, SAAnyType)
 
   private def checkLValue(lvalue: LValue, typeName: SAType)(
-      implicit errorList: List[Error]): List[Error] = {
-    lvalue match {
-      case id @ Identifier(_) =>
-        symbolTable.lookupVar(id) match {
-          case Left(t)   => equalsTypeNoError(getLValuePos(lvalue), t, typeName)
-          case Right(el) => el
-        }
-      case ArrayElem(id, indices) =>
-        getArrayElemType(id, indices) match {
-          case Left(t)   => equalsTypeNoError(getLValuePos(lvalue), t, typeName)
-          case Right(el) => el
-        }
-      case PairElem(index, innerLValue) =>
-        checkPairElem(index, innerLValue, typeName)
-    }
+      implicit errorList: List[Error]): List[Error] = lvalue match {
+    case id @ Identifier(_) =>
+      symbolTable.lookupVar(id) match {
+        case Left(t)   => equalsTypeNoError(getLValuePos(lvalue), t, typeName)
+        case Right(el) => el
+      }
+    case ArrayElem(id, indices) =>
+      getArrayElemType(id, indices) match {
+        case Left(t)   => equalsTypeNoError(getLValuePos(lvalue), t, typeName)
+        case Right(el) => el
+      }
+    case PairElem(index, innerLValue) =>
+      checkPairElem(index, innerLValue, typeName)
+    case _ => throw new Exception("Unexpected LValue")
   }
 
   private def checkWhileStatement(condition: Expression,
@@ -363,7 +367,7 @@ object Analyser {
       returnVal match {
         case SAAnyType =>
           errorList :+ ReturnFromMainError(getExpressionPos(expression))
-        case default => checkExpression(expression, returnVal)
+        case _ => checkExpression(expression, returnVal)
       }
     case ExitStatement(expression)    => checkExitStatement(expression)
     case PrintStatement(expression)   => checkPrintStatement(expression)
@@ -373,6 +377,7 @@ object Analyser {
     case WhileStatement(condition, doStatements) =>
       checkWhileStatement(condition, doStatements)
     case BeginStatement(statements) => checkBeginStatement(statements)
+    case _                          => throw new Exception("Unexpected Statement")
   }
 
   // EXPRESSION RELATED FUNCTIONS
@@ -442,6 +447,7 @@ object Analyser {
           symbolTable.lookupVar(id) match {
             case Left(SAArrayType(_, _)) => Left(SAIntType)
             case rel @ Right(_)          => rel
+            case _                       => throw new Exception("Unexpected lookup result")
           }
         case ArrayElem(id, indices) =>
           symbolTable.lookupVar(id) match {
@@ -454,8 +460,9 @@ object Analyser {
                                                indices.length,
                                                arity))
             case rel @ Right(_) => rel
+            case _              => throw new Exception("Unexpected lookup result")
           }
-        case default =>
+        case _ =>
           Right(
             errorList :+ TypeError(getExpressionPos(expression),
                                    expression.toString,
@@ -481,7 +488,7 @@ object Analyser {
       case Gt | Ge | Lt | Le => {
         bothTypesMatch(binaryOp.lhs, binaryOp.rhs, List(SAIntType, SACharType)) match {
           case Left(_) => Left(SABoolType)
-          case default =>
+          case _ =>
             Right(
               errorList :+ BinaryOpAppTypeError(binaryOp.pos,
                                                 List(SAIntType.toString,
@@ -529,7 +536,7 @@ object Analyser {
       case id @ Identifier(_)         => symbolTable.lookupVar(id)
       case UnaryOpApp(op, expr)       => getUnOpType(op, expr)
       case boa @ BinaryOpApp(_, _, _) => getBinOpType(boa)
-      case default                    => throw new Exception("we shouldnt get this!")
+      case _                          => throw new Exception("we shouldnt get this!")
     }
 
   private def checkExpression(expression: Expression, t: SAType)(
@@ -592,7 +599,7 @@ object Analyser {
     scoper.enterScope()
     val functionReturnType: SAType = functionTable.getFunctionRet(func) match {
       case Left(t) => t
-      case default => SAAnyType
+      case _       => SAAnyType
     }
     val funcErrors =
       collectErrorsFunctionStatements(func.body, functionReturnType)

@@ -18,7 +18,7 @@ object Errors {
                        expectedTypes: List[String])
       extends Error {
     override def toString(): String = {
-      pos + "unexpected type: " + unexpectedType + "\n" +
+      pos.toString + "unexpected type: " + unexpectedType + "\n" +
         "expected type: " + expectedTypes + "\n"
     }
   }
@@ -29,7 +29,7 @@ object Errors {
                             expectedType: String)
       extends Error {
     override def toString(): String = {
-      pos + "identifier: " + identifier + "\n" +
+      pos.toString + "identifier: " + identifier + "\n" +
         "unexpected type: " + unexpectedType + "\n" +
         "expected type: " + expectedType + "\n"
     }

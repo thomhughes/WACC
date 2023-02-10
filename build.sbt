@@ -14,6 +14,8 @@ lazy val root = (project in file(".")).
     name := "WACC 42",
     organization := "uk.ac.imperial.doc",
     scalaVersion := "2.13.10",
+    semanticdbEnabled := true,
+    semanticdbVersion := scalafixSemanticdb.revision,
 
     sbtAssemblySettings,
 
