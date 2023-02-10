@@ -3,7 +3,7 @@ package wacc
 class InvalidSyntaxErrorTests extends IntegrationTest {
     runTestOnDirectory("invalid/syntaxErr/array", true)
     runTestOnDirectory("invalid/syntaxErr/basic", true)
-    runTestOnDirectory("invalid/syntaxErr/functions", true)
+    runTestOnDirectory("invalid/syntaxErr/function", true)
     runTestOnDirectory("invalid/syntaxErr/expressions", true)
     runTestOnDirectory("invalid/syntaxErr/if", true)
     runTestOnDirectory("invalid/syntaxErr/literals", true)
