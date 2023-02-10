@@ -13,7 +13,7 @@ object SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] with TillNextWhitesp
     type Position = Errors.Position
     type Source = Unit
 
-    override def pos(line: Int, col: Int): Position = Position(line, col)
+    override def pos(line: Int, col: Int): Position = (line, col)
 
     override def source(sourceName: Option[String]): Source = ()
 

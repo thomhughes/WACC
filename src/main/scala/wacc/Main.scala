@@ -12,7 +12,7 @@ object Main {
   def generateError(error: Error): String = {
     error match {
       case SyntaxError(pos, lines) => lines.toString() 
-      case _: Error => "unknown error"
+      case _: Error => error.toString()
     }
   }
 
@@ -27,12 +27,12 @@ object Main {
     }
   }
 
-  def semanticCheck(program: Program): Option[Seq[Error]] = {
-    checkProgram(program) match {
-      case true => None
-      case false => Some(Seq(SyntaxError(Errors.Position(2, 3), Seq("semantic error"))))
-    }
-  }
+  // def semanticCheck(program: Program): Option[Seq[Error]] = {
+  //   checkProgram(program) match {
+  //     case true => None
+  //     case false => Some(Seq(SyntaxError((2, 3), Seq("semantic error"))))
+  //   }
+  // }
 
   def main(args: Array[String]): Unit = {
     syntaxCheck(new File(args.head)) match {
@@ -41,12 +41,12 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        semanticCheck(program) match {
-          case Some(errors) => {
-            printErrors(errors)
+        checkProgram(program) match {
+          case list @ (a :: b) => {
+            printErrors(list)
             sys.exit(200)
           }
-          case None => sys.exit(0)
+          case Nil => sys.exit(0)
         }
       }
     }

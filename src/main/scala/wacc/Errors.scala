@@ -1,8 +1,10 @@
 package wacc
 
 object Errors {
+  import wacc.AST._
+
   type ErrorInfoLines = Seq[String]
-  case class Position(line: Int, col: Int)
+  type Position = (Int, Int)
   
   sealed trait Error
   case class SyntaxError(pos: Position, lines: ErrorInfoLines) extends Error {
@@ -11,18 +13,50 @@ object Errors {
     }
   }
   // lines: [unxectedType, expectedType]
-  case class TypeError(pos: Position, lines: ErrorInfoLines) extends Error {
+  case class TypeError(pos: Position, unexpectedType: String, expectedTypes: List[String]) extends Error {
     override def toString(): String = {
-      "Type error in FILENAMEHERE at position " + pos.toString() + "\n" +
-      "unexpected type: " + lines(0) + "\n" +
-      "expected type: " + lines(1) + "\n"
+      "unexpected type: " + unexpectedType + "\n" +
+      "expected type: " + expectedTypes + "\n"
     }
   }
 
-  case class UndeclaredVariableError (pos: Position, lines: ErrorInfoLines) extends Error {
+  case class TypeMatchError(pos: Position, identifier: String, unexpectedType: String, expectedType: String) extends Error {
     override def toString(): String = {
-      "Undeclared variable error in FILENAMEHERE at position " + pos.toString() + "\n" +
-      "variable " + lines(0) + " has not been declared in this scope" + "\n"
+      "identifier: " + identifier + "\n" +
+      "unexpected type: " + unexpectedType + "\n" +
+      "expected type: " + expectedType + "\n"
     }
   }
+
+  case class BinaryOpAppTypeError(pos: Position, expectedTypes: List[String]) extends Error {
+    override def toString(): String = {
+      "binary operator arguments should be of type: " + expectedTypes.mkString(", ") + "\n"
+    }
+  }
+
+  case class ArrayIndicesError(pos: Position, expression: Expression) extends Error
+
+  case class RedeclaredFunctionError(pos: Position, identifier: String) extends Error
+
+  case class UndeclaredFunctionError(pos: Position, identifier: String) extends Error
+
+  case class NewPairError(pos: Position, message: String) extends Error
+
+  case class ArrayArityError(pos: Position, desiredArity: Int, expectedArity: Int) extends Error
+
+  case class ArrayLiteralError(pos: Position, message: String) extends Error
+
+  case class RValueError(pos: Position, message: String) extends Error
+
+  case class UndeclaredVariableError(pos: Position, variableName: String) extends Error {
+    override def toString(): String = {
+      "variable " + variableName + " has not been declared in this scope" + "\n"
+    }
+  }
+
+  case class RedeclaredVariableError(pos: Position, variableName: String) extends Error
+
+  case class ReturnFromMainError(pos: Position) extends Error
+
+  case class UnknownError(error: String) extends Error
 }
