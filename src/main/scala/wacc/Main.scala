@@ -41,12 +41,12 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        checkProgram(program) match {
-          case list @ (a :: b) => {
-            printErrors(list)
-            sys.exit(200)
-          }
-          case Nil => sys.exit(0)
+        val errors = checkProgram(program)
+        if (!errors.isEmpty) {
+          printErrors(errors)
+          sys.exit(200)
+        } else {
+          sys.exit(0)
         }
       }
     }
