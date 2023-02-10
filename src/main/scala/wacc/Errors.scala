@@ -54,6 +54,8 @@ object Errors {
     }
   }
 
+  case class FunctionCallError(pos: Position, args: Int, required: Int) extends Error
+
   case class RedeclaredVariableError(pos: Position, variableName: String) extends Error
 
   case class ReturnFromMainError(pos: Position) extends Error

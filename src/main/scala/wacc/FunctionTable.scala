@@ -27,6 +27,13 @@ class FunctionTable {
         Right(errorList :+ UndeclaredFunctionError(function.pos, function.identBinding.identifier.name))
     }
 
+    def getFunctionEntry(identifier: Identifier)(implicit errorList: List[Error]): Either[(SAType, List[SAType]), List[Error]] = {
+        if (map.contains(identifier.name)) {
+            return Left(map(identifier.name))
+        }
+        Right(errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
+    }
+
     def getFunctionParams(identifier: Identifier)(implicit errorList: List[Error]): Either[List[SAType], List[Error]] = {
         if (map.contains(identifier.name)) {
             val (retType, params) = map(identifier.name)

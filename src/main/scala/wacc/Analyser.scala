@@ -57,7 +57,15 @@ object Analyser {
         case Eq | Neq => {
             bothTypesMatch(binaryOp.lhs, binaryOp.rhs, List(SAIntType, SACharType, SABoolType, SAStringType)) match {
               case Left(_) => Left(SABoolType)
-              case default => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
+              case default => getExpressionType(binaryOp.lhs) match {
+                case Left(lhsType) => getExpressionType(binaryOp.rhs) match {
+                  case Left(rhsType) if equalsType(lhsType, rhsType) => Left(SABoolType)
+                  case Left(rhsType) => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
+                  case Right(errorList) => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
+                }
+                case Right(errorList) => Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
+              }
+                // Right(errorList :+ BinaryOpAppTypeError(binaryOp.pos, List(SAIntType, SACharType, SABoolType, SAStringType).map(_.toString)))
             }
         }
     }
@@ -276,7 +284,7 @@ object Analyser {
                 else if (indices.length == arity)
                     Left(arrayType)
                 else 
-                    Right(indicesError)
+                    Right(indicesError :+ ArrayArityError(id.pos, arity - indices.length, arity))
             }
             case Left(t) => Right(errorList :+ TypeError(id.pos, t.toString, List(SAArrayType.toString)))
             case rel @ Right(_) => rel
@@ -391,8 +399,9 @@ object Analyser {
     }
 
     private def checkFunctionCall(id: Identifier, args: List[Expression], typeName: SAType)(implicit errorList: List[Error]): List[Error] = {
-        functionTable.getFunctionParams(id) match {
-          case Left(expectedTypes) => collectErrors2(args.zip(expectedTypes), (x: Expression, y: SAType) => checkExpression(x, y))
+        functionTable.getFunctionEntry(id) match {
+          case Left((_, expectedTypes)) if expectedTypes.length != args.length => errorList :+ FunctionCallError(id.pos, args.length, expectedTypes.length)
+          case Left((returnType, expectedTypes)) => collectErrors2(args.zip(expectedTypes), (x: Expression, y: SAType) => checkExpression(x, y)) :++ equalsTypeNoError(id.pos, typeName, returnType)
           case Right(el) => el
         }
 
