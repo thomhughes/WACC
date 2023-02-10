@@ -302,34 +302,33 @@ object Analyser {
     
     // TODO: change AST node to include print type info with inferType
     private def checkReadStatement(lvalue: LValue) (implicit errorList: List[Error]): List[Error] = {
-      checkLValue(lvalue, SACharType)(checkLValue(lvalue, SAIntType))
+      val charError = checkLValue(lvalue, SACharType)
+      val intError = checkLValue(lvalue, SAIntType)(charError)
+      if ((!(charError eq errorList) && !(intError eq charError))) {
+        intError :+ ReadStatementError(getLValuePos(lvalue)) 
+      } else {
+        errorList
+      }
     }
     
-    private def checkFreeStatement(expression: Expression)(implicit errorList: List[Error]): List[Error] = isExpressionArrayType(expression)(isExpressionPairType(expression))
+    private def checkFreeStatement(expression: Expression)(implicit errorList: List[Error]): List[Error] = isExpressionArrayOrPairType(expression)
+      //  {
+      // val pairError = isExpressionPairType(expression)
+      // val arrayError = isExpressionArrayError(expression)
+      // if ()
+      // isExpressionArrayType(expression)(isExpressionPairType(expression))
     
-    private def isExpressionArrayType(expression: Expression)(implicit errorList: List[Error]): List[Error] = {
+    private def isExpressionArrayOrPairType(expression: Expression)(implicit errorList: List[Error]): List[Error] = {
         val typeName = expression match {
             case id @ Identifier(_) => symbolTable.lookupVar(id) 
-            case ArrayElem(id, indices) => getArrayElemType(id, indices)
-            case _ => getExpressionType(expression)
-        }
-        typeName match {
-            case Left(SAArrayType(_, _)) => errorList
-            case Left(t) => errorList :+ TypeError(getExpressionPos(expression), t.toString, List(SAArrayType.toString))
-            case Right(el) => el
-        }
-    }
-
-    private def isExpressionPairType(expression: Expression)(implicit errorList: List[Error]): List[Error] = {
-        val typeName = expression match {
-            case id @ Identifier(_) => symbolTable.lookupVar(id)
             case PairLiteral => return errorList
             case ArrayElem(id, indices) => getArrayElemType(id, indices)
             case _ => getExpressionType(expression)
         }
         typeName match {
+            case Left(SAArrayType(_, _)) => errorList
             case Left(SAPairType(_, _)) => errorList
-            case Left(t) => errorList :+ TypeError(getExpressionPos(expression), t.toString, List(SAPairType.toString))
+            case Left(t) => errorList :+ TypeError(getExpressionPos(expression), t.toString, List(SAPairType.toString, SAArrayType.toString))
             case Right(el) => el
             case default => throw new Exception("This shouldnt happen either.")
         }

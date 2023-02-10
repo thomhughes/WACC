@@ -15,14 +15,14 @@ object Errors {
   // lines: [unxectedType, expectedType]
   case class TypeError(pos: Position, unexpectedType: String, expectedTypes: List[String]) extends Error {
     override def toString(): String = {
-      "unexpected type: " + unexpectedType + "\n" +
+      pos + "unexpected type: " + unexpectedType + "\n" +
       "expected type: " + expectedTypes + "\n"
     }
   }
 
   case class TypeMatchError(pos: Position, identifier: String, unexpectedType: String, expectedType: String) extends Error {
     override def toString(): String = {
-      "identifier: " + identifier + "\n" +
+      pos + "identifier: " + identifier + "\n" +
       "unexpected type: " + unexpectedType + "\n" +
       "expected type: " + expectedType + "\n"
     }
@@ -33,6 +33,8 @@ object Errors {
       f"(${pos._1},${pos._2}) binary operator arguments should be of type: " + expectedTypes.mkString(", ") + "\n"
     }
   }
+
+  case class ReadStatementError(pos: Position) extends Error
 
   case class ArrayIndicesError(pos: Position, expression: Expression) extends Error
 
