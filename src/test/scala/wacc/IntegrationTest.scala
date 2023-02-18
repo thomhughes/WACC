@@ -34,7 +34,7 @@ class IntegrationTest extends AnyFlatSpec {
             return
         }
         if (run) {
-            val compileExitCode = ("./wacc_examples/refCompile " + path.toString() + " --suppress").!
+            val compileExitCode = ("./compile " + path.toString() + " --suppress").!
             if (compileExitCode != 0) {
                 throw new RuntimeException("Compiling " + path.toString() + " led to a semantic or syntax error")
             }
@@ -44,7 +44,13 @@ class IntegrationTest extends AnyFlatSpec {
             if (assemblerExitCode != 0) {
                 throw new RuntimeException("Assembling " + path.toString() + " led to an error")
             }
-            val actualOutput = ("qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString).!!
+            val programInputLine = Source.fromFile(path.toString)
+                .getLines().toList
+                .dropWhile(x => !x.replace(" ", "").startsWith("#Input:"))
+                .head
+            val programInput = programInputLine.substring(programInputLine.indexOf(':') + 2)
+            val executeCommand = "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
+            val actualOutput = executeCommand.!!
             val exampleOutput =
                 Source.fromFile(path.toString)
                 .getLines().toList
@@ -54,7 +60,7 @@ class IntegrationTest extends AnyFlatSpec {
                 .tail
                 .mkString("\n")
             "Backend " should "correctly generate code for " + path.toString() + " test case" in {
-                exampleOutput should fullyMatch regex actualOutput
+                assert(exampleOutput == actualOutput)
             }
         } else {
             "Backend " should "correctly generate code for " + path.toString() + " test case" in pending
