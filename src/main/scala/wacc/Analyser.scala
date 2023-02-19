@@ -115,7 +115,7 @@ object Analyser {
   private def isExpressionArrayOrPairType(expression: Expression)(
       implicit errorList: List[Error]): List[Error] = {
     val typeName = expression match {
-      case id @ Identifier(_)     => symbolTable.lookupVar(id)
+      case id @ Identifier(_)     => symbolTable.lookupVarType(id)
       case PairLiteral            => return errorList
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case _                      => getExpressionType(expression)
@@ -139,7 +139,7 @@ object Analyser {
       expectedArity: Int)(implicit errorList: List[Error]): List[Error] = {
     list match {
       case (id @ Identifier(_)) :: next =>
-        symbolTable.lookupVar(id) match {
+        symbolTable.lookupVarType(id) match {
           case Left(SAArrayType(actualType, innerArity)) => {
             val equalsTypeErrors =
               equalsTypeNoError(getRValuePos(rvalue), actualType, expectedType)
@@ -219,7 +219,7 @@ object Analyser {
   private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue)(
       implicit errorList: List[Error]): List[Error] = {
     val typeName = lvalue match {
-      case id @ Identifier(_)     => symbolTable.lookupVar(id)
+      case id @ Identifier(_)     => symbolTable.lookupVarType(id)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case PairElem(index, pair)  => getPairElemType(index, pair)
       case _                      => throw new Exception("Unresolved Syntax Error")
@@ -233,7 +233,7 @@ object Analyser {
   private def getPairElemType(index: PairIndex, pair: LValue)(
       implicit errorList: List[Error]): Either[SAType, List[Error]] = {
     val typeName = pair match {
-      case id @ Identifier(_) => symbolTable.lookupVar(id)
+      case id @ Identifier(_) => symbolTable.lookupVarType(id)
       case PairElem(anotherIndex, anotherPair) =>
         getPairElemType(anotherIndex, anotherPair)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
@@ -315,7 +315,7 @@ object Analyser {
   private def checkLValue(lvalue: LValue, typeName: SAType)(
       implicit errorList: List[Error]): List[Error] = lvalue match {
     case id @ Identifier(_) =>
-      symbolTable.lookupVar(id) match {
+      symbolTable.lookupVarType(id) match {
         case Left(t)   => equalsTypeNoError(getLValuePos(lvalue), t, typeName)
         case Right(el) => el
       }
@@ -410,7 +410,7 @@ object Analyser {
 
   private def getArrayElemType(id: Identifier, indices: List[Expression])(
       implicit errorList: List[Error]): Either[SAType, List[Error]] =
-    symbolTable.lookupVar(id) match {
+    symbolTable.lookupVarType(id) match {
       case Left(SAArrayType(arrayType, arity)) => {
         val indicesError = collectErrors(
           indices,
@@ -444,13 +444,13 @@ object Analyser {
     case Len =>
       expression match {
         case id @ Identifier(_) =>
-          symbolTable.lookupVar(id) match {
+          symbolTable.lookupVarType(id) match {
             case Left(SAArrayType(_, _)) => Left(SAIntType)
             case rel @ Right(_)          => rel
             case _                       => throw new Exception("Unexpected lookup result")
           }
         case ArrayElem(id, indices) =>
-          symbolTable.lookupVar(id) match {
+          symbolTable.lookupVarType(id) match {
             case Left(SAArrayType(_, arity)) =>
               if (indices.length < arity) {
                 Left(SAIntType)
@@ -533,7 +533,7 @@ object Analyser {
       case StringLiteral(_)           => Left(SAStringType)
       case PairLiteral                => Left(SAPairRefType)
       case ArrayElem(id, indices)     => getArrayElemType(id, indices)
-      case id @ Identifier(_)         => symbolTable.lookupVar(id)
+      case id @ Identifier(_)         => symbolTable.lookupVarType(id)
       case UnaryOpApp(op, expr)       => getUnOpType(op, expr)
       case boa @ BinaryOpApp(_, _, _) => getBinOpType(boa)
       case _                          => throw new Exception("we shouldnt get this!")

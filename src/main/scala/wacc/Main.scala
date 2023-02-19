@@ -34,7 +34,6 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
-          System.out.println(symbolTable)
           sys.exit(0)
         }
       }
