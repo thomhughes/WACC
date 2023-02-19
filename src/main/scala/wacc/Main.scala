@@ -9,9 +9,10 @@ object Main {
   import wacc.AST.Program
   import wacc.Analyser.checkProgram
 
-  def printErrors(ers: Seq[Error], fileName: String) = ers.foreach(error => {
-    println(error.generateError(fileName))
-  })
+  def printErrors(ers: Seq[Error], fileName: String) =
+    ers.foreach(error => {
+      println(error.generateError(fileName))
+    })
 
   def syntaxCheck(file: File): Either[SyntaxError, Program] = {
     parse(file).get match {
@@ -28,11 +29,12 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        val errors = checkProgram(program)
+        val (errors, symbolTable, functionTable) = checkProgram(program)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
+          System.out.println(symbolTable)
           sys.exit(0)
         }
       }

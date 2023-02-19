@@ -615,9 +615,10 @@ object Analyser {
   }
 
   // Main function to run semantic analysis, return errors as state
-  def checkProgram(program: Program): List[Error] = {
+  def checkProgram(program: Program): (List[Error], SymbolTable, FunctionTable) = {
     implicit val errorList: List[Error] = List()
-    collectErrors(program.statements, (x: Statement) => checkStatement(x))(
+    val errors = collectErrors(program.statements, (x: Statement) => checkStatement(x))(
       checkFunctions(program))
+    (errors, symbolTable, functionTable)
   }
 }
