@@ -1,11 +1,13 @@
 package wacc
 
 case class SymbolTable(var scoper: Scoper) {
+  import scala.collection.mutable.Map
   import wacc.Types._
   import wacc.AST.Identifier
   import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
 
-  var map = Map[(String, Int), Either[SAType, Int]]()
+  val map = Map[(String, Int), Either[SAType, Int]]()
+  val memMap = Map[Int, Int]().withDefaultValue(0)
 
   override def toString(): String = {
     map.toString()
@@ -25,6 +27,19 @@ case class SymbolTable(var scoper: Scoper) {
     Right(errorList :+ UndeclaredVariableError(identifier.pos, identifier.name))
   }
 
+    def lookupType(identifier: Identifier): SAType = {
+    val iter = scoper.getIterator()
+    while (iter.hasNext) {
+      val curr = iter.next()
+      val key = (identifier.name, curr)
+      if (map.contains(key)) return map(key) match {
+        case Left(x) => x
+        case _ => throw new Exception("Type lookup has been performed after updating")
+      }
+    }
+    throw new Exception("unexpected type lookup in symbol table")
+  }
+
   def insertVar(identifier: Identifier, t: SAType)(
       implicit errorList: List[Error]): List[Error] = {
     val key = (identifier.name, scoper.getScope())
@@ -37,13 +52,14 @@ case class SymbolTable(var scoper: Scoper) {
 
   def updateScoper(newScoper: Scoper) = scoper = newScoper
 
-  def updateVar(identifier: Identifier, no: Int) = {
-    val key = (identifier.name, no)
+  def updateVar(identifier: Identifier, scopeNo: Int, bytes: Int) = {
+    val key = (identifier.name, scopeNo)
     if (!map.contains(key)) throw new Exception("unexpected variable being looked up")
-    map += (key -> Right(no))
+    memMap(scopeNo) += bytes
+    map += (key -> Right(memMap(scopeNo)))
   }
 
-    def lookupVarNo(identifier: Identifier): Int = {
+  def lookupVarNo(identifier: Identifier): Int = {
     val iter = scoper.getIterator()
     while (iter.hasNext) {
       val curr = iter.next()

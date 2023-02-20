@@ -2,23 +2,38 @@ package wacc
 
 import scala.collection.mutable.{ListBuffer, Map}
 import scala.language.implicitConversions
+import wacc.Types._
 
-// int[] arr = [1, 2, 3]
-// need to know length of the array to proceed.
-// dont care for arity
-// symbol table will have location for nested arrays
-// maybe an array table?
+// memmap maps from scope to no of bytes used
+// every time we come accross a new variable,
+// we increment memMap by 4 and map var to that
+// address
 
 object IR {
 
-  val memMap = Map[Int, Int]()
-  val scoper = new Scoper()
+  // map from scope no to no of bytes
   import AST._
 
+  def updateVar(identifier: Identifier, no: Int, bytes: Int)(
+    implicit irProgram: IRProgram) = 
+    irProgram.symbolTable.updateVar(identifier, no, bytes)
+
+  def getScope()(implicit irProgram: IRProgram) = irProgram.symbolTable.scoper.getScope()
+
+  // def getNoBytes(saType: SAType): Int = saType match {
+  //   case SAIntType(_) | SAArrayType(_,_) | SAPairType(_) => 
+  // }
+
+  // def updateSymbolTable(identifier: Identifier)(implicit irProgram: IRProgram): Operand = {
+  //   val argType: SAType = irProgram.symbolTable.lookupType(identifier)
+  //   updateVar(identifier, getScope(), getNoBytes(argType))
+  //   Var(identifier.name)
+  // }
+
   /* Evaluates lvalue and places result on top of the stack */
-  def convertLValueToOperand(lvalue: LValue): Operand = {
+  def convertLValueToOperand(lvalue: LValue)(implicit irProgram: IRProgram): Operand = {
     lvalue match {
-      case Identifier(name) => Var(name)
+      case Identifier(name) => ???
       case ArrayElem(id, indices) => ???
       case PairElem(index, lvalue) => ???
       case default => throw new Exception("Invalid lhs for assignment/declaration")
@@ -117,13 +132,13 @@ object IR {
 
   
   def enterScope()(implicit irProgram: IRProgram) = {
-    scoper.enterScope()
-    irProgram.instructions += EnterScope(scoper.getScope())
+    irProgram.symbolTable.scoper.enterScope()
+    irProgram.instructions += EnterScope(irProgram.symbolTable.scoper.getScope())
   }
 
   def exitScope()(implicit irProgram: IRProgram) = {
-    irProgram.instructions += ExitScope(scoper.getScope())
-    scoper.exitScope()
+    irProgram.instructions += ExitScope(irProgram.symbolTable.scoper.getScope())
+    irProgram.symbolTable.scoper.exitScope()
   }
 
   def buildBegin(statements: List[Statement])(implicit irProgram: IRProgram): Unit = {
@@ -177,7 +192,8 @@ object IR {
   
   def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
     implicit val dataMap: Map[Identifier, LabelRef] = Map()
-    implicit val irProgram = IRProgram(ListBuffer(), dataMap)
+    implicit val irProgram = IRProgram(ListBuffer(), dataMap, symbolTable)
+    irProgram.symbolTable.updateScoper(new Scoper())
     buildFuncs(ast.functions)
     ast.statements.foreach(buildStatement(_))
     irProgram.instructions

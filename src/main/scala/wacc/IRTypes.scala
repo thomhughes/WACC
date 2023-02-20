@@ -4,12 +4,14 @@ import scala.collection.mutable.ListBuffer
 import wacc.AST.{Identifier, Expression}
 import scala.collection.mutable.Map
 
-case class IRProgram(val instructions: ListBuffer[IRType], val dataMap: Map[Identifier, LabelRef])
+case class IRProgram(val instructions: ListBuffer[IRType], val dataMap: Map[Identifier, LabelRef], val symbolTable: SymbolTable)
 
 sealed trait IRType
 case class Label(name: String) extends IRType
 case class EnterScope(scopeNo: Int) extends IRType
 case class ExitScope(scopeNo: Int) extends IRType
+case class EnterFrame(scopeNo: Int) extends IRType
+case class ExitFrame(scopeNo: Int) extends IRType
 case class Instr(opcode: Opcode,
                  op1: Option[Operand] = None,
                  op2: Option[Operand] = None,
