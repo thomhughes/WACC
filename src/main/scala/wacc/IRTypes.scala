@@ -1,5 +1,7 @@
 package wacc
 
+case class IRProgram(val instructions: ListBuffer[IRType], val dataMap: Map[Identifier, LabelRef])
+
 sealed trait IRType
 case class Label(name: String) extends IRType 
 case class EnterScope(scopeNo: Int) extends IRType
@@ -8,17 +10,16 @@ case class Instr(opcode: Opcode,
                  op1: Option[Operand] = None,
                  op2: Option[Operand] = None,
                  op3: Option[Operand] = None,
-                 cond: Condition = AL)
-    extends IRType
+                 cond: Condition = AL) extends IRType
+case class Data(name: LabelRef, value: String) extends IRType
+
 
 
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class Var(name: String) extends Operand
-case class StrLit(str: String) extends Operand
-case class CharLit(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
-case class ArrayLit(name: String, pos: List[Int]) extends Operand
+// case class ArrayLit(name: String, pos: List[Int]) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
