@@ -35,7 +35,6 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
-          println(buildIR(program, symbolTable))
           sys.exit(0)
         }
       }
