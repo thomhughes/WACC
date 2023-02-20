@@ -2,6 +2,7 @@ package wacc
 
 import scala.collection.mutable.ListBuffer
 import wacc.AST.{Identifier, Expression}
+import scala.collection.mutable.Map
 
 case class IRProgram(val instructions: ListBuffer[IRType], val dataMap: Map[Identifier, LabelRef])
 
