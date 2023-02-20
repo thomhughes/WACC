@@ -2,10 +2,12 @@ package wacc
 
 sealed trait IRType
 case class Label(name: String) extends IRType 
+case class EnterScope(scopeNo: Int) extends IRType
+case class ExitScope(scopeNo: Int) extends IRType
 case class Instr(opcode: Opcode,
-                 op1: Option[Operand],
-                 op2: Option[Operand],
-                 op3: Option[Operand],
+                 op1: Option[Operand] = None,
+                 op2: Option[Operand] = None,
+                 op3: Option[Operand] = None,
                  cond: Condition = AL)
     extends IRType
 
@@ -14,6 +16,7 @@ sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class Var(name: String) extends Operand
 case class StrLit(str: String) extends Operand
+case class CharLit(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
 case class ArrayLit(name: String, pos: List[Int]) extends Operand
 
@@ -74,3 +77,9 @@ case object LT extends Condition
 case object GT extends Condition
 case object LE extends Condition
 case object AL extends Condition
+
+
+sealed trait BuiltInInstruction extends Opcode
+case object PRINT extends BuiltInInstruction
+case object PRINTLN extends BuiltInInstruction
+case object FREE extends BuiltInInstruction
