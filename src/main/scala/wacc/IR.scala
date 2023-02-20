@@ -1,13 +1,23 @@
 package wacc
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, Map}
 import scala.language.implicitConversions
 
+// int[] arr = [1, 2, 3]
+// need to know length of the array to proceed.
+// dont care for arity
+// symbol table will have location for nested arrays
+// maybe an array table?
+
 object IR {
+
+  val memMap = Map[Int, Int]()
+  val ir = ListBuffer[IRType]()
+  val scoper = new Scoper()
   import AST._
 
   // TODO: Finish implementing this
-  def convertLValueToOperand(lvalue: LValue)(implicit ir: ListBuffer[IRType]): Operand = {
+  def convertLValueToOperand(lvalue: LValue): Operand = {
     lvalue match {
       case Identifier(name) => Var(name)
       case ArrayElem(id, indices) => ???
@@ -19,27 +29,63 @@ object IR {
   implicit def boolToInt(b: Boolean) = if (b) 1 else 0
 
 
-  def convertExpressionToOperand(expr: Expression)(implicit ir: ListBuffer[IRType]): Operand = {
-    expr match {
-      case IntLiteral(value) => Imm(value)
-      case CharLiteral(char) => Imm(char.toInt)
-      case BoolLiteral(bool) => Imm(bool)
-      case StringLiteral(string) => ???
-      case PairLiteral => Imm(0)
-      case Identifier(id) => Var(id)
-      // case BinaryOpApp(op, lexpr, rexpr) => op match {
-      //   case Plus => ir += Instr(ADD, Some(convertExpressionToOperand(lexpr)), Some(convertExpressionToOperand(rexpr))) 
-      // }
-      case UnaryOpApp(op, expr) => ???
+  def convertExpressionToOperand(expr: Expression): Operand = expr match {
+    case IntLiteral(value) => {
+      ir += Instr(PUSH, Some(Imm(value)))
+      Imm(value)
     }
+    case CharLiteral(char) => {
+      ir += Instr(PUSH, Some(Imm(char.toInt)))
+      Imm(char.toInt)
+    }
+    case BoolLiteral(bool) => {
+      ir += Instr(PUSH, Some(Imm(bool)))
+      Imm(bool)
+    }
+    case StringLiteral(string) => ???
+    case PairLiteral => Imm(0)
+    case Identifier(id) => {
+      ir += Instr(PUSH, Some(Var(id)))
+      Var(id)
+    }
+    case BinaryOpApp(op, lexpr, rexpr) => op match {
+      case Plus => {
+        ir += Instr(MOV, Some(R8), Some(convertExpressionToOperand(lexpr)))
+        ir += Instr(MOV, Some(R9), Some(convertExpressionToOperand(rexpr)))
+        // pop two operands for use in addition, push in all cases
+        ir += Instr(POP, Some(R9))
+        ir += Instr(POP, Some(R8))
+        ir += Instr(ADD, Some(R8), Some(R8), Some(R9))
+        ir += Instr(PUSH, Some(R8))
+        R8
+      } 
+    }
+    case UnaryOpApp(op, expr) => ???
+  }
+  
+
+  def buildArrayLiteral(args: List[Expression]): Operand = {
+    /*
+    we need to return something that can then be stored in a given variable
+    the variable will store the address that has been malloced which will be in 
+    R12.
+    length offset is used to store the length of each array before each elem
+    */
+    val lengthOffset = 1
+    val bytesPerInt = 4
+    ir += Instr(MALLOC, Some(Imm(args.length + lengthOffset)))
+    ir += Instr(MOV, Some(R0), Some(R12))
+    ir += Instr(ADD, Some(R12), Some(R12), Some(Imm(bytesPerInt * lengthOffset)))
+    ir += Instr(STR, Some(R12), Some(ArrayToStore(args)))
+    R12
   }
 
   // TODO: Finish implementing this
-  def convertRValueToOperand(rvalue: RValue)(implicit ir: ListBuffer[IRType]): Operand = {
+  def convertRValueToOperand(rvalue: RValue): Operand = {
     rvalue match {
       case e: Expression => convertExpressionToOperand(e)
       case ArrayElem(id, indices) => ???
-      case ArrayLiteral => ???
+      case ArrayLiteral(args) => buildArrayLiteral(args)
       case FunctionCall(id, args) => ???
       case NewPair(e1, e2) => ???
       case PairElem(index, id) => ??? 
@@ -49,7 +95,7 @@ object IR {
     }
   }
 
-  def buildExit(expression: Expression)(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildExit(expression: Expression): Unit = {
     expression match {
       case IntLiteral(exitCode) => ir += Instr(MOV, Some(R0), Some(Imm(exitCode)))
       case Identifier(varName) => {
@@ -60,48 +106,48 @@ object IR {
     ir += Instr(BL, Some(LabelRef("exit")))
 }
 
-  def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit ir: ListBuffer[IRType]): Unit = 
+  def buildAssignment(lvalue: LValue, rvalue: RValue): Unit = 
     ir += Instr(STR, Some(convertLValueToOperand(lvalue)), Some(convertRValueToOperand(rvalue)))
 
-  def buildIf(condition: Expression, body1: List[Statement], body2: List[Statement])(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildIf(condition: Expression, body1: List[Statement], body2: List[Statement]): Unit = {
   }
   
-  def buildWhile(condition: Expression, body: List[Statement])(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildWhile(condition: Expression, body: List[Statement]): Unit = {
   }
 
-  def buildPrint(expression: Expression)(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildPrint(expression: Expression): Unit = {
   }
 
-  def buildFree(expression: Expression)(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildFree(expression: Expression): Unit = {
   }
 
-  def buildReturn(expression: Expression)(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildReturn(expression: Expression): Unit = {
   }
   
-  def buildRead(lvalue: LValue)(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildRead(lvalue: LValue): Unit = {
   }
 
   
-  def enterScope()(implicit ir: ListBuffer[IRType], scoper: Scoper) = {
+  def enterScope() = {
     scoper.enterScope()
     ir += EnterScope(scoper.getScope())
   }
 
-  def exitScope()(implicit ir: ListBuffer[IRType], scoper: Scoper) = {
+  def exitScope() = {
     ir += ExitScope(scoper.getScope())
     scoper.exitScope()
   }
 
-  def buildBegin(statements: List[Statement])(implicit ir: ListBuffer[IRType], scoper: Scoper): Unit = {
+  def buildBegin(statements: List[Statement]): Unit = {
     enterScope()
     statements.foreach(buildStatement(_))
     exitScope()
   }
 
-  def buildPrintln(expression: Expression)(implicit ir: ListBuffer[IRType]): Unit = {
+  def buildPrintln(expression: Expression): Unit = {
   }
 
-  def buildStatement(statement: Statement)(implicit ir: ListBuffer[IRType], scoper: Scoper): Unit = {
+  def buildStatement(statement: Statement): Unit = {
     statement match {
         case ExitStatement(e) => buildExit(e)
         case AssignmentStatement(lvalue, rvalue) => buildAssignment(lvalue, rvalue)
@@ -126,7 +172,7 @@ object IR {
 
   def renameFunc(functionName: String) = "wacc_" + functionName
 
-  def buildFunc(func: Func)(implicit ir: ListBuffer[IRType], scoper: Scoper): ListBuffer[IRType] = {
+  def buildFunc(func: Func): ListBuffer[IRType] = {
     ir += Label(renameFunc(func.identBinding.identifier.name))
     
     // collector(func.body, buildStatement)
@@ -135,15 +181,13 @@ object IR {
     ir
   } 
 
-  def buildFuncs(functions: List[Func])(implicit ir: ListBuffer[IRType], scoper: Scoper): ListBuffer[IRType] = {
+  def buildFuncs(functions: List[Func]): ListBuffer[IRType] = {
     // collector(functions, buildFunc)
     functions.foreach(buildFunc(_))
     ir
   }
   
-  def buildIR(ast: Program): ListBuffer[IRType] = {
-    implicit val ir = ListBuffer[IRType]()
-    implicit val scoper = new Scoper()
+  def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
     buildFuncs(ast.functions)
     ast.statements.foreach(buildStatement(_))
     ir

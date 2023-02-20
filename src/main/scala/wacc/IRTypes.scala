@@ -1,12 +1,12 @@
 package wacc
 
 import scala.collection.mutable.ListBuffer
-import wacc.AST.Identifier
+import wacc.AST.{Identifier, Expression}
 
 case class IRProgram(val instructions: ListBuffer[IRType], val dataMap: Map[Identifier, LabelRef])
 
 sealed trait IRType
-case class Label(name: String) extends IRType 
+case class Label(name: String) extends IRType
 case class EnterScope(scopeNo: Int) extends IRType
 case class ExitScope(scopeNo: Int) extends IRType
 case class Instr(opcode: Opcode,
@@ -17,17 +17,19 @@ case class Instr(opcode: Opcode,
 case class Data(name: LabelRef, value: String) extends IRType
 
 
-
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class Var(name: String) extends Operand
 case class LabelRef(name: String) extends Operand
+case class ArrayToStore(args: List[Expression]) extends Operand
 // case class ArrayLit(name: String, pos: List[Int]) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
 case object R8 extends Register
+case object R9 extends Register
 case object SP extends Register
+case object R12 extends Register
 case object FP extends Register
 
 
@@ -47,6 +49,10 @@ case object CMP extends DataProcessing
 case object CMN extends DataProcessing
 case object TST extends DataProcessing
 case object TEQ extends DataProcessing
+
+sealed trait StackInstr extends Opcode
+case object PUSH extends StackInstr
+case object POP extends StackInstr
 
 sealed trait MemAccess extends Opcode
 case object LDR extends MemAccess
@@ -87,3 +93,5 @@ sealed trait BuiltInInstruction extends Opcode
 case object PRINT extends BuiltInInstruction
 case object PRINTLN extends BuiltInInstruction
 case object FREE extends BuiltInInstruction
+
+case object MALLOC extends BuiltInInstruction

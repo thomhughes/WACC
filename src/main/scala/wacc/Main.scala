@@ -8,6 +8,7 @@ object Main {
   import wacc.Parser.parse
   import wacc.AST.Program
   import wacc.Analyser.checkProgram
+  import wacc.IR.buildIR
 
   def printErrors(ers: Seq[Error], fileName: String) =
     ers.foreach(error => {
@@ -34,6 +35,7 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
+          println(buildIR(program, symbolTable))
           sys.exit(0)
         }
       }
