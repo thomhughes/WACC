@@ -35,6 +35,10 @@ object Parser {
   lazy val `<param-list>` = separators.commaSep(`<param>`)
   lazy val `<param>` = Parameter(`<type>`, Identifier(`<identifier>`))
 
+  def parseAsProgram(input: String): Program = {
+    `<program>`.parse(input).get
+  }
+
   def returnStatementAtEndOfAllPaths(statements: List[Statement]): Boolean = {
     statements.last match {
       case (IfStatement(_, s1, s2)) =>
