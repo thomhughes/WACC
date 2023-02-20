@@ -7,7 +7,7 @@ object IR {
   import AST._
 
   // TODO: Finish implementing this
-  def convertLValueToOperand(lvalue: LValue): Operand = {
+  def convertLValueToOperand(lvalue: LValue)(implicit ir: ListBuffer[IRType]): Operand = {
     lvalue match {
       case Identifier(name) => Var(name)
       case ArrayElem(id, indices) => ???
@@ -18,13 +18,31 @@ object IR {
 
   implicit def boolToInt(b: Boolean) = if (b) 1 else 0
 
-  // TODO: Finish implementing this
-  def convertRValueToOperand(rvalue: RValue): Operand = {
-    rvalue match {
+
+  def convertExpressionToOperand(expr: Expression)(implicit ir: ListBuffer[IRType]): Operand = {
+    expr match {
       case IntLiteral(value) => Imm(value)
       case CharLiteral(char) => Imm(char.toInt)
       case BoolLiteral(bool) => Imm(bool)
       case StringLiteral(string) => ???
+      case PairLiteral => Imm(0)
+      case Identifier(id) => Var(id)
+      // case BinaryOpApp(op, lexpr, rexpr) => op match {
+      //   case Plus => ir += Instr(ADD, Some(convertExpressionToOperand(lexpr)), Some(convertExpressionToOperand(rexpr))) 
+      // }
+      case UnaryOpApp(op, expr) => ???
+    }
+  }
+
+  // TODO: Finish implementing this
+  def convertRValueToOperand(rvalue: RValue)(implicit ir: ListBuffer[IRType]): Operand = {
+    rvalue match {
+      case e: Expression => convertExpressionToOperand(e)
+      case ArrayElem(id, indices) => ???
+      case ArrayLiteral => ???
+      case FunctionCall(id, args) => ???
+      case NewPair(e1, e2) => ???
+      case PairElem(index, id) => ??? 
     //   case BinaryOpApp(op, lhs, rhs) => 
     // cases for other literals n shit 
       case default => throw new Exception("Invalid rhs for assignment/declaration")
