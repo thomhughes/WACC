@@ -20,23 +20,25 @@ object IR {
 
   def getScope()(implicit irProgram: IRProgram) = irProgram.symbolTable.scoper.getScope()
 
-  // def getNoBytes(saType: SAType): Int = saType match {
-  //   case SAIntType(_) | SAArrayType(_,_) | SAPairType(_) => 
-  // }
+  def getNoBytes(saType: SAType): Int = saType match {
+    case SAIntType | SAArrayType(_,_) | SAPairType(_, _) => 4
+    case SABoolType | SACharType => 1
+    case _ => throw new Exception("Unexpected LValue type")
+  }
 
-  // def updateSymbolTable(identifier: Identifier)(implicit irProgram: IRProgram): Operand = {
-  //   val argType: SAType = irProgram.symbolTable.lookupType(identifier)
-  //   updateVar(identifier, getScope(), getNoBytes(argType))
-  //   Var(identifier.name)
-  // }
+  def updateSymbolTable(identifier: Identifier)(implicit irProgram: IRProgram): Operand = {
+    val argType = irProgram.symbolTable.lookupType(identifier)
+    updateVar(identifier, getScope(), getNoBytes(argType))
+    Var(identifier.name)
+  }
 
   /* Evaluates lvalue and places result on top of the stack */
   def convertLValueToOperand(lvalue: LValue)(implicit irProgram: IRProgram): Operand = {
     lvalue match {
-      case Identifier(name) => ???
+      case id @ Identifier(_) => updateSymbolTable(id)
       case ArrayElem(id, indices) => ???
       case PairElem(index, lvalue) => ???
-      case default => throw new Exception("Invalid lhs for assignment/declaration")
+      case _ => throw new Exception("Invalid lhs for assignment/declaration")
     }
   }
 
@@ -91,16 +93,14 @@ object IR {
       case PairElem(index, id) => ??? 
     //   case BinaryOpApp(op, lhs, rhs) => 
     // cases for other literals n shit 
-      case default => throw new Exception("Invalid rhs for assignment/declaration")
+      case _ => throw new Exception("Invalid rhs for assignment/declaration")
     }
   }
 
   def buildExit(expression: Expression)(implicit irProgram: IRProgram): Unit = {
     expression match {
       case IntLiteral(exitCode) => irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(exitCode)))
-      case Identifier(varName) => {
-        // TODO: perform lookup and append
-      }
+      case id @ Identifier(_) => updateSymbolTable(id)
       case _ => throw new Exception("Exit code is non-integer")
     }
     irProgram.instructions += Instr(BL, Some(LabelRef("exit")))
@@ -164,7 +164,7 @@ object IR {
         case BeginStatement(statements) => buildBegin(statements)
         case ReadStatement(e) => buildRead(e)
         case PrintLnStatement(e) => buildPrintln(e)
-        case default => throw new Exception("Invalid statement type")
+        case _ => throw new Exception("Invalid statement type")
     }
   }
 

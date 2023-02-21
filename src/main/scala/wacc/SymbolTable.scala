@@ -34,7 +34,9 @@ case class SymbolTable(var scoper: Scoper) {
       val key = (identifier.name, curr)
       if (map.contains(key)) return map(key) match {
         case Left(x) => x
-        case _ => throw new Exception("Type lookup has been performed after updating")
+        case _ => {
+          throw new Exception("Type lookup has been performed after updating")
+        }
       }
     }
     throw new Exception("unexpected type lookup in symbol table")
