@@ -27,21 +27,6 @@ case class SymbolTable(var scoper: Scoper) {
     Right(errorList :+ UndeclaredVariableError(identifier.pos, identifier.name))
   }
 
-    def lookupType(identifier: Identifier): SAType = {
-    val iter = scoper.getIterator()
-    while (iter.hasNext) {
-      val curr = iter.next()
-      val key = (identifier.name, curr)
-      if (map.contains(key)) return map(key) match {
-        case Left(x) => x
-        case _ => {
-          throw new Exception("Type lookup has been performed after updating")
-        }
-      }
-    }
-    throw new Exception("unexpected type lookup in symbol table")
-  }
-
   def insertVar(identifier: Identifier, t: SAType)(
       implicit errorList: List[Error]): List[Error] = {
     val key = (identifier.name, scoper.getScope())
@@ -56,7 +41,7 @@ case class SymbolTable(var scoper: Scoper) {
 
   def updateVar(identifier: Identifier, scopeNo: Int, bytes: Int) = {
     val key = (identifier.name, scopeNo)
-    if (!map.contains(key)) throw new Exception("unexpected variable being looked up")
+    if (!map.contains(key)) throw new Exception("unexpected variable being looked up or scope is not behaving as expected")
     memMap(scopeNo) += bytes
     map += (key -> Right(memMap(scopeNo)))
   }

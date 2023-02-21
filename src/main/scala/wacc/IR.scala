@@ -21,14 +21,13 @@ object IR {
 
   def getScope()(implicit irProgram: IRProgram) = irProgram.symbolTable.scoper.getScope()
 
-  def getNoBytes(saType: SAType): Int = saType match {
-    case SAIntType | SAArrayType(_,_) | SAPairType(_, _) => 4
-    case SABoolType | SACharType => 1
+  def getNoBytes(saType: Type): Int = saType match {
+    case IntType | ArrayType(_,_) | PairType(_, _) => 4
+    case BoolType | CharType => 1
     case _ => throw new Exception("Unexpected LValue type")
   }
 
-  def updateSymbolTable(identifier: Identifier)(implicit irProgram: IRProgram): Operand = {
-    val argType = irProgram.symbolTable.lookupType(identifier)
+  def updateSymbolTable(identifier: Identifier, argType: Type)(implicit irProgram: IRProgram): Operand = {
     updateVar(identifier, getScope(), getNoBytes(argType))
     Var(identifier.name)
   }
@@ -36,7 +35,7 @@ object IR {
   /* Evaluates lvalue and places result on top of the stack */
   def convertLValueToOperand(lvalue: LValue)(implicit irProgram: IRProgram): Operand = {
     lvalue match {
-      case id @ Identifier(_) => updateSymbolTable(id)
+      case Identifier(x) => Var(x)
       case ArrayElem(id, indices) => ???
       case PairElem(index, lvalue) => ???
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
@@ -104,9 +103,22 @@ object IR {
     irProgram.instructions += Instr(PUSH, Some(R12))
   }
 
+  // def buildArrayReassignment(id: Identifier, indicies: List[Expression])(implicit irProgram: IRProgram) = {
+  //   def arrLoadHelper(indicies: List[Expression]) = indicies match {
+  //     case head :: next => head match {
+  //       case IntLiteral => 
+  //       case Identifier => 
+  //       // case BinaryOpApp(op, lhs, rhs) => 
+  //       case _ => throw new Exception("unexpected index type")
+  //     }
+  //   }
+  // }
+
   /* Evaluates rvalue and places result on top of the stack */
   def buildRValue(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
+      case e: Expression => buildExpression(e)
+      // case ArrayElem(id, indices) => buildArrayReassignment(id, indices)
       case e: Expression => buildExpression(e)
       case ArrayLiteral(args) => buildArrayLiteral(args)
       case FunctionCall(id, args) => ???
@@ -194,11 +206,18 @@ object IR {
     irProgram.instructions += Instr(PRINTLN)
   }
 
+  def buildDeclaration(argType: Type, id: Identifier, rvalue: RValue)(
+    implicit irProgram: IRProgram) = {
+    updateVar(id, getScope(), getNoBytes(argType))
+    buildAssignment(id, rvalue)
+  }
+
+
   def buildStatement(statement: Statement)(implicit irProgram: IRProgram): Unit = {
     statement match {
         case ExitStatement(e) => buildExit(e)
         case AssignmentStatement(lvalue, rvalue) => buildAssignment(lvalue, rvalue)
-        case DeclarationStatement(_, id, rvalue) => buildAssignment(id, rvalue)
+        case DeclarationStatement(argType, id, rvalue) => buildDeclaration(argType, id, rvalue)
         case IfStatement(e, body1, body2) => buildIf(e, body1, body2)
         case SkipStatement => return
         case WhileStatement(e, body) => buildWhile(e, body)
