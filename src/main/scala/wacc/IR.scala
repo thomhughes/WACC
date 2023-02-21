@@ -13,6 +13,7 @@ object IR {
 
   // map from scope no to no of bytes
   import AST._
+  import Types._
 
   def updateVar(identifier: Identifier, no: Int, bytes: Int)(
     implicit irProgram: IRProgram) = 
@@ -42,35 +43,56 @@ object IR {
     }
   }
 
-  implicit def boolToInt(b: Boolean) = if (b) 1 else 0
 
   /* Evaluates expression and places result on top of the stack */
-  def convertExpressionToOperand(expr: Expression)(implicit irProgram: IRProgram): Unit = expr match {
-    case IntLiteral(value) => irProgram.instructions += Instr(PUSH, Some(Imm(value)))
-    case CharLiteral(char) => irProgram.instructions += Instr(PUSH, Some(Imm(char.toInt)))
-    case BoolLiteral(bool) => irProgram.instructions += Instr(PUSH, Some(Imm(bool)))
-    case StringLiteral(string) => ???
-    case PairLiteral => Imm(0)
-    case Identifier(id) => irProgram.instructions += Instr(PUSH, Some(Var(id)))
-    case BinaryOpApp(op, lexpr, rexpr) => op match {
-      case Plus => {
-        convertExpressionToOperand(lexpr)
-        convertExpressionToOperand(rexpr)
-        // pop two operands for use in addition, push in all cases
-        irProgram.instructions += Instr(POP, Some(R9))
-        irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(ADD, Some(R8), Some(R8), Some(R9))
+  def buildExpression(expr: Expression)(implicit irProgram: IRProgram): Unit = {
+    implicit def boolToInt(i: Boolean): Int = if (i) 1 else 0
+    expr match {
+      case IntLiteral(value) => {
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(value)))
         irProgram.instructions += Instr(PUSH, Some(R8))
-      } 
+      }
+      case CharLiteral(char) => {
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(char.toInt)))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
+      case BoolLiteral(bool) => {
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(bool)))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
+      case StringLiteral(string) => {
+        val label = LabelRef(".L.str" + irProgram.stringLiteralCounter)
+        irProgram.stringLiteralCounter += 1
+        Data(label, string) +=: irProgram.instructions
+        irProgram.instructions += Instr(LDR, Some(R8), Some(label))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
+      case PairLiteral => Imm(0)
+      case Identifier(id) => {
+        irProgram.instructions += Instr(LDR, Some(R8), Some(Var(id)))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
+      case BinaryOpApp(op, lexpr, rexpr) => op match {
+        case Plus => {
+          buildExpression(lexpr)
+          buildExpression(rexpr)
+          // pop two operands for use in addition, push in all cases
+          irProgram.instructions += Instr(POP, Some(R9))
+          irProgram.instructions += Instr(POP, Some(R8))
+          irProgram.instructions += Instr(ADD, Some(R8), Some(R8), Some(R9))
+          irProgram.instructions += Instr(PUSH, Some(R8))
+        } 
+      }
+      case UnaryOpApp(op, expr) => ???
+      case default => throw new Exception("Invalid expression type")
     }
-    case UnaryOpApp(op, expr) => ???
   }
   
   def buildArrayLiteral(args: List[Expression])(implicit irProgram: IRProgram): Unit = {
     /*
     we need to return something that can then be stored in a given variable
-    the variable will store the address that has been malloced which will be in 
-    R12.
+    the variable will store the address that has been malloced which will be
+    at the top of the stack
     length offset is used to store the length of each array before each elem
     */
     val lengthOffset = 1
@@ -83,33 +105,27 @@ object IR {
   }
 
   /* Evaluates rvalue and places result on top of the stack */
-  def convertRValueToOperand(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
+  def buildRValue(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
-      case e: Expression => convertExpressionToOperand(e)
-      case ArrayElem(id, indices) => ???
+      case e: Expression => buildExpression(e)
       case ArrayLiteral(args) => buildArrayLiteral(args)
       case FunctionCall(id, args) => ???
       case NewPair(e1, e2) => ???
       case PairElem(index, id) => ??? 
-    //   case BinaryOpApp(op, lhs, rhs) => 
-    // cases for other literals n shit 
-      case _ => throw new Exception("Invalid rhs for assignment/declaration")
+      case default => throw new Exception("Invalid rhs for assignment/declaration")
     }
   }
 
   def buildExit(expression: Expression)(implicit irProgram: IRProgram): Unit = {
-    expression match {
-      case IntLiteral(exitCode) => irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(exitCode)))
-      case id @ Identifier(_) => updateSymbolTable(id)
-      case _ => throw new Exception("Exit code is non-integer")
-    }
+    buildExpression(expression)
+    irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(BL, Some(LabelRef("exit")))
 }
 
   def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
-    convertRValueToOperand(rvalue)
-    irProgram.instructions += Instr(POP, Some(R9))
-    irProgram.instructions += Instr(STR, Some(convertLValueToOperand(lvalue)), Some(R9))
+    buildRValue(rvalue)
+    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(STR, Some(convertLValueToOperand(lvalue)), Some(R8))
   }
 
   def buildIf(condition: Expression, body1: List[Statement], body2: List[Statement]): Unit = {
@@ -118,7 +134,34 @@ object IR {
   def buildWhile(condition: Expression, body: List[Statement]): Unit = {
   }
 
-  def buildPrint(expression: Expression): Unit = {
+  def getExpressionType(expression: Expression)(implicit irProgram: IRProgram): SAType = {
+    expression match {
+      case IntLiteral(_) => SAIntType
+      case CharLiteral(_) => SACharType
+      case BoolLiteral(_) => SABoolType
+      case StringLiteral(_) => SAStringType
+      case PairLiteral => SAPairType(SAAnyType, SAAnyType)
+      case Identifier(id) => irProgram.symbolTable.lookupVarType(Identifier(id)((0, 0)))(List()) match {
+        case Left(saType) => saType
+        case Right(error) => throw new Exception("Invalid identifier type")
+      }
+      case ArrayElem(id, indices) => SAIntType
+      case BinaryOpApp(_, lexpr, _) => getExpressionType(lexpr)
+      case UnaryOpApp(op, expr) => op match {
+        case Negation => SAIntType
+        case Not => SABoolType
+        case Len => SAIntType
+        case Ord => SAIntType
+        case Chr => SACharType
+      }
+      case default => throw new Exception("Invalid expression type")
+    }
+  }
+
+  def buildPrint(expression: Expression)(implicit irProgram: IRProgram): Unit = {
+    buildExpression(expression)
+    irProgram.instructions += Instr(POP, Some(R0))
+    irProgram.instructions += Instr(PRINT(getExpressionType(expression)))
   }
 
   def buildFree(expression: Expression): Unit = {
@@ -129,7 +172,6 @@ object IR {
   
   def buildRead(lvalue: LValue): Unit = {
   }
-
   
   def enterScope()(implicit irProgram: IRProgram) = {
     irProgram.symbolTable.scoper.enterScope()
@@ -147,7 +189,9 @@ object IR {
     exitScope()
   }
 
-  def buildPrintln(expression: Expression): Unit = {
+  def buildPrintln(expression: Expression)(implicit irProgram: IRProgram): Unit = {
+    buildPrint(expression)
+    irProgram.instructions += Instr(PRINTLN)
   }
 
   def buildStatement(statement: Statement)(implicit irProgram: IRProgram): Unit = {
@@ -168,32 +212,21 @@ object IR {
     }
   }
 
-  // def collector[A, B](list: List[A], func: A => ListBuffer[B])(implicit acc: ListBuffer[B]): ListBuffer[B] = list match {
-  //   case head :: next => collector(next, func)(acc ++ func(head))
-  //   case Nil          => acc
-  // }
-
   def renameFunc(functionName: String) = "wacc_" + functionName
 
   def buildFunc(func: Func)(implicit irProgram: IRProgram): ListBuffer[IRType] = {
     irProgram.instructions += Label(renameFunc(func.identBinding.identifier.name))
-    
-    // collector(func.body, buildStatement)
-    // val allIR = ListBuffer[IRType]()
     func.body.foreach(buildStatement(_))
     irProgram.instructions
   } 
 
   def buildFuncs(functions: List[Func])(implicit irProgram: IRProgram): ListBuffer[IRType] = {
-    // collector(functions, buildFunc)
     functions.foreach(buildFunc(_))
     irProgram.instructions
   }
   
   def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
-    implicit val dataMap: Map[Identifier, LabelRef] = Map()
-    implicit val irProgram = IRProgram(ListBuffer(), dataMap, symbolTable)
-    irProgram.symbolTable.updateScoper(new Scoper())
+    implicit val irProgram = IRProgram(ListBuffer(), 0, symbolTable)
     buildFuncs(ast.functions)
     ast.statements.foreach(buildStatement(_))
     irProgram.instructions

@@ -1,10 +1,10 @@
 package wacc
 
 import scala.collection.mutable.ListBuffer
-import wacc.AST.{Identifier, Expression}
-import scala.collection.mutable.Map
+import wacc.AST.Expression
+import wacc.Types.SAType
 
-case class IRProgram(val instructions: ListBuffer[IRType], val dataMap: Map[Identifier, LabelRef], val symbolTable: SymbolTable)
+case class IRProgram(val instructions: ListBuffer[IRType], var stringLiteralCounter: Int, val symbolTable: SymbolTable)
 
 sealed trait IRType
 case class Label(name: String) extends IRType
@@ -93,8 +93,7 @@ case object AL extends Condition
 
 
 sealed trait BuiltInInstruction extends Opcode
-case object PRINT extends BuiltInInstruction
+case class PRINT(saType: SAType) extends BuiltInInstruction
 case object PRINTLN extends BuiltInInstruction
 case object FREE extends BuiltInInstruction
-
 case object MALLOC extends BuiltInInstruction
