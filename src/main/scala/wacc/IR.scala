@@ -93,8 +93,8 @@ object IR {
       }
       case StringLiteral(string) => {
         val label = LabelRef(".L.str" + irProgram.stringLiteralCounter)
+        irProgram.instructions += Data(label, string)
         irProgram.stringLiteralCounter += 1
-        Data(label, string) +=: irProgram.instructions
         irProgram.instructions += Instr(LDR, Some(R8), Some(label))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
@@ -184,10 +184,7 @@ object IR {
       case BoolLiteral(_) => SABoolType
       case StringLiteral(_) => SAStringType
       case PairLiteral => SAPairType(SAAnyType, SAAnyType)
-      case Identifier(id) => irProgram.symbolTable.lookupVarType(Identifier(id)((0, 0)))(List()) match {
-        case Left(saType) => saType
-        case Right(error) => throw new Exception("Invalid identifier type")
-      }
+      case Identifier(id) => irProgram.symbolTable.lookupType(Identifier(id)((0, 0)))
       case ArrayElem(id, indices) => SAIntType
       case BinaryOpApp(_, lexpr, _) => getExpressionType(lexpr)
       case UnaryOpApp(op, expr) => op match {
@@ -242,7 +239,6 @@ object IR {
     updateVar(id, getScope(), getNoBytes(argType))
     buildAssignment(id, rvalue)
   }
-
 
   def buildStatement(statement: Statement)(implicit irProgram: IRProgram): Unit = {
     statement match {
