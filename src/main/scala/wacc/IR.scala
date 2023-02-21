@@ -104,17 +104,18 @@ object IR {
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case BinaryOpApp(op, lexpr, rexpr) => {
-      buildExpression(lexpr)
-      buildExpression(rexpr)
-      irProgram.instructions += Instr(POP, Some(R9))
-      irProgram.instructions += Instr(POP, Some(R8))
-      op match {
-        case Plus | Minus | Mul | Div | Mod | And | Or => irProgram.instructions += nonBranchInstruction(op)
-        case default => branchInstruction(op)
+        buildExpression(lexpr)
+        buildExpression(rexpr)
+        irProgram.instructions += Instr(POP, Some(R9))
+        irProgram.instructions += Instr(POP, Some(R8))
+        op match {
+          case Plus | Minus | Mul | Div | Mod | And | Or => irProgram.instructions += nonBranchInstruction(op)
+          case default => branchInstruction(op)
+        }
+        irProgram.instructions += Instr(PUSH, Some(R8))
       }
-      irProgram.instructions += Instr(PUSH, Some(R8))
-    }
       case UnaryOpApp(op, expr) => ???
+      case ArrayElem(id, indices) => ???
       case default => throw new Exception("Invalid expression type")
     }
   }
@@ -149,8 +150,6 @@ object IR {
   /* Evaluates rvalue and places result on top of the stack */
   def buildRValue(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
-      case e: Expression => buildExpression(e)
-      // case ArrayElem(id, indices) => buildArrayReassignment(id, indices)
       case e: Expression => buildExpression(e)
       case ArrayLiteral(args) => buildArrayLiteral(args)
       case FunctionCall(id, args) => ???
