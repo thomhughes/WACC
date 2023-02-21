@@ -42,6 +42,38 @@ object IR {
     }
   }
 
+  implicit def boolToInt(b: Boolean) = if (b) 1 else 0
+
+  def nonBranchInstruction(op: BinaryOp): Instr =
+    Instr(op match {
+      case Plus => ADD
+      case Minus => SUB
+      case Mul => MUL
+      case Div => DIV
+      case Mod => MOD
+      case And => AND
+      case Or => ORR
+    }, Some(R8), Some(R8), Some(R9))
+
+  def branchInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+    irProgram.instructions += Instr(CMP, Some(R8), Some(R8), Some(R9))
+    irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(1)), None, op match {
+      case Eq => EQ
+      case Gt => GT
+      case Ge => GE
+      case Lt => LT
+      case Le => LE
+      case Neq => NE
+    })
+    irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(0)), None, op match {
+      case Eq => NE
+      case Gt => LE
+      case Ge => LT
+      case Lt => GE
+      case Le => LE
+      case Neq => EQ
+    })
+  }
 
   /* Evaluates expression and places result on top of the stack */
   def buildExpression(expr: Expression)(implicit irProgram: IRProgram): Unit = {
@@ -71,17 +103,17 @@ object IR {
         irProgram.instructions += Instr(LDR, Some(R8), Some(Var(id)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
-      case BinaryOpApp(op, lexpr, rexpr) => op match {
-        case Plus => {
-          buildExpression(lexpr)
-          buildExpression(rexpr)
-          // pop two operands for use in addition, push in all cases
-          irProgram.instructions += Instr(POP, Some(R9))
-          irProgram.instructions += Instr(POP, Some(R8))
-          irProgram.instructions += Instr(ADD, Some(R8), Some(R8), Some(R9))
-          irProgram.instructions += Instr(PUSH, Some(R8))
-        } 
+      case BinaryOpApp(op, lexpr, rexpr) => {
+      buildExpression(lexpr)
+      buildExpression(rexpr)
+      irProgram.instructions += Instr(POP, Some(R9))
+      irProgram.instructions += Instr(POP, Some(R8))
+      op match {
+        case Plus | Minus | Mul | Div | Mod | And | Or => irProgram.instructions += nonBranchInstruction(op)
+        case default => branchInstruction(op)
       }
+      irProgram.instructions += Instr(PUSH, Some(R8))
+    }
       case UnaryOpApp(op, expr) => ???
       case default => throw new Exception("Invalid expression type")
     }
