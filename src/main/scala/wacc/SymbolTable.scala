@@ -6,7 +6,7 @@ case class SymbolTable(var scoper: Scoper) {
   import wacc.AST.Identifier
   import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
 
-  val map = Map[(String, Int), Either[SAType, Int]]()
+  val map = Map[(String, Int), (SAType, Option[Int])]()
   val memMap = Map[Int, Int]().withDefaultValue(0)
 
   override def toString(): String = {
@@ -19,12 +19,19 @@ case class SymbolTable(var scoper: Scoper) {
     while (iter.hasNext) {
       val curr = iter.next()
       val key = (identifier.name, curr)
-      if (map.contains(key)) return map(key) match {
-        case Left(x) => Left(x)
-        case _ => throw new Exception("Type lookup has been performed after updating")
-      }
+      if (map.contains(key)) return Left(map(key)._1)
     }
     Right(errorList :+ UndeclaredVariableError(identifier.pos, identifier.name))
+  }
+
+    def lookupType(identifier: Identifier): SAType = {
+    val iter = scoper.getIterator()
+    while (iter.hasNext) {
+      val curr = iter.next()
+      val key = (identifier.name, curr)
+      if (map.contains(key)) return map(key)._1
+    }
+    throw new Exception("variable cannot be found")
   }
 
   def insertVar(identifier: Identifier, t: SAType)(
@@ -33,7 +40,7 @@ case class SymbolTable(var scoper: Scoper) {
     if (map.contains(key))
       return errorList :+ RedeclaredVariableError(identifier.pos,
                                                   identifier.name)
-    map += (key -> Left(t))
+    map += (key -> (t, None))
     errorList
   }
 
@@ -43,7 +50,8 @@ case class SymbolTable(var scoper: Scoper) {
     val key = (identifier.name, scopeNo)
     if (!map.contains(key)) throw new Exception("unexpected variable being looked up or scope is not behaving as expected")
     memMap(scopeNo) += bytes
-    map += (key -> Right(memMap(scopeNo)))
+    val newVal = (map(key)._1, Some(memMap(scopeNo)))
+    map += (key -> newVal)
   }
 
   def lookupVarNo(identifier: Identifier): Int = {
@@ -51,10 +59,7 @@ case class SymbolTable(var scoper: Scoper) {
     while (iter.hasNext) {
       val curr = iter.next()
       val key = (identifier.name, curr)
-      if (!map.contains(key)) return map(key) match {
-        case Right(x) => x
-        case _ => throw new Exception("The looked up value has no associated int")
-      }
+      if (map.contains(key)) return map(key)._2.get
     }
     throw new Exception("Variable does not exist in scope")
   }
