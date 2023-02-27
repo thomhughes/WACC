@@ -9,6 +9,7 @@ object Main {
   import wacc.AST.Program
   import wacc.Analyser.checkProgram
   import wacc.IR.buildIR
+  import wacc.IRToAssemblyConverter.convertAssembly
 
   def printErrors(ers: Seq[Error], fileName: String) =
     ers.foreach(error => {
@@ -22,8 +23,26 @@ object Main {
     }
   }
 
+  def assertInputFilenameIsValid(fileName: String) = {
+    if (!fileName.endsWith(".wacc")) {
+      throw new Exception("InvalidFileNameError: Filename input into compiler does not end with .wacc")
+    }
+  }
+
+  def getAssemblyFileName(inputFilePath: String) =
+    inputFilePath.substring(
+      inputFilePath.lastIndexOf("/") + 1,
+      inputFilePath.length() - ".wacc".length()
+    ) + ".s"
+
+  def printToFile(fileContents: String, fileName: String) {
+    val p = new java.io.PrintWriter(new File(fileName))
+    try { p.println(fileContents) } finally { p.close() }
+  }
+
   def main(args: Array[String]): Unit = {
     val fileName = args.head
+    assertInputFilenameIsValid(fileName)
     syntaxCheck(new File(fileName)) match {
       case Left(syntaxError) => {
         println(syntaxError.generateError(fileName))
@@ -35,6 +54,10 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
+          val (instructions, updatedSymbolTable) = buildIR(program, symbolTable)
+          val assembly = convertAssembly(instructions, updatedSymbolTable)
+          val assemblyFileName = getAssemblyFileName(fileName)
+          printToFile(assembly, assemblyFileName)
           sys.exit(0)
         }
       }

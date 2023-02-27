@@ -271,10 +271,10 @@ object IR {
     irProgram.instructions
   }
   
-  def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
+  def buildIR(ast: Program, symbolTable: SymbolTable): (ListBuffer[IRType], SymbolTable) = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, symbolTable)
     buildFuncs(ast.functions)
     ast.statements.foreach(buildStatement(_))
-    irProgram.instructions
+    (irProgram.instructions, irProgram.symbolTable)
   }
 }
