@@ -29,11 +29,15 @@ case class ArrayToStore(args: List[Expression]) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
+case object R3 extends Register
 case object R8 extends Register
 case object R9 extends Register
+case object R10 extends Register
 case object SP extends Register
 case object R12 extends Register
 case object FP extends Register
+case object LR extends Register
+case object PC extends Register
 
 
 sealed trait Opcode
@@ -98,5 +102,6 @@ case object PRINTLN extends BuiltInInstruction
 case object FREE extends BuiltInInstruction
 case object ARRLOAD extends BuiltInInstruction
 case object ARRSTORE extends BuiltInInstruction
+case object EXIT extends BuiltInInstruction
 
 case object MALLOC extends BuiltInInstruction

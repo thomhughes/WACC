@@ -33,10 +33,10 @@ object IR {
   }
 
   /* Evaluates lvalue and places result on top of the stack */
-  def convertLValueToOperand(lvalue: LValue)(implicit irProgram: IRProgram): Operand = {
+  def convertLValueToOperand(lvalue: LValue)(implicit irProgram: IRProgram): Option[Operand] = {
     lvalue match {
-      case Identifier(x) => Var(x)
-      case ArrayElem(id, indices) => ???
+      case Identifier(x) => Some(Var(x))
+      case ArrayElem(id, indices) => buildArrayReassignment(id, indices)
       case PairElem(index, lvalue) => ???
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
     }
@@ -136,21 +136,36 @@ object IR {
     irProgram.instructions += Instr(PUSH, Some(R12))
   }
 
-  // def buildArrayReassignment(id: Identifier, indicies: List[Expression])(implicit irProgram: IRProgram) = {
-  //   def arrLoadHelper(indicies: List[Expression]) = indicies match {
-  //     case head :: next => head match {
-  //       case IntLiteral => 
-  //       case Identifier => 
-  //       // case BinaryOpApp(op, lhs, rhs) => 
-  //       case _ => throw new Exception("unexpected index type")
-  //     }
-  //   }
-  // }
+  // When this is called, arg to be stored is in R8
+  def buildArrayReassignment(id: Identifier, indicies: List[Expression])(implicit irProgram: IRProgram): Option[Operand] = {
+    // after this funciton is called, the pointer to the list will be on the top of the stack
+    def arrLoadHelper(indicies: List[Expression]): Expression = indicies match {
+      case head :: Nil => head
+      case head :: next => {
+        buildExpression(head)
+        // arg is now on top of stack: we will pop and proceed
+        irProgram.instructions += Instr(POP, Some(R10))
+        irProgram.instructions += Instr(MOV, Some(R3), Some(Var(id.name)))
+        irProgram.instructions += Instr(ARRLOAD)
+        irProgram.instructions += Instr(PUSH, Some(R3))
+        arrLoadHelper(next)
+      }
+    }
+    
+    val index = arrLoadHelper(indicies)
+    // pushes index to stack
+    buildExpression(index)
+    irProgram.instructions += Instr(POP, Some(R10))
+    irProgram.instructions += Instr(POP, Some(R3))
+    irProgram.instructions += Instr(ARRSTORE)
+    None
+  }
 
   /* Evaluates rvalue and places result on top of the stack */
   def buildRValue(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
       case e: Expression => buildExpression(e)
+      case ArrayElem(id, indices) => ???
       case ArrayLiteral(args) => buildArrayLiteral(args)
       case FunctionCall(id, args) => ???
       case NewPair(e1, e2) => ???
@@ -168,7 +183,10 @@ object IR {
   def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     buildRValue(rvalue)
     irProgram.instructions += Instr(POP, Some(R8))
-    irProgram.instructions += Instr(STR, Some(convertLValueToOperand(lvalue)), Some(R8))
+    convertLValueToOperand(lvalue) match {
+      case None => return
+      case Some(x) => irProgram.instructions += Instr(STR, Some(x), Some(R8))
+    }
   }
 
   def buildIf(condition: Expression, body1: List[Statement], body2: List[Statement]): Unit = {
