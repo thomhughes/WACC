@@ -1,8 +1,7 @@
 package wacc
 
-import scala.collection.mutable.{ListBuffer, Map}
+import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
-import wacc.Types._
 
 // memmap maps from scope to no of bytes used
 // every time we come accross a new variable,
@@ -14,6 +13,7 @@ object IR {
   // map from scope no to no of bytes
   import AST._
   import Types._
+  import Analyser.convertSyntaxToTypeSys
 
   def updateVar(identifier: Identifier, no: Int, bytes: Int)(
     implicit irProgram: IRProgram) = 
@@ -21,13 +21,13 @@ object IR {
 
   def getScope()(implicit irProgram: IRProgram) = irProgram.symbolTable.scoper.getScope()
 
-  def getNoBytes(saType: Type): Int = saType match {
-    case IntType | ArrayType(_,_) | PairType(_, _) => 4
-    case BoolType | CharType => 1
+  def getNoBytes(saType: SAType): Int = saType match {
+    case SAIntType | SAArrayType(_,_) | SAPairType(_, _) => 4
+    case SABoolType | SACharType => 1
     case _ => throw new Exception("Unexpected LValue type")
   }
 
-  def updateSymbolTable(identifier: Identifier, argType: Type)(implicit irProgram: IRProgram): Operand = {
+  def updateSymbolTable(identifier: Identifier, argType: SAType)(implicit irProgram: IRProgram): Operand = {
     updateVar(identifier, getScope(), getNoBytes(argType))
     Var(identifier.name)
   }
@@ -44,7 +44,7 @@ object IR {
 
   implicit def boolToInt(b: Boolean) = if (b) 1 else 0
 
-  def nonBranchInstruction(op: BinaryOp): Instr =
+  def nonCompareInstruction(op: BinaryOp): Instr =
     Instr(op match {
       case Plus => ADD
       case Minus => SUB
@@ -55,7 +55,7 @@ object IR {
       case Or => ORR
     }, Some(R8), Some(R8), Some(R9))
 
-  def branchInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+  def compareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
     irProgram.instructions += Instr(CMP, Some(R8), Some(R8), Some(R9))
     irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(1)), None, op match {
       case Eq => EQ
@@ -109,8 +109,8 @@ object IR {
         irProgram.instructions += Instr(POP, Some(R9))
         irProgram.instructions += Instr(POP, Some(R8))
         op match {
-          case Plus | Minus | Mul | Div | Mod | And | Or => irProgram.instructions += nonBranchInstruction(op)
-          case default => branchInstruction(op)
+          case Plus | Minus | Mul | Div | Mod | And | Or => irProgram.instructions += nonCompareInstruction(op)
+          case default => compareInstruction(op)
         }
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
@@ -120,7 +120,7 @@ object IR {
     }
   }
   
-  def buildArrayLiteral(args: List[Expression])(implicit irProgram: IRProgram): Unit = {
+  def buildArrayLiteral(args: List[Expression], argType: SAType)(implicit irProgram: IRProgram): Unit = {
     /*
     we need to return something that can then be stored in a given variable
     the variable will store the address that has been malloced which will be
@@ -129,8 +129,9 @@ object IR {
     */
     val lengthOffset = 1
     val bytesPerInt = 4
-    irProgram.instructions += Instr(MALLOC, Some(Imm(args.length + lengthOffset)))
-    irProgram.instructions += Instr(MOV, Some(R0), Some(R12))
+    val elementSize = getNoBytes(argType)
+    irProgram.instructions += Instr(MALLOC, Some(Imm(args.length * elementSize + lengthOffset)))
+    irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
     irProgram.instructions += Instr(ADD, Some(R12), Some(R12), Some(Imm(bytesPerInt * lengthOffset)))
     irProgram.instructions += Instr(STR, Some(R12), Some(ArrayToStore(args)))
     irProgram.instructions += Instr(PUSH, Some(R12))
@@ -171,18 +172,49 @@ object IR {
         irProgram.instructions += Instr(PUSH, Some(R3))
         buildArrLoad(id, next)
       }
-      case _ => throw new Exception("Empty list of indices provided")
+    }
+  }
+
+  def buildPairElement(element: Expression, noBytes: Int)(implicit irProgram: IRProgram) = {
+    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(noBytes)))
+    irProgram.instructions += Instr(MALLOC)
+    irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
+    buildExpression(element)
+    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(STR, Some(R8), Some(R12))
+    irProgram.instructions += Instr(PUSH, Some(R12))
+  }
+  
+  def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(implicit irProgram: IRProgram) = {
+    argType match {
+      case SAPairType(firstType, secondType) => {
+        val noFirstBytes = getNoBytes(firstType)
+        val noSecondBytes = getNoBytes(secondType)
+        buildPairElement(e1, noFirstBytes)
+        buildPairElement(e2, noSecondBytes)
+        irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(noFirstBytes + noSecondBytes)))
+        irProgram.instructions += Instr(MALLOC)
+        irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
+        irProgram.instructions += Instr(POP, Some(R8))
+        irProgram.instructions += Instr(ADD, Some(R12), Some(R12), Some(Imm(4)))
+        irProgram.instructions += Instr(STR, Some(R8), Some(R12))
+        irProgram.instructions += Instr(POP, Some(R8))
+        irProgram.instructions += Instr(SUB, Some(R12), Some(R12), Some(Imm(4)))
+        irProgram.instructions += Instr(STR, Some(R8), Some(R12))
+        irProgram.instructions += Instr(PUSH, Some(R12))
+      }
+      case default => throw new Exception("Invalid assignment, expected pair")
     }
   }
 
   /* Evaluates rvalue and places result on top of the stack */
-  def buildRValue(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
+  def buildRValue(rvalue: RValue, argType: SAType)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
       case e: Expression => buildExpression(e)
       case ArrayElem(id, indices) => buildArrLoad(id, indices)
-      case ArrayLiteral(args) => buildArrayLiteral(args)
+      case ArrayLiteral(args) => buildArrayLiteral(args, argType)
       case FunctionCall(id, args) => ???
-      case NewPair(e1, e2) => ???
+      case NewPair(e1, e2) => buildNewPair(e1, e2, argType)
       case PairElem(index, id) => ??? 
       case default => throw new Exception("Invalid rhs for assignment/declaration")
     }
@@ -194,8 +226,11 @@ object IR {
     irProgram.instructions += Instr(BL, Some(LabelRef("exit")))
 }
 
-  def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
-    buildRValue(rvalue)
+  def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
+    buildRValue(rvalue, symbolTable.lookupType(lvalue match {
+      case i@Identifier(_) => i
+      case default => throw new Exception("Attempted type lookup of non-identifier")
+    }))
     irProgram.instructions += Instr(POP, Some(R8))
     convertLValueToOperand(lvalue) match {
       case None => return
@@ -255,7 +290,7 @@ object IR {
     irProgram.symbolTable.scoper.exitScope()
   }
 
-  def buildBegin(statements: List[Statement])(implicit irProgram: IRProgram): Unit = {
+  def buildBegin(statements: List[Statement])(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
     enterScope()
     statements.foreach(buildStatement(_))
     exitScope()
@@ -266,17 +301,16 @@ object IR {
     irProgram.instructions += Instr(PRINTLN)
   }
 
-  def buildDeclaration(argType: Type, id: Identifier, rvalue: RValue)(
-    implicit irProgram: IRProgram) = {
+  def buildDeclaration(argType: SAType, id: Identifier, rvalue: RValue)(implicit irProgram: IRProgram, symbolTable: SymbolTable) = {
     updateVar(id, getScope(), getNoBytes(argType))
     buildAssignment(id, rvalue)
   }
 
-  def buildStatement(statement: Statement)(implicit irProgram: IRProgram): Unit = {
+  def buildStatement(statement: Statement)(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
     statement match {
         case ExitStatement(e) => buildExit(e)
         case AssignmentStatement(lvalue, rvalue) => buildAssignment(lvalue, rvalue)
-        case DeclarationStatement(argType, id, rvalue) => buildDeclaration(argType, id, rvalue)
+        case DeclarationStatement(argType, id, rvalue) => buildDeclaration(convertSyntaxToTypeSys(argType), id, rvalue)
         case IfStatement(e, body1, body2) => buildIf(e, body1, body2)
         case SkipStatement => return
         case WhileStatement(e, body) => buildWhile(e, body)
@@ -292,21 +326,21 @@ object IR {
 
   def renameFunc(functionName: String) = "wacc_" + functionName
 
-  def buildFunc(func: Func)(implicit irProgram: IRProgram): ListBuffer[IRType] = {
+  def buildFunc(func: Func)(implicit irProgram: IRProgram, symbolTable: SymbolTable): ListBuffer[IRType] = {
     irProgram.instructions += Label(renameFunc(func.identBinding.identifier.name))
     func.body.foreach(buildStatement(_))
     irProgram.instructions
   } 
 
-  def buildFuncs(functions: List[Func])(implicit irProgram: IRProgram): ListBuffer[IRType] = {
+  def buildFuncs(functions: List[Func])(implicit irProgram: IRProgram, symbolTable: SymbolTable): ListBuffer[IRType] = {
     functions.foreach(buildFunc(_))
     irProgram.instructions
   }
   
   def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, symbolTable)
-    buildFuncs(ast.functions)
-    ast.statements.foreach(buildStatement(_))
+    buildFuncs(ast.functions)(irProgram, symbolTable)
+    ast.statements.foreach(buildStatement(_)(irProgram, symbolTable))
     irProgram.instructions
   }
 }

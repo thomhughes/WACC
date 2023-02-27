@@ -11,7 +11,7 @@ object Analyser {
   implicit val returnVal: SAType = SAAnyType
 
   // HELPERS
-  private def convertSyntaxToTypeSys(lhsType: ASTType): SAType = lhsType match {
+  def convertSyntaxToTypeSys(lhsType: ASTType): SAType = lhsType match {
     case IntType    => SAIntType
     case BoolType   => SABoolType
     case CharType   => SACharType
