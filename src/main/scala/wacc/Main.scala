@@ -58,7 +58,7 @@ object Main {
           // val assembly = convertAssembly(instructions, updatedSymbolTable)
           // val assemblyFileName = getAssemblyFileName(fileName)
           // printToFile(assembly, assemblyFileName)
-          // sys.exit(0)
+          sys.exit(0)
         }
       }
     }

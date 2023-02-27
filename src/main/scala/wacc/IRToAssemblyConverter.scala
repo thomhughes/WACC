@@ -10,6 +10,7 @@ object IRToAssemblyConverter {
         instructions.foreach(convertInstructionToAssembly)
         setupEndOfMain()
         sb.append(getPrintAssemblyForTypeName(SAStringType))
+        sb.append(getPrintAssemblyForPrintLn())
         sb.toString()
     }
 
@@ -27,6 +28,10 @@ object IRToAssemblyConverter {
             case Instr(POP, Some(firstOp), None, None, _) => f"pop {${convertOperandToAssembly(firstOp)}}"
             case Instr(LDR, Some(firstOp), Some(secondOp), None, _) => f"ldr ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}"
             case Instr(PRINT(typeName), None, None, None, _) => f"bl ${getPrintLabelOfTypeName(typeName)}"
+            case Instr(ADD, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"add ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(SUB, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"sub ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(MUL, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"mul ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(PRINTLN, None, None, None, _) => f"bl _println"
             case default => throw new Exception("IR Conversion Error: Invalid instruction type")
         })
         instrSb.append("\n")
@@ -54,15 +59,18 @@ object IRToAssemblyConverter {
         }
     }
 
-    def getPrintAssemblyForTypeName(typeName: SAType) = {
+    def getPrintAssemblyForTypeName(typeName: SAType) =
         typeName match {
             case SAStringType => 
                 ".data\n\t.word 4\n.L._prints_str0:\n\t.asciz \"%.*s\"\n.text" +
                   "\n_prints:\n\tpush {lr}\n\tmov r2, r0\n\tldr r1, [r0, #-4]\n\tldr r0, =.L._prints_str0" +
-                  "\n\tbl printf\n\tmov r0, #0\n\tbl fflush\n\tpop {pc}"
+                  "\n\tbl printf\n\tmov r0, #0\n\tbl fflush\n\tpop {pc}\n"
             case default => ???
         }
-    }
+
+    def getPrintAssemblyForPrintLn() =
+        ".data\n\t.word 0\n.L._println_str0:\n\t.asciz \"\"\n" +
+        ".text\n_println:\n\tpush {lr}\n\tldr r0, =.L._println_str0\n\tbl puts\n\tmov r0, #0\n\tbl fflush\n\tpop {pc}\n"
 
     def convertLabelToAssembly(label: String): String = new StringBuilder(label).append(":").toString()
 
