@@ -19,7 +19,6 @@ case class Instr(opcode: Opcode,
                  cond: Condition = AL) extends IRType
 case class Data(name: LabelRef, value: String) extends IRType
 
-
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class Var(name: String) extends Operand
@@ -38,7 +37,6 @@ case object R12 extends Register
 case object FP extends Register
 case object LR extends Register
 case object PC extends Register
-
 
 sealed trait Opcode
 

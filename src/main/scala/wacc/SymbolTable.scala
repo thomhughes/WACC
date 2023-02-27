@@ -54,13 +54,18 @@ case class SymbolTable(var scoper: Scoper) {
     map += (key -> newVal)
   }
 
-  def lookupVarNo(identifier: Identifier): Int = {
+  def lookupVarNo(identifier: Identifier): (Int, Int) = {
     val iter = scoper.getIterator()
     while (iter.hasNext) {
       val curr = iter.next()
       val key = (identifier.name, curr)
-      if (map.contains(key)) return map(key)._2.get
+      if (map.contains(key)) return (memMap(curr), map(key)._2.get)
     }
     throw new Exception("Variable does not exist in scope")
+  }
+
+  def lookupAddress(identifier: Identifier): Int = {
+    val (scope, offset) = lookupVarNo(identifier)
+    return scope - offset
   }
 }
