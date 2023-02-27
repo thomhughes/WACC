@@ -115,7 +115,7 @@ object IR {
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case UnaryOpApp(op, expr) => ???
-      case ArrayElem(id, indices) => ???
+      case ArrayElem(id, indices) => buildArrayAccess(id, indices)
       case default => throw new Exception("Invalid expression type")
     }
   }
@@ -141,8 +141,11 @@ object IR {
   def buildArrayReassignment(id: Identifier, indices: List[Expression])(implicit irProgram: IRProgram): Option[Operand] = {
     buildArrLoad(id, indices)
     // last index is now on top of stack
+    // From ArrLoad and buildRValue, we know stack 
+    // has index, then pointer to array, then arg to be stored
     irProgram.instructions += Instr(POP, Some(R10))
     irProgram.instructions += Instr(POP, Some(R3))
+    irProgram.instructions += Instr(POP, Some(R8))
     irProgram.instructions += Instr(ARRSTORE)
     None
   }
@@ -159,7 +162,8 @@ object IR {
 
   // after this function is called, the pointer to the list will be on the top of the stack
   def buildArrLoad(id: Identifier, indices: List[Expression])(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(PUSH, Some(Var(id.name)))
+    irProgram.instructions += Instr(LDR, Some(Var(id.name)), Some(R9))
+    irProgram.instructions += Instr(PUSH, Some(R9))
     indices match {
       case head :: Nil => buildExpression(head) // this will put the index on the top of the stack
       case head :: next => {
@@ -211,7 +215,6 @@ object IR {
   def buildRValue(rvalue: RValue, argType: SAType)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
       case e: Expression => buildExpression(e)
-      case ArrayElem(id, indices) => buildArrLoad(id, indices)
       case ArrayLiteral(args) => buildArrayLiteral(args, argType)
       case FunctionCall(id, args) => ???
       case NewPair(e1, e2) => buildNewPair(e1, e2, argType)
@@ -231,10 +234,12 @@ object IR {
       case i@Identifier(_) => i
       case default => throw new Exception("Attempted type lookup of non-identifier")
     }))
-    irProgram.instructions += Instr(POP, Some(R8))
     convertLValueToOperand(lvalue) match {
       case None => return
-      case Some(x) => irProgram.instructions += Instr(STR, Some(x), Some(R8))
+      case Some(x) => {
+        irProgram.instructions += Instr(POP, Some(R8))
+        irProgram.instructions += Instr(STR, Some(x), Some(R8))
+      }
     }
   }
 
