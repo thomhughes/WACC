@@ -229,8 +229,8 @@ object IR {
     irProgram.instructions += Instr(BL, Some(LabelRef("exit")))
 }
 
-  def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
-    buildRValue(rvalue, symbolTable.lookupType(lvalue match {
+  def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
+    buildRValue(rvalue, irProgram.symbolTable.lookupType(lvalue match {
       case i@Identifier(_) => i
       case default => throw new Exception("Attempted type lookup of non-identifier")
     }))
@@ -295,7 +295,7 @@ object IR {
     irProgram.symbolTable.scoper.exitScope()
   }
 
-  def buildBegin(statements: List[Statement])(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
+  def buildBegin(statements: List[Statement])(implicit irProgram: IRProgram): Unit = {
     enterScope()
     statements.foreach(buildStatement(_))
     exitScope()
@@ -306,12 +306,12 @@ object IR {
     irProgram.instructions += Instr(PRINTLN)
   }
 
-  def buildDeclaration(argType: SAType, id: Identifier, rvalue: RValue)(implicit irProgram: IRProgram, symbolTable: SymbolTable) = {
+  def buildDeclaration(argType: SAType, id: Identifier, rvalue: RValue)(implicit irProgram: IRProgram) = {
     updateVar(id, getScope(), getNoBytes(argType))
     buildAssignment(id, rvalue)
   }
 
-  def buildStatement(statement: Statement)(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
+  def buildStatement(statement: Statement)(implicit irProgram: IRProgram): Unit = {
     statement match {
         case ExitStatement(e) => buildExit(e)
         case AssignmentStatement(lvalue, rvalue) => buildAssignment(lvalue, rvalue)
@@ -331,21 +331,21 @@ object IR {
 
   def renameFunc(functionName: String) = "wacc_" + functionName
 
-  def buildFunc(func: Func)(implicit irProgram: IRProgram, symbolTable: SymbolTable): ListBuffer[IRType] = {
+  def buildFunc(func: Func)(implicit irProgram: IRProgram): ListBuffer[IRType] = {
     irProgram.instructions += Label(renameFunc(func.identBinding.identifier.name))
     func.body.foreach(buildStatement(_))
     irProgram.instructions
   } 
 
-  def buildFuncs(functions: List[Func])(implicit irProgram: IRProgram, symbolTable: SymbolTable): ListBuffer[IRType] = {
+  def buildFuncs(functions: List[Func])(implicit irProgram: IRProgram): ListBuffer[IRType] = {
     functions.foreach(buildFunc(_))
     irProgram.instructions
   }
   
-  def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
+  def buildIR(ast: Program, symbolTable: SymbolTable): (ListBuffer[IRType], SymbolTable) = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, symbolTable)
-    buildFuncs(ast.functions)(irProgram, symbolTable)
-    ast.statements.foreach(buildStatement(_)(irProgram, symbolTable))
-    irProgram.instructions
+    buildFuncs(ast.functions)
+    ast.statements.foreach(buildStatement(_))
+    (irProgram.instructions, irProgram.symbolTable)
   }
 }
