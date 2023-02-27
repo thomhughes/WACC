@@ -4,7 +4,7 @@ import scala.collection.mutable.ListBuffer
 import wacc.AST.Expression
 import wacc.Types.SAType
 
-case class IRProgram(val instructions: ListBuffer[IRType], var stringLiteralCounter: Int, val symbolTable: SymbolTable)
+case class IRProgram(val instructions: ListBuffer[IRType], var stringLiteralCounter: Int, var labelCount: Int, val symbolTable: SymbolTable)
 
 sealed trait IRType
 case class Label(name: String) extends IRType
@@ -45,6 +45,7 @@ sealed trait Opcode
 sealed trait DataProcessing extends Opcode
 case object ADD extends DataProcessing
 case object SUB extends DataProcessing
+case object RSB extends DataProcessing // for negation
 case object MUL extends DataProcessing
 case object DIV extends DataProcessing
 case object MOD extends DataProcessing
@@ -95,6 +96,8 @@ case object GT extends Condition
 case object LE extends Condition
 case object AL extends Condition
 
+sealed trait Directive extends Opcode
+case object ltorg extends Directive
 
 sealed trait BuiltInInstruction extends Opcode
 case class PRINT(saType: SAType) extends BuiltInInstruction
@@ -103,5 +106,6 @@ case object FREE extends BuiltInInstruction
 case object ARRLOAD extends BuiltInInstruction
 case object ARRSTORE extends BuiltInInstruction
 case object EXIT extends BuiltInInstruction
+case object LEN extends BuiltInInstruction
 
 case object MALLOC extends BuiltInInstruction

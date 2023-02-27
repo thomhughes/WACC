@@ -45,7 +45,7 @@ object IR {
   implicit def boolToInt(b: Boolean) = if (b) 1 else 0
 
   def nonCompareInstruction(op: BinaryOp): Instr =
-    Instr(op match {
+    Instr((op: @unchecked) match {
       case Plus => ADD
       case Minus => SUB
       case Mul => MUL
@@ -73,6 +73,16 @@ object IR {
       case Le => LE
       case Neq => EQ
     })
+  }
+
+  def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
+    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += ((op: @unchecked) match {
+      case Not => Instr(MVN, Some(R8), Some(R8))
+      case Negation => Instr(RSB, Some(R8), Some(Imm(0)))
+      case Len => Instr(LEN, Some(R8))
+    })
+    irProgram.instructions += Instr(PUSH, Some(R8))
   }
 
   /* Evaluates expression and places result on top of the stack */
@@ -114,7 +124,13 @@ object IR {
         }
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
-      case UnaryOpApp(op, expr) => ???
+      case UnaryOpApp(op, expr) => {
+        buildExpression(expr)
+        op match {
+          case Not | Negation | Len => modifyingUnaryOp(op)
+          case default => ()
+        }
+      }
       case ArrayElem(id, indices) => ???
       case default => throw new Exception("Invalid expression type")
     }
@@ -238,10 +254,33 @@ object IR {
     }
   }
 
-  def buildIf(condition: Expression, body1: List[Statement], body2: List[Statement]): Unit = {
+  def buildIf(condition: Expression, thenBody: List[Statement], elseBody: List[Statement])(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
+    val elseLabel = ".L" + irProgram.labelCount
+    irProgram.labelCount += 1
+    buildExpression(condition)
+    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(B, Option(LabelRef(elseLabel)), None, None, NE)
+    enterScope()
+    thenBody.foreach(buildStatement(_))
+    exitScope()
+    irProgram.instructions += Label(elseLabel)
+    enterScope()
+    elseBody.foreach(buildStatement(_))
+    exitScope()
   }
   
-  def buildWhile(condition: Expression, body: List[Statement]): Unit = {
+  def buildWhile(condition: Expression, body: List[Statement])(implicit irProgram: IRProgram, symbolTable: SymbolTable): Unit = {
+    val conditionLabel = ".L" + irProgram.labelCount
+    val doneLabel = ".L" + irProgram.labelCount + 1
+    irProgram.labelCount += 2
+    buildExpression(condition)
+    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(B, Option(LabelRef(doneLabel)), None, None, NE)
+    enterScope()
+    body.foreach(buildStatement(_))
+    exitScope()
+    irProgram.instructions += Instr(B, Option(LabelRef(conditionLabel)), None, None)
+    irProgram.instructions += Label(doneLabel)
   }
 
   def getExpressionType(expression: Expression)(implicit irProgram: IRProgram): SAType = {
@@ -338,7 +377,7 @@ object IR {
   }
   
   def buildIR(ast: Program, symbolTable: SymbolTable): ListBuffer[IRType] = {
-    implicit val irProgram = IRProgram(ListBuffer(), 0, symbolTable)
+    implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
     buildFuncs(ast.functions)(irProgram, symbolTable)
     ast.statements.foreach(buildStatement(_)(irProgram, symbolTable))
     irProgram.instructions
