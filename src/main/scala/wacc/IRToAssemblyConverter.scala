@@ -45,7 +45,7 @@ object IRToAssemblyConverter {
     }
 
     def setupEndOfMain()(implicit instrSb: StringBuilder) {
-        instrSb.append("\tpop {fp, pc}\n")
+        instrSb.append("\tmov r0, #0\n\tpop {fp, pc}\n")
     }
 
     def getPrintLabelOfTypeName(typeName: SAType) = {

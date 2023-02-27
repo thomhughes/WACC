@@ -1,21 +1,3 @@
-# This file is a template, and might need editing before it works on your project.
-# This is a sample GitLab CI/CD configuration file that should run without any modifications.
-# It demonstrates a basic 3 stage CI/CD pipeline. Instead of real tests or scripts,
-# it uses echo commands to simulate the pipeline execution.
-#
-# A pipeline is composed of independent jobs that run scripts, grouped into stages.
-# Stages run in sequential order, but jobs within stages run in parallel.
-#
-# For more information, see: https://docs.gitlab.com/ee/ci/yaml/index.html#stages
-#
-# You can copy and paste this template into a new `.gitlab-ci.yml` file.
-# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
-#
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
-
 stages:          # List of stages for jobs, and their order of execution
   - build
   - test
@@ -42,12 +24,12 @@ test-setup-job:
       - wacc_examples
       - wacc-42-compiler.jar
 
-valid-test-job:   # This job runs in the test stage.
+valid-frontend-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   needs: [test-setup-job]
   script:
     - echo "Running valid test cases..."
-    - sbt "testOnly wacc.ValidTests"
+    - sbt "testOnly wacc.ValidFrontendTests"
     - echo "Tests complete"
 
 invalid-syntax-error-test-job:
@@ -66,8 +48,16 @@ invalid-semantic-error-test-job:
     - sbt "testOnly wacc.InvalidSemanticErrorTests"
     - echo "Tests complete"
 
+backend-test-job:
+  stage: test
+  needs: [test-setup-job]
+  script:
+    - echo "Running backend test cases..."
+    - sbt "testOnly wacc.BackendTests"
+    - echo "Tests complete"
+
 test-cleanup-job:
   stage: test
-  needs: [valid-test-job, invalid-syntax-error-test-job, invalid-semantic-error-test-job]
+  needs: [valid-frontend-test-job, invalid-syntax-error-test-job, invalid-semantic-error-test-job, backend-test-job]
   script:
     - rm -rf wacc_examples
