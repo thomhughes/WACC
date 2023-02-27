@@ -66,6 +66,11 @@ invalid-semantic-error-test-job:
     - sbt "testOnly wacc.InvalidSemanticErrorTests"
     - echo "Tests complete"
 
+back-end-unit-test-job:
+  stage: test
+  script:
+    - sbt "testOnly wacc.IRConversionUnitTests"
+
 test-cleanup-job:
   stage: test
   needs: [valid-test-job, invalid-syntax-error-test-job, invalid-semantic-error-test-job]
