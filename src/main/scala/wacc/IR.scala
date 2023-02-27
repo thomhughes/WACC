@@ -137,35 +137,49 @@ object IR {
   }
 
   // When this is called, arg to be stored is in R8
-  def buildArrayReassignment(id: Identifier, indicies: List[Expression])(implicit irProgram: IRProgram): Option[Operand] = {
-    // after this funciton is called, the pointer to the list will be on the top of the stack
-    def arrLoadHelper(indicies: List[Expression]): Expression = indicies match {
-      case head :: Nil => head
-      case head :: next => {
-        buildExpression(head)
-        // arg is now on top of stack: we will pop and proceed
-        irProgram.instructions += Instr(POP, Some(R10))
-        irProgram.instructions += Instr(MOV, Some(R3), Some(Var(id.name)))
-        irProgram.instructions += Instr(ARRLOAD)
-        irProgram.instructions += Instr(PUSH, Some(R3))
-        arrLoadHelper(next)
-      }
-    }
-    
-    val index = arrLoadHelper(indicies)
-    // pushes index to stack
-    buildExpression(index)
+  def buildArrayReassignment(id: Identifier, indices: List[Expression])(implicit irProgram: IRProgram): Option[Operand] = {
+    buildArrLoad(id, indices)
+    // last index is now on top of stack
     irProgram.instructions += Instr(POP, Some(R10))
     irProgram.instructions += Instr(POP, Some(R3))
     irProgram.instructions += Instr(ARRSTORE)
     None
   }
 
+  def buildArrayAccess(id: Identifier, indices: List[Expression])(implicit irProgram: IRProgram): Unit = {
+    buildArrLoad(id, indices)
+    // last index is now top of stack
+    irProgram.instructions += Instr(POP, Some(R10))
+    irProgram.instructions += Instr(POP, Some(R3))
+    irProgram.instructions += Instr(ARRLOAD)
+    // result is loaded in R3, we push to top of stack as per convention
+    irProgram.instructions += Instr(PUSH, Some(R3))
+  }
+
+  // after this function is called, the pointer to the list will be on the top of the stack
+  def buildArrLoad(id: Identifier, indices: List[Expression])(implicit irProgram: IRProgram): Unit = {
+    irProgram.instructions += Instr(PUSH, Some(Var(id.name)))
+    indices match {
+      case head :: Nil => buildExpression(head) // this will put the index on the top of the stack
+      case head :: next => {
+        // Load the current array pointer into R3
+        irProgram.instructions += Instr(POP, Some(R3))
+        buildExpression(head)
+        // arg is now on top of stack: we will pop and proceed
+        irProgram.instructions += Instr(POP, Some(R10))
+        irProgram.instructions += Instr(ARRLOAD)
+        irProgram.instructions += Instr(PUSH, Some(R3))
+        buildArrLoad(id, next)
+      }
+      case _ => throw new Exception("Empty list of indices provided")
+    }
+  }
+
   /* Evaluates rvalue and places result on top of the stack */
   def buildRValue(rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     rvalue match {
       case e: Expression => buildExpression(e)
-      case ArrayElem(id, indices) => ???
+      case ArrayElem(id, indices) => buildArrLoad(id, indices)
       case ArrayLiteral(args) => buildArrayLiteral(args)
       case FunctionCall(id, args) => ???
       case NewPair(e1, e2) => ???
