@@ -1,7 +1,7 @@
 package wacc
 
 class BackendTests extends IntegrationTest {
-    runTestOnDirectory("valid/basic/skip", true, runBackendTest)
+    runTestOnDirectory("valid/basic", true, runBackendTest)
     runTestOnDirectory("valid/advanced", false, runBackendTest)
     runTestOnDirectory("valid/array", false, runBackendTest)
     runTestOnDirectory("valid/function", false, runBackendTest)

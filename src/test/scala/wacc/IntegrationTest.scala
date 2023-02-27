@@ -49,23 +49,36 @@ class IntegrationTest extends AnyFlatSpec {
             val programInputLines = Source.fromFile(path.toString)
                 .getLines().toList
                 .dropWhile(x => !x.replace(" ", "").startsWith("#Input:"))
+            
+            val exitCodeLines = Source.fromFile(path.toString)
+                .getLines().toList
+                .dropWhile(x => !x.replace(" ", "").startsWith("#Exit:"))
+
             var executeCommand = "qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString
             if (programInputLines.length != 0) {
                 val programInputLine = programInputLines.head
                 val programInput = programInputLine.substring(programInputLine.indexOf(':') + 2)
                 executeCommand = "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
             }
-            val actualOutput = executeCommand.!!
-            val exampleOutput =
-                Source.fromFile(path.toString)
-                .getLines().toList
-                .dropWhile(x => !x.equals("# Output:"))
-                .takeWhile(x => !x.equals(""))
-                .map(x => x.substring(1).strip())
-                .tail
-                .mkString("\n")
-            "Backend " should "correctly generate code for " + path.toString() + " test case" in {
-                assert(exampleOutput == actualOutput)
+            if (exitCodeLines.length > 1) {
+                val exitCodeLine = exitCodeLines.tail.head
+                val exitCode = exitCodeLine.substring(1).trim().toInt
+                "Backend " should "correctly generate code for " + path.toString() + " test case" in {
+                    executeCommand.! shouldBe (exitCode)
+                }
+            } else {
+                val actualOutput = executeCommand.!!
+                val exampleOutput =
+                    Source.fromFile(path.toString)
+                    .getLines().toList
+                    .dropWhile(x => !x.equals("# Output:"))
+                    .takeWhile(x => !x.equals(""))
+                    .map(x => x.substring(1).strip())
+                    .tail
+                    .mkString("\n")
+                "Backend " should "correctly generate code for " + path.toString() + " test case" in {
+                    assert(exampleOutput == actualOutput)
+                }
             }
         } else {
             "Backend " should "correctly generate code for " + path.toString() + " test case" in pending

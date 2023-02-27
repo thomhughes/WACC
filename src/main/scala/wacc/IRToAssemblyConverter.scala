@@ -31,20 +31,25 @@ object IRToAssemblyConverter {
             case Instr(ADD, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"add ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
             case Instr(SUB, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"sub ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
             case Instr(MUL, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"mul ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(DIV, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"div ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(MOD, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"mod ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(AND, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"and ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(ORR, Some(firstOp), Some(secondOp), Some(thirdOp), _) => f"orr ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+            case Instr(BL, Some(LabelRef(label)), None, None, _) => f"bl ${label}"
             case Instr(PRINTLN, None, None, None, _) => f"bl _println"
             case default => throw new Exception("IR Conversion Error: Invalid instruction type")
         })
         instrSb.append("\n")
     }
 
-    def setupStartOfMain()(implicit instrSb: StringBuilder) {
+    def setupStartOfMain()(implicit instrSb: StringBuilder) = {
         instrSb.append(".text\n")
         instrSb.append(".global main\n")
         instrSb.append("main:\n")
         instrSb.append("\tpush {fp, lr}\n")
     }
 
-    def setupEndOfMain()(implicit instrSb: StringBuilder) {
+    def setupEndOfMain()(implicit instrSb: StringBuilder) = {
         instrSb.append("\tmov r0, #0\n\tpop {fp, pc}\n")
     }
 

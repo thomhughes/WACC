@@ -1,7 +1,7 @@
 package wacc
 
 class ValidFrontendTests extends IntegrationTest {
-    runTestOnDirectory("valid/basic/skip", true, runFrontendTest)
+    runTestOnDirectory("valid/basic", true, runFrontendTest)
     runTestOnDirectory("valid/advanced", false, runFrontendTest)
     runTestOnDirectory("valid/array", false, runFrontendTest)
     runTestOnDirectory("valid/function", false, runFrontendTest)
