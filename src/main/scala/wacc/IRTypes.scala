@@ -4,7 +4,11 @@ import scala.collection.mutable.ListBuffer
 import wacc.AST.Expression
 import wacc.Types.SAType
 
-case class IRProgram(val instructions: ListBuffer[IRType], var stringLiteralCounter: Int, var labelCount: Int, val symbolTable: SymbolTable)
+import wacc.SymbolTable
+case class IRProgram(val instructions: ListBuffer[IRType],
+                     var stringLiteralCounter: Int,
+                     var labelCount: Int,
+                     val symbolTable: SymbolTable)
 
 sealed trait IRType
 case class Label(name: String) extends IRType
@@ -16,7 +20,8 @@ case class Instr(opcode: Opcode,
                  op1: Option[Operand] = None,
                  op2: Option[Operand] = None,
                  op3: Option[Operand] = None,
-                 cond: Condition = AL) extends IRType
+                 cond: Condition = AL)
+    extends IRType
 case class Data(name: LabelRef, value: String) extends IRType
 
 sealed trait Operand

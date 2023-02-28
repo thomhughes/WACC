@@ -1,71 +1,61 @@
 package wacc
 
-case class SymbolTable(var scoper: Scoper) {
+case class SymbolTable() {
   import scala.collection.mutable.Map
+  import wacc.OuterBodySymbolTable
   import wacc.Types._
   import wacc.AST.Identifier
-  import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
+  import wacc.Errors.Error
 
-  val map = Map[(String, Int), (SAType, Option[Int])]()
-  val memMap = Map[Int, Int]().withDefaultValue(0)
+  val map = Map[String, OuterBodySymbolTable]()
 
   override def toString(): String = {
     map.toString()
   }
 
-  def lookupVarType(identifier: Identifier)(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] = {
-    val iter = scoper.getIterator()
-    while (iter.hasNext) {
-      val curr = iter.next()
-      val key = (identifier.name, curr)
-      if (map.contains(key)) return Left(map(key)._1)
+  def lookupVarType(identifier: Identifier)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] = {
+    if (map.contains(funcName)) {
+      return map(funcName).lookupVarType(identifier)
     }
-    Right(errorList :+ UndeclaredVariableError(identifier.pos, identifier.name))
+    throw new Exception(map.toString() + "," + funcName + ": can't be found.")
   }
 
-    def lookupType(identifier: Identifier): SAType = {
-    val iter = scoper.getIterator()
-    while (iter.hasNext) {
-      val curr = iter.next()
-      val key = (identifier.name, curr)
-      if (map.contains(key)) return map(key)._1
+  def lookupType(identifier: Identifier)(implicit funcName: String): SAType = {
+    if (map.contains(funcName)) {
+      return map(funcName).lookupType(identifier)
     }
-    throw new Exception("variable cannot be found")
+    throw new Exception(map.toString() + "," + funcName + ": can't be found.")
   }
 
-  def insertVar(identifier: Identifier, t: SAType)(
-      implicit errorList: List[Error]): List[Error] = {
-    val key = (identifier.name, scoper.getScope())
-    if (map.contains(key))
-      return errorList :+ RedeclaredVariableError(identifier.pos,
-                                                  identifier.name)
-    map += (key -> (t, None))
-    errorList
-  }
+  def insertFunction(funcName: String): Unit =
+    map += funcName -> new OuterBodySymbolTable(new Scoper)
 
-  def updateScoper(newScoper: Scoper) = scoper = newScoper
-
-  def updateVar(identifier: Identifier, scopeNo: Int, bytes: Int) = {
-    val key = (identifier.name, scopeNo)
-    if (!map.contains(key)) throw new Exception("unexpected variable being looked up or scope is not behaving as expected")
-    memMap(scopeNo) += bytes
-    val newVal = (map(key)._1, Some(memMap(scopeNo)))
-    map += (key -> newVal)
-  }
-
-  def lookupVarNo(identifier: Identifier): (Int, Int) = {
-    val iter = scoper.getIterator()
-    while (iter.hasNext) {
-      val curr = iter.next()
-      val key = (identifier.name, curr)
-      if (map.contains(key)) return (memMap(curr), map(key)._2.get)
+  def insertVar(identifier: Identifier, t: SAType)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = {
+    if (map.contains(funcName)) {
+      return map(funcName).insertVar(identifier, t)
     }
-    throw new Exception("Variable does not exist in scope")
+    throw new Exception(map.toString() + "," + funcName + ": can't be found.")
   }
 
-  def lookupAddress(identifier: Identifier): Int = {
-    val (scope, offset) = lookupVarNo(identifier)
-    return scope - offset
+  def resetScope()(implicit funcName: String) =
+    map(funcName).updateScoper(new Scoper)
+
+  def enterScope()(implicit funcName: String) =
+    map(funcName).scoper.enterScope()
+  def exitScope()(implicit funcName: String) = map(funcName).scoper.exitScope()
+  def getScope()(implicit funcName: String) = map(funcName).scoper.getScope()
+
+  def lookupAddress(identifier: Identifier)(implicit funcName: String): Int = {
+    if (map.contains(funcName)) {
+      map(funcName).lookupAddress(identifier)
+    } else {
+      throw new Exception(map.toString() + "," + funcName + ": can't be found.")
+    }
   }
 }
