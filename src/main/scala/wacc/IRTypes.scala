@@ -28,7 +28,7 @@ sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class Var(name: String) extends Operand
 case class LabelRef(name: String) extends Operand
-case class ArrayToStore(args: List[Expression]) extends Operand
+// case class ArrayToStore(args: List[Expression]) extends Operand
 // case class ArrayLit(name: String, pos: List[Int]) extends Operand
 
 sealed trait Register extends Operand
@@ -42,6 +42,10 @@ case object R12 extends Register
 case object FP extends Register
 case object LR extends Register
 case object PC extends Register
+
+sealed trait Address extends Operand
+case class AddrReg(reg: Register, offset: Int = 0) extends Address
+
 
 sealed trait Opcode
 

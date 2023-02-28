@@ -117,7 +117,6 @@ object IRToAssemblyConverter {
       case Imm(i)             => f"#$i"
       case Var(name)          => ???
       case LabelRef(name)     => f"=${name}"
-      case ArrayToStore(args) => ???
       case R0                 => "r0"
       case R8                 => "r8"
       case R9                 => "r9"
