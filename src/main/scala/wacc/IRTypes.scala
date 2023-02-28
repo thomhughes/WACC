@@ -5,10 +5,12 @@ import wacc.AST.Expression
 import wacc.Types.SAType
 
 import wacc.SymbolTable
-case class IRProgram(val instructions: ListBuffer[IRType],
-                     var stringLiteralCounter: Int,
-                     var labelCount: Int,
-                     val symbolTable: SymbolTable)
+case class IRProgram(
+    val instructions: ListBuffer[IRType],
+    var stringLiteralCounter: Int,
+    var labelCount: Int,
+    val symbolTable: SymbolTable
+)
 
 sealed trait IRType
 case class Label(name: String) extends IRType
@@ -16,16 +18,18 @@ case class EnterScope(scopeNo: Int) extends IRType
 case class ExitScope(scopeNo: Int) extends IRType
 case class EnterFrame(scopeNo: Int) extends IRType
 case class ExitFrame(scopeNo: Int) extends IRType
-case class Instr(opcode: Opcode,
-                 op1: Option[Operand] = None,
-                 op2: Option[Operand] = None,
-                 op3: Option[Operand] = None,
-                 cond: Condition = AL)
-    extends IRType
+case class Instr(
+    opcode: Opcode,
+    op1: Option[Operand] = None,
+    op2: Option[Operand] = None,
+    op3: Option[Operand] = None,
+    cond: Condition = AL
+) extends IRType
 case class Data(name: LabelRef, value: String) extends IRType
 
 sealed trait Operand
 case class Imm(int: Int) extends Operand
+case class ImmB(byte: Byte) extends Operand
 case class Var(name: String) extends Operand
 case class LabelRef(name: String) extends Operand
 // case class ArrayToStore(args: List[Expression]) extends Operand
@@ -46,7 +50,6 @@ case object PC extends Register
 sealed trait Address extends Operand
 case class AddrReg(reg: Register, offset: Int = 0) extends Address
 
-
 sealed trait Opcode
 
 sealed trait DataProcessing extends Opcode
@@ -59,6 +62,7 @@ case object MOD extends DataProcessing
 case object AND extends DataProcessing
 case object ORR extends DataProcessing
 case object MOV extends DataProcessing
+case object MOVB extends DataProcessing
 case object MVN extends DataProcessing
 case object CMP extends DataProcessing
 case object CMN extends DataProcessing
@@ -74,10 +78,6 @@ case object LDR extends MemAccess
 case object STR extends MemAccess
 case object LDRB extends MemAccess
 case object STRB extends MemAccess
-case object LDRH extends MemAccess
-case object STRH extends MemAccess
-case object LDM extends MemAccess
-case object STM extends MemAccess
 
 sealed trait Branch extends Opcode
 case object B extends Branch
@@ -104,7 +104,7 @@ case object LE extends Condition
 case object AL extends Condition
 
 sealed trait Directive extends Opcode
-case object ltorg extends Directive
+case object LTORG extends Directive
 
 sealed trait BuiltInInstruction extends Opcode
 case class PRINT(saType: SAType) extends BuiltInInstruction

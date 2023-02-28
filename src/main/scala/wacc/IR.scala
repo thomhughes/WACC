@@ -37,8 +37,6 @@ object IR {
     }
   }
 
-  implicit def boolToInt(b: Boolean) = if (b) 1 else 0
-
   def nonCompareInstruction(op: BinaryOp): Instr =
     Instr(
       (op: @unchecked) match {
@@ -91,26 +89,28 @@ object IR {
     irProgram.instructions += Instr(POP, Some(R8))
     irProgram.instructions += ((op: @unchecked) match {
       case Not      => Instr(MVN, Some(R8), Some(R8))
-      case Negation => Instr(RSB, Some(R8), Some(Imm(0)))
+      case Negation => Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
       case Len      => Instr(LEN, Some(R8))
     })
     irProgram.instructions += Instr(PUSH, Some(R8))
   }
 
   /* Evaluates expression and places result on top of the stack */
-  def buildExpression(expr: Expression)(implicit irProgram: IRProgram): Unit = {
-    implicit def boolToInt(i: Boolean): Int = if (i) 1 else 0
+  def buildExpression(
+      expr: Expression
+  )(implicit irProgram: IRProgram): Unit = {
+    implicit def boolToByte(bool: Boolean): Byte = if (bool) 1 else 0
     expr match {
       case IntLiteral(value) => {
         irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(value)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case CharLiteral(char) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(char.toInt)))
+        irProgram.instructions += Instr(MOVB, Some(R8), Some(ImmB(char.toByte)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case BoolLiteral(bool) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(bool)))
+        irProgram.instructions += Instr(MOVB, Some(R8), Some(ImmB(bool)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case StringLiteral(string) => {
@@ -191,6 +191,15 @@ object IR {
     }
     // irProgram.instructions += Instr(STR, Some(R12), Some(ArrayToStore(args)))
     irProgram.instructions += Instr(PUSH, Some(R12))
+  }
+
+  def buildFuncCall(id: Identifier, args: List[Expression])(implicit
+      irProgram: IRProgram
+  ) = {
+    // build expressions in order, will be reversed on stack
+    args.foreach(buildExpression(_))
+    irProgram.instructions += Instr(BL, Some(LabelRef(id.name)))
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   // When this is called, arg to be stored is in R8
@@ -292,7 +301,7 @@ object IR {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
-      case FunctionCall(id, args) => ???
+      case FunctionCall(id, args) => buildFuncCall(id, args)
       case NewPair(e1, e2)        => buildNewPair(e1, e2, argType)
       case PairElem(index, id)    => ???
       case default =>
@@ -344,13 +353,13 @@ object IR {
       None,
       NE
     )
-    enterScope()
+    irProgram.symbolTable.enterScope()
     thenBody.foreach(buildStatement(_))
-    exitScope()
+    irProgram.symbolTable.exitScope()
     irProgram.instructions += Label(elseLabel)
-    enterScope()
+    irProgram.symbolTable.enterScope()
     elseBody.foreach(buildStatement(_))
-    exitScope()
+    irProgram.symbolTable.exitScope()
   }
 
   def buildWhile(condition: Expression, body: List[Statement])(implicit
@@ -369,9 +378,9 @@ object IR {
       None,
       NE
     )
-    enterScope()
+    irProgram.symbolTable.enterScope()
     body.foreach(buildStatement(_))
-    exitScope()
+    irProgram.symbolTable.exitScope()
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(conditionLabel)),
@@ -420,26 +429,12 @@ object IR {
 
   def buildRead(lvalue: LValue): Unit = {}
 
-  def enterScope()(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.symbolTable.enterScope()
-    irProgram.instructions += EnterScope(
-      irProgram.symbolTable.getScope()
-    )
-  }
-
-  def exitScope()(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += ExitScope(
-      irProgram.symbolTable.getScope()
-    )
-    irProgram.symbolTable.exitScope()
-  }
-
   def buildBegin(
       statements: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
-    enterScope()
+    irProgram.symbolTable.enterScope()
     statements.foreach(buildStatement(_))
-    exitScope()
+    irProgram.symbolTable.exitScope()
   }
 
   def buildPrintln(
@@ -480,24 +475,58 @@ object IR {
 
   def renameFunc(functionName: String) = "wacc_" + functionName
 
+  def buildFuncPrologue(
+      func: Func
+  )(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.instructions += Instr(PUSH, Some(LR))
+    irProgram.instructions += Instr(PUSH, Some(FP))
+    // Store frame pointer as pointer to frame pointer on stack
+    irProgram.instructions += Instr(ADD, Some(FP), Some(SP), Some(Imm(4)))
+    val frameSize = irProgram.symbolTable.getFrameSize()
+    if (irProgram.symbolTable.getFrameSize() > 0) {
+      irProgram.instructions += Instr(
+        SUB,
+        Some(SP),
+        Some(SP),
+        Some(Imm(frameSize))
+      )
+    }
+  }
+
+  def buildFuncEpilogue(
+      func: Func
+  )(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.instructions += Instr(SUB, Some(SP), Some(FP), Some(Imm(4)))
+    irProgram.instructions += Instr(POP, Some(FP))
+    irProgram.instructions += Instr(POP, Some(LR))
+    irProgram.instructions += Instr(LTORG)
+  }
+
   def buildFunc(
       func: Func
-  )(implicit irProgram: IRProgram, funcName: String): ListBuffer[IRType] = {
+  )(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Label(
       renameFunc(func.identBinding.identifier.name)
     )
+    irProgram.symbolTable.resetScope()
+    irProgram.symbolTable.enterScope()
+    buildFuncPrologue(func)
     func.body.foreach(buildStatement(_))
-    irProgram.instructions
+    buildFuncEpilogue(func)
+    irProgram.symbolTable.exitScope()
   }
 
   def buildFuncs(
       functions: List[Func]
-  )(implicit irProgram: IRProgram): ListBuffer[IRType] = {
+  )(implicit irProgram: IRProgram) = {
     functions.foreach((func: Func) =>
       buildFunc(func)(irProgram, func.identBinding.identifier.name)
     )
-    irProgram.instructions
   }
+
+  def buildMain(statements: List[Statement])(implicit
+      irProgram: IRProgram
+  ) = {}
 
   def buildIR(
       ast: Program,
@@ -506,7 +535,10 @@ object IR {
     implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
     implicit val funcName = "0"
     buildFuncs(ast.functions)
+    irProgram.symbolTable.resetScope()
+    irProgram.symbolTable.enterScope()
     ast.statements.foreach(buildStatement(_))
+    irProgram.symbolTable.exitScope()
     (irProgram.instructions, irProgram.symbolTable)
   }
 }

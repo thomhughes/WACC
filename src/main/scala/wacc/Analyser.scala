@@ -707,7 +707,6 @@ object Analyser {
         case Nil => errorList
       }
     }
-    symbolTable.enterScope()
     // add all params to symbol table, now in scope
     val params = func.params
     val paramErrors = collectErrors(
@@ -725,7 +724,6 @@ object Analyser {
     }
     val funcErrors =
       collectErrorsFunctionStatements(func.body, functionReturnType)
-    symbolTable.exitScope()
     symbolTable.exitScope()
     funcErrors
   }
@@ -745,10 +743,12 @@ object Analyser {
     implicit val errorList: List[Error] = List()
     implicit val funcName: String = "0"
     symbolTable.insertFunction(funcName)
+    symbolTable.enterScope()
     val errors =
       collectErrors(program.statements, (x: Statement) => checkStatement(x))(
         checkFunctions(program)
       )
+    symbolTable.exitScope()
     (errors, symbolTable, functionTable)
   }
 }
