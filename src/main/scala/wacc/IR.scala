@@ -25,14 +25,20 @@ object IR {
   def getScope()(implicit irProgram: IRProgram, funcName: String) =
     irProgram.symbolTable.getScope()
 
-  /* Evaluates lvalue and places result on top of the stack */
-  def convertLValueToOperand(
+  /* Updates lvalue with value currently at top of stack */
+  def buildLValue(
       lvalue: LValue
-  )(implicit irProgram: IRProgram): Option[Operand] = {
+  )(implicit irProgram: IRProgram): Unit = {
     lvalue match {
-      case Identifier(x)           => Some(Var(x))
-      case ArrayElem(id, indices)  => buildArrayReassignment(id, indices)
-      case PairElem(index, lvalue) => ???
+      case Identifier(x)           => {
+        irProgram.instructions += Instr(POP, Some(R8))
+        irProgram.instructions += Instr(STR, Some(R8), Some(Var(x)))
+      }
+      case ArrayElem(id, indices)  => {
+        buildArrayReassignment(id, indices)
+        return
+      }
+      case PairElem(index, lvalue) => return
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
     }
   }
@@ -319,13 +325,7 @@ object IR {
           throw new Exception("Attempted type lookup of non-identifier")
       })
     )
-    convertLValueToOperand(lvalue) match {
-      case None => return
-      case Some(x) => {
-        irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(STR, Some(x), Some(R8))
-      }
-    }
+    buildLValue(lvalue)
   }
 
   def buildIf(
