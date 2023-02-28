@@ -477,7 +477,11 @@ object IR {
     irProgram.instructions += Instr(PRINT(getExpressionType(expression)))
   }
 
-  def buildFree(expression: Expression): Unit = {}
+  def buildFree(expression: Expression)(implicit irProgram: IRProgram, funcName: String): Unit = {
+    buildExpression(expression)
+    irProgram.instructions += Instr(POP, Some(R0))
+    irProgram.instructions += Instr(FREE(getExpressionType(expression)))
+  }
 
   def buildReturn(expression: Expression): Unit = {}
 
