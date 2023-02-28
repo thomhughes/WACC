@@ -143,13 +143,21 @@ object IR {
     at the top of the stack
     length offset is used to store the length of each array before each elem
     */
-    val lengthOffset = 1
     val bytesPerInt = 4
+    val lengthOffset = 1 * bytesPerInt
     val elementSize = getNoBytes(argType)
-    irProgram.instructions += Instr(MALLOC, Some(Imm(args.length * elementSize + lengthOffset)))
+    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(args.length * elementSize + lengthOffset)))
+    irProgram.instructions += Instr(MALLOC)
     irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
-    irProgram.instructions += Instr(ADD, Some(R12), Some(R12), Some(Imm(bytesPerInt * lengthOffset)))
-    irProgram.instructions += Instr(STR, Some(R12), Some(ArrayToStore(args)))
+    irProgram.instructions += Instr(ADD, Some(R12), Some(R12), Some(Imm(lengthOffset)))
+    irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(args.length)))
+    irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R12, -lengthOffset)))
+    for (i <- 0 until args.length) {
+      buildExpression(args(i))
+      irProgram.instructions += Instr(POP, Some(R8))
+      irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R12, i * elementSize)))
+    }
+    // irProgram.instructions += Instr(STR, Some(R12), Some(ArrayToStore(args)))
     irProgram.instructions += Instr(PUSH, Some(R12))
   }
 
@@ -178,21 +186,22 @@ object IR {
 
   // after this function is called, the pointer to the list will be on the top of the stack
   def buildArrLoad(id: Identifier, indices: List[Expression])(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(LDR, Some(Var(id.name)), Some(R9))
+    irProgram.instructions += Instr(LDR, Some(R9), Some(Var(id.name)))
     irProgram.instructions += Instr(PUSH, Some(R9))
-    indices match {
-      case head :: Nil => buildExpression(head) // this will put the index on the top of the stack
-      case head :: next => {
-        // Load the current array pointer into R3
-        irProgram.instructions += Instr(POP, Some(R3))
-        buildExpression(head)
-        // arg is now on top of stack: we will pop and proceed
-        irProgram.instructions += Instr(POP, Some(R10))
-        irProgram.instructions += Instr(ARRLOAD)
-        irProgram.instructions += Instr(PUSH, Some(R3))
-        buildArrLoad(id, next)
+    def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
+        case head :: Nil => buildExpression(head) // this will put the index on the top of the stack
+        case head :: next => {
+          // Load the current array pointer into R3
+          irProgram.instructions += Instr(POP, Some(R3))
+          buildExpression(head)
+          // arg is now on top of stack: we will pop and proceed
+          irProgram.instructions += Instr(POP, Some(R10))
+          irProgram.instructions += Instr(ARRLOAD)
+          irProgram.instructions += Instr(PUSH, Some(R3))
+          buildArrLoadHelper(next)
       }
     }
+    buildArrLoadHelper(indices)
   }
 
   def buildPairElement(element: Expression, noBytes: Int)(implicit irProgram: IRProgram) = {
@@ -216,8 +225,7 @@ object IR {
         irProgram.instructions += Instr(MALLOC)
         irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
         irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(ADD, Some(R12), Some(R12), Some(Imm(4)))
-        irProgram.instructions += Instr(STR, Some(R8), Some(R12))
+        irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R12, 4)))
         irProgram.instructions += Instr(POP, Some(R8))
         irProgram.instructions += Instr(SUB, Some(R12), Some(R12), Some(Imm(4)))
         irProgram.instructions += Instr(STR, Some(R8), Some(R12))
@@ -248,6 +256,7 @@ object IR {
   def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit irProgram: IRProgram): Unit = {
     buildRValue(rvalue, irProgram.symbolTable.lookupType(lvalue match {
       case i@Identifier(_) => i
+      case ArrayElem(id, _) => id
       case default => throw new Exception("Attempted type lookup of non-identifier")
     }))
     convertLValueToOperand(lvalue) match {
