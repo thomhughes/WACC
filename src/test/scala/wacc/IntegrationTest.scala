@@ -38,6 +38,7 @@ class IntegrationTest extends AnyFlatSpec {
       return
     }
     if (run) {
+      println("Running backend test for " + path.toString())
       val compileExitCode = ("./compile " + path.toString() + " --suppress").!
       if (compileExitCode != 0) {
         throw new RuntimeException(
@@ -67,42 +68,36 @@ class IntegrationTest extends AnyFlatSpec {
         .toList
         .dropWhile(x => !x.replace(" ", "").startsWith("#Exit:"))
 
-      var executeCommand =
-        "qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString
+      var executeCommand = "qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString
       if (programInputLines.length != 0) {
-        val programInputLine = programInputLines.head
-        val programInput =
-          programInputLine.substring(programInputLine.indexOf(':') + 2)
-        executeCommand =
-          "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
+          val programInputLine = programInputLines.head
+          val programInput = programInputLine.substring(programInputLine.indexOf(':') + 2)
+          executeCommand = "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
       }
       if (exitCodeLines.length > 1) {
-        val exitCodeLine = exitCodeLines.tail.head
-        val exitCode = exitCodeLine.substring(1).trim().toInt
-        "Backend " should "correctly generate code for " + path
-          .toString() + " test case" in {
-          executeCommand.! shouldBe (exitCode)
-        }
+          val exitCodeLine = exitCodeLines.tail.head
+          val exitCode = exitCodeLine.substring(1).trim().toInt
+          "Backend " should "correctly generate code for " + path.toString() + " test case" in {
+              executeCommand.! shouldBe (exitCode)
+          }
       } else {
-        val actualOutput = executeCommand.!!
-        val exampleOutput =
-          Source
-            .fromFile(path.toString)
-            .getLines()
-            .toList
-            .dropWhile(x => !x.equals("# Output:"))
-            .takeWhile(x => !x.equals(""))
-            .map(x => x.substring(1).strip())
-            .tail
-            .mkString("\n")
-        "Backend " should "correctly generate code for " + path
-          .toString() + " test case" in {
-          assert(exampleOutput == actualOutput)
-        }
+          val actualOutputLines = executeCommand.lazyLines_!.toList
+          val actualOutput = if (actualOutputLines.isEmpty) "" else actualOutputLines.mkString("\n")
+          val exampleOutput =
+              Source.fromFile(path.toString)
+              .getLines().toList
+              .dropWhile(x => !x.equals("# Output:"))
+              .takeWhile(x => !x.equals(""))
+              .map(x => x.substring(1).strip())
+              .tail
+              .mkString("\n")
+              .trim()
+          "Backend " should "correctly generate code for " + path.toString() + " test case" in {
+              assert(exampleOutput == actualOutput)
+          }
       }
     } else {
-      "Backend " should "correctly generate code for " + path
-        .toString() + " test case" in pending
+        "Backend " should "correctly generate code for " + path.toString() + " test case" in pending
     }
   }
 
