@@ -23,9 +23,9 @@ void array_literal_create_longs(long *data, unsigned size, va_list elemlist)
   for (int i = 0; i < size; ++i)
   {
     data[i] = va_arg(elemlist, long);
-    printf("%ld ", data[i]);
+    // printf("%ld ", data[i]);
   }
-  printf("\n");
+  // printf("\n");
 }
 
 extern struct array *array_literal_create(unsigned elemsize, unsigned size, void *_R2, void *_R3, ...)
@@ -34,7 +34,7 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   va_start(args, _R3);
   struct array *out;
   out = (struct array *)malloc(sizeof(struct array) + elemsize * size);
-  printf("Creating array literal with elemntsize: %d, %d!\n", elemsize, size);
+  // printf("Creating array literal with elemntsize: %d, %d!\n", elemsize, size);
   out->size = size;
   out->data = (void **)&out->size + 1;
   if (elemsize == 1)
@@ -76,7 +76,7 @@ unsigned array_size(struct array *in) { return in->size; }
 extern void *array_access(struct array *in, unsigned index)
 {
   check_array_access(in, index);
-  printf("Accessing: %d from %p (%d) -> %d\n", index, in, in->size, ((int *)in->data)[index]);
+  // printf("Accessing: %d from %p (%d) -> %d\n", index, in, in->size, ((int *)in->data)[index]);
   return &in->data[index];
 }
 
