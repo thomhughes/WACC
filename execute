@@ -1,0 +1,9 @@
+#!/bin/bash
+# Bash front-end for your compiler.
+# You are free to change the language used for this script,
+# but do *not* change its name.
+
+./compile $@
+arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s waccyruntime/runtime.o $(basename $@ .wacc).s -o $(basename $@ .wacc)
+qemu-arm -L /usr/arm-linux-gnueabi/ $(basename $@ .wacc)
+exit $?
