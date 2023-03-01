@@ -306,7 +306,10 @@ object IR {
     at the top of the stack
     length offset is used to store the length of each array before each elem
      */
-    val elementSize = getNoBytes(argType)
+    val elementSize = argType match {
+      case SAArrayType(arrayType, _) => getNoBytes(arrayType)
+      case _ => throw new Exception("Unexpected LValue type")
+    }
     irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(elementSize)))
     irProgram.instructions += Instr(MOV, Some(R1), Some(Imm(args.size)))
     args.reverse.foreach(buildExpression(_))
@@ -339,11 +342,10 @@ object IR {
       funcName: String
   ): Unit = {
     buildLValueReference(id)
-    buildStackDereference()
     def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
       case Nil => {}
       case head :: next => {
-        // Load the current array pointer into R3
+        buildStackDereference()
         irProgram.instructions += Instr(POP, Some(R0))
         buildExpression(head)
         // arg is now on top of stack: we will pop and proceed
@@ -407,7 +409,6 @@ object IR {
       })
     )
     buildLValue(lvalue)
-
   }
 
   def buildIf(
@@ -449,6 +450,7 @@ object IR {
     irProgram.instructions += Label(conditionLabel)
     buildExpression(condition)
     irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(1)))
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(doneLabel)),
