@@ -17,7 +17,7 @@ object IR {
   import Analyser.convertSyntaxToTypeSys
 
   val getNoBytes: (SAType => Int) = _ match {
-    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType => 4
+    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType | SAPairRefType => 4
     case SABoolType | SACharType                          => 1
     case _ => throw new Exception("Unexpected LValue type")
   }
@@ -147,6 +147,8 @@ object IR {
     )
 
   def logicalCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+    val doneLabel = s".L${irProgram.labelCount}"
+    irProgram.labelCount += 1
     irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
     (op: @unchecked) match {
       case And => {
@@ -158,7 +160,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           B,
-          Some(LabelRef(s".L${irProgram.labelCount}")),
+          Some(LabelRef(doneLabel)),
           cond = EQ
         )
       }
@@ -171,7 +173,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           B,
-          Some(LabelRef(s".L${irProgram.labelCount}")),
+          Some(LabelRef(doneLabel)),
           cond = NE
         )
       }
@@ -189,8 +191,7 @@ object IR {
       Some(Imm(0)),
       cond = EQ
     )
-    irProgram.instructions += Label(s".L${irProgram.labelCount}")
-    irProgram.labelCount += 1
+    irProgram.instructions += Label(doneLabel)
   }
 
   def compareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
