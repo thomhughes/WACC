@@ -29,8 +29,6 @@ case class Data(name: LabelRef, value: String) extends IRType
 
 sealed trait Operand
 case class Imm(int: Int) extends Operand
-case class ImmB(byte: Byte) extends Operand
-case class Var(name: String) extends Operand
 case class LabelRef(name: String) extends Operand
 // case class ArrayToStore(args: List[Expression]) extends Operand
 // case class ArrayLit(name: String, pos: List[Int]) extends Operand

@@ -22,6 +22,25 @@ object IR {
     case _ => throw new Exception("Unexpected LValue type")
   }
 
+  def loadRegAddr(dest: Register, src: Register, value: Int)(implicit irProgram: IRProgram) = {
+    val absVal = Math.abs(value)
+    val opcode = if (value < 0) SUB else ADD
+    val parts = List(absVal & 0xFF, absVal  & (0xFF << 8), absVal & (0xFF << 16), absVal & (0xFF << 24))
+    parts.fold(0)((isFirst, part) => {
+      if (part != 0) {
+        if (isFirst == 0) {
+          irProgram.instructions += Instr(opcode, Some(dest), Some(src), Some(Imm(part)))
+          1
+        } else {
+          irProgram.instructions += Instr(opcode, Some(dest), Some(dest), Some(Imm(part)))
+          isFirst
+        }
+      } else {
+        isFirst
+      }
+    })
+  }
+
   def getScope()(implicit irProgram: IRProgram, funcName: String) =
     irProgram.symbolTable.getScope()
 
@@ -31,12 +50,7 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
       case id @ Identifier(_) => {
-        irProgram.instructions += Instr(
-          ADD,
-          Some(R0),
-          Some(FP),
-          Some(Imm(irProgram.symbolTable.lookupAddress(id)))
-        )
+        loadRegAddr(R0, FP, irProgram.symbolTable.lookupAddress(id))
         irProgram.instructions += Instr(PUSH, Some(R0))
       }
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
@@ -585,12 +599,7 @@ object IR {
     irProgram.instructions += Instr(ADD, Some(FP), Some(SP), Some(Imm(4)))
     val frameSize = irProgram.symbolTable.getFrameSize()
     if (irProgram.symbolTable.getFrameSize() > 0) {
-      irProgram.instructions += Instr(
-        SUB,
-        Some(SP),
-        Some(SP),
-        Some(Imm(frameSize))
-      )
+      loadRegAddr(SP, SP, -frameSize)
     }
   }
 

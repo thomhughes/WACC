@@ -191,7 +191,6 @@ object IRToAssemblyConverter {
   def convertOperandToAssembly(operand: Operand): String = {
     operand match {
       case Imm(i)         => f"#$i"
-      case ImmB(byte)     => f"#$byte"
       case LabelRef(name) => f"=${name}"
       case R0             => "r0"
       case R1             => "r1"
