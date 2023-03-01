@@ -39,9 +39,7 @@ object IR {
         )
         irProgram.instructions += Instr(PUSH, Some(R0))
       }
-      case ArrayElem(id, indices) => {
-        buildArrayReassignment(id, indices)
-      }
+      case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
       case PairElem(index, innerLValue) => {
         buildLValueReference(innerLValue)
         irProgram.instructions += Instr(POP, Some(R0))
@@ -57,7 +55,8 @@ object IR {
     }
   }
 
-  def buildLValueDereference()(implicit irProgram: IRProgram): Unit = {
+  // dereference value at top of stack *stack
+  def buildStackDereference()(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(LDR, Some(R0), Some(AddrReg(R0, 0)))
     irProgram.instructions += Instr(PUSH, Some(R0))
@@ -68,7 +67,7 @@ object IR {
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildLValueReference(lvalue)
-    buildLValueDereference()
+    buildStackDereference()
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(POP, Some(R1))
     irProgram.instructions += Instr(STR, Some(R1), Some(AddrReg(R0, 0)))
@@ -123,13 +122,13 @@ object IR {
   }
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += ((op: @unchecked) match {
-      case Not      => Instr(MVN, Some(R8), Some(R8))
-      case Negation => Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
-      case Len      => Instr(LEN, Some(R8))
+      case Not      => Instr(MVN, Some(R0), Some(R0))
+      case Negation => Instr(RSB, Some(R0), Some(R0), Some(Imm(0)))
+      case Len      => Instr(BL, Some(LabelRef("array_size")))
     })
-    irProgram.instructions += Instr(PUSH, Some(R8))
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   /* Evaluates expression and places result on top of the stack */
@@ -222,59 +221,34 @@ object IR {
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
-  // When this is called, arg to be stored is in R8
-  def buildArrayReassignment(id: Identifier, indices: List[Expression])(implicit
-      irProgram: IRProgram,
-      funcName: String
-  ): Option[Operand] = {
-    buildArrLoad(id, indices)
-    // last index is now on top of stack
-    // From ArrLoad and buildRValue, we know stack
-    // has index, then pointer to array, then arg to be stored
-    irProgram.instructions += Instr(POP, Some(R10))
-    irProgram.instructions += Instr(POP, Some(R3))
-    irProgram.instructions += Instr(POP, Some(R8))
-    irProgram.instructions += Instr(ARRSTORE)
-    None
-  }
-
   def buildArrayAccess(id: Identifier, indices: List[Expression])(implicit
       irProgram: IRProgram,
       funcName: String
   ): Unit = {
-    buildArrLoad(id, indices)
-    // last index is now top of stack
-    irProgram.instructions += Instr(POP, Some(R10))
-    irProgram.instructions += Instr(POP, Some(R3))
-    irProgram.instructions += Instr(ARRLOAD)
-    // result is loaded in R3, we push to top of stack as per convention
-    irProgram.instructions += Instr(PUSH, Some(R3))
+    buildArrayLoadReference(id, indices)
+    buildStackDereference()
   }
 
   // after this function is called, the pointer to the list will be on the top of the stack
-  def buildArrLoad(id: Identifier, indices: List[Expression])(implicit
+  def buildArrayLoadReference(id: Identifier, indices: List[Expression])(
+      implicit
       irProgram: IRProgram,
       funcName: String
   ): Unit = {
-    irProgram.instructions += Instr(LDR, Some(R9), Some(Var(id.name)))
-    irProgram.instructions += Instr(PUSH, Some(R9))
-    def buildArrLoadHelper(indices: List[Expression]): Unit =
-      (indices: @unchecked) match {
-        case head :: Nil =>
-          buildExpression(
-            head
-          ) // this will put the index on the top of the stack
-        case head :: next => {
-          // Load the current array pointer into R3
-          irProgram.instructions += Instr(POP, Some(R3))
-          buildExpression(head)
-          // arg is now on top of stack: we will pop and proceed
-          irProgram.instructions += Instr(POP, Some(R10))
-          irProgram.instructions += Instr(ARRLOAD)
-          irProgram.instructions += Instr(PUSH, Some(R3))
-          buildArrLoadHelper(next)
-        }
+    buildLValueReference(id)
+    def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
+      case Nil => {}
+      case head :: next => {
+        // Load the current array pointer into R3
+        irProgram.instructions += Instr(POP, Some(R0))
+        buildExpression(head)
+        // arg is now on top of stack: we will pop and proceed
+        irProgram.instructions += Instr(POP, Some(R1))
+        irProgram.instructions += Instr(BL, Some(LabelRef("array_access")))
+        irProgram.instructions += Instr(PUSH, Some(R0))
+        buildArrLoadHelper(next)
       }
+    }
     buildArrLoadHelper(indices)
   }
 
@@ -285,19 +259,6 @@ object IR {
     buildExpression(e1)
     buildExpression(e2)
     irProgram.instructions += Instr(BL, Option(LabelRef("pair_create")))
-    irProgram.instructions += Instr(PUSH, Some(R0))
-  }
-
-  def buildPairElem(
-      index: PairIndex
-  )(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += Instr(POP, Some(R0))
-    index match {
-      case Fst =>
-        irProgram.instructions += Instr(BL, Option(LabelRef("pair_fst")))
-      case Snd =>
-        irProgram.instructions += Instr(BL, Option(LabelRef("pair_snd")))
-    }
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
@@ -313,7 +274,7 @@ object IR {
       case NewPair(e1, e2)        => buildNewPair(e1, e2, argType)
       case p @ PairElem(_, _) => {
         buildLValueReference(p)
-        buildLValueDereference()
+        buildStackDereference()
       }
       case default =>
         throw new Exception("Invalid rhs for assignment/declaration")
@@ -342,6 +303,7 @@ object IR {
       })
     )
     buildLValue(lvalue)
+
   }
 
   def buildIf(

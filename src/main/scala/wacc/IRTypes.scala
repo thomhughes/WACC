@@ -37,7 +37,10 @@ case class LabelRef(name: String) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
+case object R1 extends Register
+case object R2 extends Register
 case object R3 extends Register
+case object R4 extends Register
 case object R8 extends Register
 case object R9 extends Register
 case object R10 extends Register
@@ -111,9 +114,6 @@ case class PRINT(saType: SAType) extends BuiltInInstruction
 case class FREE(saType: SAType) extends BuiltInInstruction
 case object PRINTLN extends BuiltInInstruction
 case object FREE extends BuiltInInstruction
-case object ARRLOAD extends BuiltInInstruction
-case object ARRSTORE extends BuiltInInstruction
 case object EXIT extends BuiltInInstruction
-case object LEN extends BuiltInInstruction
 
 case object MALLOC extends BuiltInInstruction

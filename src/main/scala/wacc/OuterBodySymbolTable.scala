@@ -103,5 +103,6 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
     }
   }
 
-  def getFrameSize(): Int = -Math.min(0, map.minBy(_._2._2)._2._2)
+  def getFrameSize(): Int =
+    if (map.isEmpty) 0 else -Math.min(0, map.minBy(_._2._2)._2._2)
 }
