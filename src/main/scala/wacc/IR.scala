@@ -28,9 +28,15 @@ object IR {
   /* Evaluates lvalue and places result on top of the stack */
   def convertLValueToOperand(
       lvalue: LValue
-  )(implicit irProgram: IRProgram): Option[Operand] = {
+  )(implicit irProgram: IRProgram, funcName: String): Option[Operand] = {
     lvalue match {
-      case Identifier(x)           => Some(Var(x))
+      case id @ Identifier(_) =>
+        Some(
+          AddrReg(
+            FP,
+            irProgram.symbolTable.lookupAddress(id)
+          )
+        )
       case ArrayElem(id, indices)  => buildArrayReassignment(id, indices)
       case PairElem(index, lvalue) => ???
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
@@ -98,7 +104,7 @@ object IR {
   /* Evaluates expression and places result on top of the stack */
   def buildExpression(
       expr: Expression
-  )(implicit irProgram: IRProgram): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String): Unit = {
     implicit def boolToByte(bool: Boolean): Byte = if (bool) 1 else 0
     expr match {
       case IntLiteral(value) => {
@@ -121,8 +127,16 @@ object IR {
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case PairLiteral => Imm(0)
-      case Identifier(id) => {
-        irProgram.instructions += Instr(LDR, Some(R8), Some(Var(id)))
+      case id @ Identifier(_) => {
+        val loadDataOperand = irProgram.symbolTable.lookupType(id) match {
+          case SABoolType | SACharType => LDRB
+          case _                       => LDR
+        }
+        irProgram.instructions += Instr(
+          loadDataOperand,
+          convertLValueToOperand(id),
+          Some(R8)
+        )
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case BinaryOpApp(op, lexpr, rexpr) => {
@@ -150,7 +164,8 @@ object IR {
   }
 
   def buildArrayLiteral(args: List[Expression], argType: SAType)(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ): Unit = {
     /*
     we need to return something that can then be stored in a given variable
@@ -197,14 +212,15 @@ object IR {
       irProgram: IRProgram
   ) = {
     // build expressions in order, will be reversed on stack
-    args.foreach(buildExpression(_))
+    args.foreach(buildExpression(_)(irProgram, id.name))
     irProgram.instructions += Instr(BL, Some(LabelRef(id.name)))
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   // When this is called, arg to be stored is in R8
   def buildArrayReassignment(id: Identifier, indices: List[Expression])(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ): Option[Operand] = {
     buildArrLoad(id, indices)
     // last index is now on top of stack
@@ -218,7 +234,8 @@ object IR {
   }
 
   def buildArrayAccess(id: Identifier, indices: List[Expression])(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ): Unit = {
     buildArrLoad(id, indices)
     // last index is now top of stack
@@ -231,7 +248,8 @@ object IR {
 
   // after this function is called, the pointer to the list will be on the top of the stack
   def buildArrLoad(id: Identifier, indices: List[Expression])(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ): Unit = {
     irProgram.instructions += Instr(LDR, Some(R9), Some(Var(id.name)))
     irProgram.instructions += Instr(PUSH, Some(R9))
@@ -256,7 +274,8 @@ object IR {
   }
 
   def buildPairElement(element: Expression, noBytes: Int)(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ) = {
     irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(noBytes)))
     irProgram.instructions += Instr(MALLOC)
@@ -268,7 +287,8 @@ object IR {
   }
 
   def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ) = {
     argType match {
       case SAPairType(firstType, secondType) => {
@@ -296,7 +316,8 @@ object IR {
 
   /* Evaluates rvalue and places result on top of the stack */
   def buildRValue(rvalue: RValue, argType: SAType)(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ): Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
@@ -309,7 +330,9 @@ object IR {
     }
   }
 
-  def buildExit(expression: Expression)(implicit irProgram: IRProgram): Unit = {
+  def buildExit(
+      expression: Expression
+  )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(BL, Some(LabelRef("exit")))
@@ -369,6 +392,7 @@ object IR {
     val conditionLabel = ".L" + irProgram.labelCount
     val doneLabel = ".L" + irProgram.labelCount + 1
     irProgram.labelCount += 2
+    irProgram.instructions += Label(conditionLabel)
     buildExpression(condition)
     irProgram.instructions += Instr(POP, Some(R8))
     irProgram.instructions += Instr(
@@ -425,7 +449,13 @@ object IR {
 
   def buildFree(expression: Expression): Unit = {}
 
-  def buildReturn(expression: Expression): Unit = {}
+  def buildReturn(
+      expression: Expression
+  )(implicit irProgram: IRProgram, funcName: String): Unit = {
+    buildExpression(expression)
+    irProgram.instructions += Instr(POP, Some(R0))
+    buildFuncEpilogue()
+  }
 
   def buildRead(lvalue: LValue): Unit = {}
 
@@ -475,9 +505,7 @@ object IR {
 
   def renameFunc(functionName: String) = "wacc_" + functionName
 
-  def buildFuncPrologue(
-      func: Func
-  )(implicit irProgram: IRProgram, funcName: String) = {
+  def buildFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(PUSH, Some(LR))
     irProgram.instructions += Instr(PUSH, Some(FP))
     // Store frame pointer as pointer to frame pointer on stack
@@ -493,12 +521,11 @@ object IR {
     }
   }
 
-  def buildFuncEpilogue(
-      func: Func
-  )(implicit irProgram: IRProgram, funcName: String) = {
+  // Inserted after function returns (all functions must return to be correct)
+  def buildFuncEpilogue()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(SUB, Some(SP), Some(FP), Some(Imm(4)))
     irProgram.instructions += Instr(POP, Some(FP))
-    irProgram.instructions += Instr(POP, Some(LR))
+    irProgram.instructions += Instr(POP, Some(PC))
     irProgram.instructions += Instr(LTORG)
   }
 
@@ -510,9 +537,8 @@ object IR {
     )
     irProgram.symbolTable.resetScope()
     irProgram.symbolTable.enterScope()
-    buildFuncPrologue(func)
+    buildFuncPrologue()
     func.body.foreach(buildStatement(_))
-    buildFuncEpilogue(func)
     irProgram.symbolTable.exitScope()
   }
 
@@ -526,19 +552,23 @@ object IR {
 
   def buildMain(statements: List[Statement])(implicit
       irProgram: IRProgram
-  ) = {}
+  ) = {
+    implicit val funcName = "0"
+    irProgram.symbolTable.resetScope()
+    irProgram.symbolTable.enterScope()
+    buildFuncPrologue()
+    statements.foreach(buildStatement(_))
+    buildFuncEpilogue()
+    irProgram.symbolTable.exitScope()
+  }
 
   def buildIR(
       ast: Program,
       symbolTable: SymbolTable
   ): (ListBuffer[IRType], SymbolTable) = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
-    implicit val funcName = "0"
     buildFuncs(ast.functions)
-    irProgram.symbolTable.resetScope()
-    irProgram.symbolTable.enterScope()
-    ast.statements.foreach(buildStatement(_))
-    irProgram.symbolTable.exitScope()
+    buildMain(ast.statements)
     (irProgram.instructions, irProgram.symbolTable)
   }
 }

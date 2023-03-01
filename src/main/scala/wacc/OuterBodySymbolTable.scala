@@ -22,13 +22,11 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
       totalOffset = -4
     }
     scopeSizes.push(totalOffset)
-    println(s"${scoper.getScope()}backing: $totalOffset")
     scoper.enterScope()
   }
 
   def exitScope() = {
     totalOffset = scopeSizes.pop()
-    println(s"${scoper.getScope()}restoring: $totalOffset")
     scoper.exitScope()
   }
 
