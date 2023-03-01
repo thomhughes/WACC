@@ -62,6 +62,49 @@ object IR {
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
+  private def getPairElemType(index: PairIndex, pair: LValue)(implicit
+      irProgram: IRProgram,
+      funcName: String
+  ): SAType =
+    getLValueType(pair) match {
+      case SAPairType(fstType, sndType) =>
+        index match {
+          case Fst => fstType
+          case Snd => sndType
+        }
+      case SAPairRefType => SAUnknownType
+      case t => throw new Exception(s"Invalid type $t for pair element")
+    }
+
+  private def getArrayElemType(id: Identifier, indices: List[Expression])(
+      implicit
+      irProgram: IRProgram,
+      funcName: String
+  ): SAType =
+    irProgram.symbolTable.lookupType(id) match {
+      case SAArrayType(arrayType, arity) => {
+        if (indices.length < arity)
+          SAArrayType(arrayType, arity - indices.length)
+        else if (indices.length == arity)
+          arrayType
+        else
+          throw new Exception(
+            "Too many indices for array ${id.name} of arity $arity"
+          )
+      }
+      case _ => throw new Exception("Invalid type for array element")
+    }
+
+  def getLValueType(
+      lvalue: LValue
+  )(implicit irProgram: IRProgram, funcName: String): SAType =
+    lvalue match {
+      case id @ Identifier(_) => irProgram.symbolTable.lookupType(id)
+      case PairElem(anotherIndex, anotherPair) =>
+        getPairElemType(anotherIndex, anotherPair)
+      case ArrayElem(id, indices) => getArrayElemType(id, indices)
+      case _                      => throw new Exception("Exhaustive")
+    }
   /* Stores top of stack into lvalue */
   def buildLValue(
       lvalue: LValue
@@ -70,7 +113,8 @@ object IR {
     buildStackDereference()
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(POP, Some(R1))
-    irProgram.instructions += Instr(STR, Some(R1), Some(AddrReg(R0, 0)))
+    val strOperand = if (getNoBytes(getLValueType(lvalue)) == 1) STRB else STR
+    irProgram.instructions += Instr(strOperand, Some(R1), Some(AddrReg(R0, 0)))
   }
 
   def nonCompareInstruction(op: BinaryOp): Instr =
@@ -160,7 +204,7 @@ object IR {
         case Gt  => LE
         case Ge  => LT
         case Lt  => GE
-        case Le  => LE
+        case Le  => GT
         case Neq => EQ
       }
     )
@@ -169,8 +213,7 @@ object IR {
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, Some(R8))
     irProgram.instructions += ((op: @unchecked) match {
-      case Not => Instr(MVN, Some(R8), Some(R8))
-      case Negation => {
+      case Not => {
         irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
         irProgram.instructions += Instr(
           MOV,
@@ -185,7 +228,8 @@ object IR {
           cond = EQ
         )
       }
-      case Len => Instr(BL, Some(LabelRef("array_size")))
+      case Negation => Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
+      case Len      => Instr(BL, Some(LabelRef("array_size")))
     })
     irProgram.instructions += Instr(PUSH, Some(R8))
   }
@@ -194,18 +238,18 @@ object IR {
   def buildExpression(
       expr: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
-    implicit def boolToByte(bool: Boolean): Byte = if (bool) 1 else 0
+    implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
     expr match {
       case IntLiteral(value) => {
         irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(value)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case CharLiteral(char) => {
-        irProgram.instructions += Instr(MOVB, Some(R8), Some(ImmB(char.toByte)))
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(char.toInt)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case BoolLiteral(bool) => {
-        irProgram.instructions += Instr(MOVB, Some(R8), Some(ImmB(bool)))
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(bool)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case StringLiteral(string) => {
@@ -372,7 +416,8 @@ object IR {
       elseBody: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     val elseLabel = ".L" + irProgram.labelCount
-    irProgram.labelCount += 1
+    val ifEndLabel = ".L" + irProgram.labelCount + 1
+    irProgram.labelCount += 2
     buildExpression(condition)
     irProgram.instructions += Instr(POP, Some(R8))
     irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(1)))
@@ -386,10 +431,12 @@ object IR {
     irProgram.symbolTable.enterScope()
     thenBody.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
+    irProgram.instructions += Instr(B, Option(LabelRef(ifEndLabel)))
     irProgram.instructions += Label(elseLabel)
     irProgram.symbolTable.enterScope()
     elseBody.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
+    irProgram.instructions += Label(ifEndLabel)
   }
 
   def buildWhile(condition: Expression, body: List[Statement])(implicit
@@ -432,8 +479,12 @@ object IR {
       case PairLiteral      => SAPairType(SAAnyType, SAAnyType)
       case Identifier(id) =>
         irProgram.symbolTable.lookupType(Identifier(id)((0, 0)))
-      case ArrayElem(id, indices)   => SAIntType
-      case BinaryOpApp(_, lexpr, _) => getExpressionType(lexpr)
+      case ArrayElem(id, indices) => SAIntType
+      case BinaryOpApp(op, lexpr, _) =>
+        op match {
+          case Eq | Gt | Ge | Lt | Le | Neq | And | Or => SABoolType
+          case _ => getExpressionType(lexpr)
+        }
       case UnaryOpApp(op, expr) =>
         op match {
           case Negation => SAIntType
