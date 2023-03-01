@@ -259,7 +259,10 @@ object IR {
         irProgram.instructions += Instr(LDR, Some(R8), Some(label))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
-      case PairLiteral => Imm(0)
+      case PairLiteral => {
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
       case id @ Identifier(_) => {
         val loadDataOperand = irProgram.symbolTable.lookupType(id) match {
           case SABoolType | SACharType => LDRB

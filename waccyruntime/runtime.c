@@ -33,7 +33,7 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   va_list args;
   va_start(args, _R3);
   struct array *out;
-  out = (struct array *)malloc(sizeof(struct array) + elemsize * size);
+  out = (struct array *)calloc(1, sizeof(struct array) + elemsize * size);
   // printf("Creating array literal with elemntsize: %d, %d!\n", elemsize, size);
   out->size = size;
   out->data = (void **)&out->size + 1;
@@ -90,7 +90,8 @@ struct pair
 extern struct pair *pair_create(void *_R0, void *_R1, void *_R2, void *_R3, void *fst, void *snd)
 {
   struct pair *out;
-  out = (struct pair *)malloc(sizeof(struct pair));
+  out = (struct pair *)calloc(1, sizeof(struct pair));
+  // printf("(%p) fst: %p, snd: %p\n", out, fst, snd);
   out->fst = fst;
   out->snd = snd;
   return out;
