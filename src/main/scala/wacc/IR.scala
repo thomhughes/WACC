@@ -643,6 +643,7 @@ object IR {
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()
     statements.foreach(buildStatement(_))
+    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(0)))
     buildFuncEpilogue()
     irProgram.symbolTable.exitScope()
   }
