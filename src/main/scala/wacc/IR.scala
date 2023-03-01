@@ -110,9 +110,8 @@ object IR {
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildLValueReference(lvalue)
-    buildStackDereference()
-    irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(POP, Some(R1))
+    irProgram.instructions += Instr(POP, Some(R0))
     val strOperand = if (getNoBytes(getLValueType(lvalue)) == 1) STRB else STR
     irProgram.instructions += Instr(strOperand, Some(R0), Some(AddrReg(R1, 0)))
   }
@@ -340,6 +339,7 @@ object IR {
       funcName: String
   ): Unit = {
     buildLValueReference(id)
+    buildStackDereference()
     def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
       case Nil => {}
       case head :: next => {
