@@ -5,8 +5,8 @@
 // Array
 struct array
 {
-  unsigned size;
   void **data;
+  unsigned size;
 };
 
 void array_literal_create_bytes(unsigned char *data, unsigned size,
@@ -35,8 +35,8 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   struct array *out;
   out = (struct array *)malloc(sizeof(struct array) + elemsize * size);
   printf("Creating array literal with elemntsize: %d, %d!\n", elemsize, size);
-  out->size = elemsize;
-  out->data = (void *)&out->data + sizeof(void *);
+  out->size = size;
+  out->data = (void **)&out->size + 1;
   if (elemsize == 1)
   {
     array_literal_create_bytes((unsigned char *)out->data, size, args);
