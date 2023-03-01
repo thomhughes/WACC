@@ -42,6 +42,7 @@ object IR {
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
       case PairElem(index, innerLValue) => {
         buildLValueReference(innerLValue)
+        buildStackDereference()
         irProgram.instructions += Instr(POP, Some(R0))
         index match {
           case Fst =>
@@ -362,8 +363,8 @@ object IR {
       irProgram: IRProgram,
       funcName: String
   ) = {
-    buildExpression(e1)
     buildExpression(e2)
+    buildExpression(e1)
     irProgram.instructions += Instr(BL, Option(LabelRef("pair_create")))
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
