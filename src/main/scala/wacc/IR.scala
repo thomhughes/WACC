@@ -25,59 +25,53 @@ object IR {
   def getScope()(implicit irProgram: IRProgram, funcName: String) =
     irProgram.symbolTable.getScope()
 
-  def getPairDestAddress(
-      lvalue: LValue
-  )(implicit irProgram: IRProgram, funcname: String): Unit = {
-    lvalue match {
-      case i @ Identifier(_) => {
-        irProgram.instructions += Instr(MOV, Some(R9), Some(Var(i.name)))
-        irProgram.instructions += Instr(LDR, Some(R9), Some(AddrReg(R9, 0)))
-        irProgram.instructions += Instr(PUSH, Some(R9))
-      }
-      case PairElem(index2, lvalue2) => {
-        getPairDestAddress(lvalue2)
-        irProgram.instructions += Instr(POP, Some(R9))
-        index2 match {
-          case Fst => {
-            irProgram.instructions += Instr(LDR, Some(R9), Some(AddrReg(R9, 0)))
-            irProgram.instructions += Instr(PUSH, Some(R9))
-          }
-          case Snd => {
-            irProgram.instructions += Instr(LDR, Some(R9), Some(AddrReg(R9, 4)))
-            irProgram.instructions += Instr(PUSH, Some(R9))
-          }
-        }
-      }
-      case ArrayElem(id, indices) => buildArrayAccess(id, indices)
-    }
-  }
-
-  /* Updates lvalue with value currently at top of stack */
-  def buildLValue(
+  /* Pushes lvalue reference to top of stack */
+  def buildLValueReference(
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
-      case Identifier(x) => {
-        irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(STR, Some(R8), Some(Var(x)))
+      case id @ Identifier(_) => {
+        irProgram.instructions += Instr(
+          ADD,
+          Some(R8),
+          Some(FP),
+          Some(Imm(irProgram.symbolTable.lookupAddress(id)))
+        )
+        irProgram.instructions += Instr(PUSH, Some(R0))
       }
       case ArrayElem(id, indices) => {
         buildArrayReassignment(id, indices)
-        return
       }
-      case PairElem(index1, lvalue1) => {
-        getPairDestAddress(lvalue1)
-        irProgram.instructions += Instr(POP, Some(R9))
-        irProgram.instructions += Instr(POP, Some(R8))
-        index1 match {
+      case PairElem(index, innerLValue) => {
+        buildLValueReference(innerLValue)
+        irProgram.instructions += Instr(POP, Some(R0))
+        index match {
           case Fst =>
-            irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R9, 0)))
+            irProgram.instructions += Instr(BL, Some(LabelRef("pair_fst")))
           case Snd =>
-            irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R9, 4)))
+            irProgram.instructions += Instr(BL, Some(LabelRef("pair_snd")))
         }
+        irProgram.instructions += Instr(PUSH, Some(R0))
       }
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
     }
+  }
+
+  def buildLValueDereference()(implicit irProgram: IRProgram): Unit = {
+    irProgram.instructions += Instr(POP, Some(R0))
+    irProgram.instructions += Instr(LDR, Some(R0), Some(AddrReg(R0, 0)))
+    irProgram.instructions += Instr(PUSH, Some(R0))
+  }
+
+  /* Stores top of stack into lvalue */
+  def buildLValue(
+      lvalue: LValue
+  )(implicit irProgram: IRProgram, funcName: String): Unit = {
+    buildLValueReference(lvalue)
+    buildLValueDereference()
+    irProgram.instructions += Instr(POP, Some(R0))
+    irProgram.instructions += Instr(POP, Some(R1))
+    irProgram.instructions += Instr(STR, Some(R1), Some(AddrReg(R0, 0)))
   }
 
   def nonCompareInstruction(op: BinaryOp): Instr =
@@ -171,8 +165,8 @@ object IR {
         }
         irProgram.instructions += Instr(
           loadDataOperand,
-          Some(AddrReg(FP, irProgram.symbolTable.lookupAddress(id))),
-          Some(R8)
+          Some(R8),
+          Some(AddrReg(FP, irProgram.symbolTable.lookupAddress(id)))
         )
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
@@ -210,39 +204,12 @@ object IR {
     at the top of the stack
     length offset is used to store the length of each array before each elem
      */
-    val bytesPerInt = 4
-    val lengthOffset = 1 * bytesPerInt
     val elementSize = getNoBytes(argType)
-    irProgram.instructions += Instr(
-      MOV,
-      Some(R0),
-      Some(Imm(args.length * elementSize + lengthOffset))
-    )
-    irProgram.instructions += Instr(MALLOC)
-    irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
-    irProgram.instructions += Instr(
-      ADD,
-      Some(R12),
-      Some(R12),
-      Some(Imm(lengthOffset))
-    )
-    irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(args.length)))
-    irProgram.instructions += Instr(
-      STR,
-      Some(R8),
-      Some(AddrReg(R12, -lengthOffset))
-    )
-    for (i <- 0 until args.length) {
-      buildExpression(args(i))
-      irProgram.instructions += Instr(POP, Some(R8))
-      irProgram.instructions += Instr(
-        STR,
-        Some(R8),
-        Some(AddrReg(R12, i * elementSize))
-      )
-    }
-    // irProgram.instructions += Instr(STR, Some(R12), Some(ArrayToStore(args)))
-    irProgram.instructions += Instr(PUSH, Some(R12))
+    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(elementSize)))
+    irProgram.instructions += Instr(MOV, Some(R1), Some(Imm(args.size)))
+    args.foreach(buildExpression(_))
+    irProgram.instructions += Instr(BL, Some(LabelRef("array_literal_create")))
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   def buildFuncCall(id: Identifier, args: List[Expression])(implicit
@@ -311,61 +278,27 @@ object IR {
     buildArrLoadHelper(indices)
   }
 
-  def buildPairElement(element: Expression, noBytes: Int)(implicit
-      irProgram: IRProgram,
-      funcName: String
-  ) = {
-    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(noBytes)))
-    irProgram.instructions += Instr(MALLOC)
-    irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
-    buildExpression(element)
-    irProgram.instructions += Instr(POP, Some(R8))
-    irProgram.instructions += Instr(STR, Some(R8), Some(R12))
-    irProgram.instructions += Instr(PUSH, Some(R12))
-  }
-
   def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(implicit
       irProgram: IRProgram,
       funcName: String
   ) = {
-    argType match {
-      case SAPairType(firstType, secondType) => {
-        val noFirstBytes = getNoBytes(firstType)
-        val noSecondBytes = getNoBytes(secondType)
-        buildPairElement(e1, noFirstBytes)
-        buildPairElement(e2, noSecondBytes)
-        irProgram.instructions += Instr(
-          MOV,
-          Some(R0),
-          Some(Imm(noFirstBytes + noSecondBytes))
-        )
-        irProgram.instructions += Instr(MALLOC)
-        irProgram.instructions += Instr(MOV, Some(R12), Some(R0))
-        irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R12, 4)))
-        irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(SUB, Some(R12), Some(R12), Some(Imm(4)))
-        irProgram.instructions += Instr(STR, Some(R8), Some(R12))
-        irProgram.instructions += Instr(PUSH, Some(R12))
-      }
-      case default => throw new Exception("Invalid assignment, expected pair")
-    }
+    buildExpression(e1)
+    buildExpression(e2)
+    irProgram.instructions += Instr(BL, Option(LabelRef("pair_create")))
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   def buildPairElem(
       index: PairIndex
   )(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += Instr(LDR, Some(R8), Some(AddrReg(R8, 0)))
+    irProgram.instructions += Instr(POP, Some(R0))
     index match {
-      case Fst => {
-        irProgram.instructions += Instr(LDR, Some(R8), Some(AddrReg(R8, 0)))
-        irProgram.instructions += Instr(PUSH, Some(R8))
-      }
-      case Snd => {
-        irProgram.instructions += Instr(LDR, Some(R8), Some(AddrReg(R8, 4)))
-        irProgram.instructions += Instr(PUSH, Some(R8))
-      }
+      case Fst =>
+        irProgram.instructions += Instr(BL, Option(LabelRef("pair_fst")))
+      case Snd =>
+        irProgram.instructions += Instr(BL, Option(LabelRef("pair_snd")))
     }
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   /* Evaluates rvalue and places result on top of the stack */
@@ -378,24 +311,10 @@ object IR {
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
       case FunctionCall(id, args) => buildFuncCall(id, args)
       case NewPair(e1, e2)        => buildNewPair(e1, e2, argType)
-      case PairElem(index1, id1) =>
-        id1 match {
-          case Identifier(id) => {
-            irProgram.instructions += Instr(MOV, Some(R8), Some(Var(id)))
-            buildPairElem(index1)
-          }
-          case p @ PairElem(index2, id2) => {
-            buildRValue(p, SAPairRefType)
-            irProgram.instructions += Instr(POP, Some(R8))
-            buildPairElem(index2)
-          }
-          // Whether multi-dimensional or not the elem must be a memory location of a pair
-          case ArrayElem(id, indices) => {
-            buildArrayAccess(id, indices)
-            irProgram.instructions += Instr(POP, Some(R8))
-          }
-          case default => throw new Exception("Invalid pair elem")
-        }
+      case p @ PairElem(_, _) => {
+        buildLValueReference(p)
+        buildLValueDereference()
+      }
       case default =>
         throw new Exception("Invalid rhs for assignment/declaration")
     }
