@@ -25,20 +25,53 @@ object IR {
   def getScope()(implicit irProgram: IRProgram, funcName: String) =
     irProgram.symbolTable.getScope()
 
-  /* Evaluates lvalue and places result on top of the stack */
-  def convertLValueToOperand(
-      lvalue: LValue
-  )(implicit irProgram: IRProgram, funcName: String): Option[Operand] = {
+  def getPairDestAddress(lvalue: LValue)(implicit irProgram: IRProgram): Unit = {
     lvalue match {
-      case id @ Identifier(_) =>
-        Some(
-          AddrReg(
-            FP,
-            irProgram.symbolTable.lookupAddress(id)
-          )
-        )
-      case ArrayElem(id, indices)  => buildArrayReassignment(id, indices)
-      case PairElem(index, lvalue) => ???
+      case i@Identifier(_) => {
+        irProgram.instructions += Instr(MOV, Some(R9), Some(Var(i.name)))
+        irProgram.instructions += Instr(LDR, Some(R9), Some(AddrReg(R9, 0)))
+        irProgram.instructions += Instr(PUSH, Some(R9))
+      }
+      case PairElem(index2,lvalue2) => {
+        getPairDestAddress(lvalue2)
+        irProgram.instructions += Instr(POP, Some(R9))
+        index2 match {
+          case Fst => {
+            irProgram.instructions += Instr(LDR, Some(R9), Some(AddrReg(R9, 0)))
+            irProgram.instructions += Instr(PUSH, Some(R9))
+          }
+          case Snd => {
+            irProgram.instructions += Instr(LDR, Some(R9), Some(AddrReg(R9, 4)))
+            irProgram.instructions += Instr(PUSH, Some(R9))
+          }
+        }
+      }
+      case ArrayElem(id,indices) => buildArrayAccess(id,indices)
+    }
+  }
+
+  /* Updates lvalue with value currently at top of stack */
+  def buildLValue(
+      lvalue: LValue
+  )(implicit irProgram: IRProgram): Unit = {
+    lvalue match {
+      case Identifier(x)           => {
+        irProgram.instructions += Instr(POP, Some(R8))
+        irProgram.instructions += Instr(STR, Some(R8), Some(Var(x)))
+      }
+      case ArrayElem(id, indices)  => {
+        buildArrayReassignment(id, indices)
+        return
+      }
+      case PairElem(index1, lvalue1) => {
+        getPairDestAddress(lvalue1)
+        irProgram.instructions += Instr(POP, Some(R9))
+        irProgram.instructions += Instr(POP, Some(R8))
+        index1 match {
+          case Fst => irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R9, 0)))
+          case Snd => irProgram.instructions += Instr(STR, Some(R8), Some(AddrReg(R9, 4)))
+        }
+      }
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
     }
   }
@@ -315,17 +348,51 @@ object IR {
     }
   }
 
+  def buildPairElem(index: PairIndex)(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.instructions += Instr(LDR, Some(R8), Some(AddrReg(R8, 0)))
+    index match {
+      case Fst => {
+        irProgram.instructions += Instr(LDR, Some(R8), Some(AddrReg(R8, 0)))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
+      case Snd => {
+        irProgram.instructions += Instr(LDR, Some(R8), Some(AddrReg(R8, 4)))
+        irProgram.instructions += Instr(PUSH, Some(R8))
+      }
+    }
+  }
+
   /* Evaluates rvalue and places result on top of the stack */
   def buildRValue(rvalue: RValue, argType: SAType)(implicit
+<<<<<<< HEAD
       irProgram: IRProgram,
       funcName: String
+=======
+      irProgram: IRProgram, funcName: String
+>>>>>>> 6a8b2660bc87f4fc1ac22539b5bd19c654d18e3e
   ): Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
       case FunctionCall(id, args) => buildFuncCall(id, args)
       case NewPair(e1, e2)        => buildNewPair(e1, e2, argType)
-      case PairElem(index, id)    => ???
+      case PairElem(index1, id1)    => id1 match {
+        case Identifier(id) => {
+          irProgram.instructions += Instr(MOV, Some(R8), Some(Var(id)))
+          buildPairElem(index1)
+        }
+        case p@PairElem(index2, id2) => {
+          buildRValue(p, SAPairRefType)
+          irProgram.instructions += Instr(POP, Some(R8))
+          buildPairElem(index2)
+        }
+        // Whether multi-dimensional or not the elem must be a memory location of a pair
+        case ArrayElem(id,indices) => {
+          buildArrayAccess(id,indices)
+          irProgram.instructions += Instr(POP, Some(R8))
+        }
+        case default => throw new Exception("Invalid pair elem")
+      }
       case default =>
         throw new Exception("Invalid rhs for assignment/declaration")
     }
@@ -352,13 +419,7 @@ object IR {
           throw new Exception("Attempted type lookup of non-identifier")
       })
     )
-    convertLValueToOperand(lvalue) match {
-      case None => return
-      case Some(x) => {
-        irProgram.instructions += Instr(POP, Some(R8))
-        irProgram.instructions += Instr(STR, Some(x), Some(R8))
-      }
-    }
+    buildLValue(lvalue)
   }
 
   def buildIf(
@@ -448,7 +509,11 @@ object IR {
     irProgram.instructions += Instr(PRINT(getExpressionType(expression)))
   }
 
-  def buildFree(expression: Expression): Unit = {}
+  def buildFree(expression: Expression)(implicit irProgram: IRProgram, funcName: String): Unit = {
+    buildExpression(expression)
+    irProgram.instructions += Instr(POP, Some(R0))
+    irProgram.instructions += Instr(FREE(getExpressionType(expression)))
+  }
 
   def buildReturn(
       expression: Expression

@@ -108,6 +108,7 @@ case object LTORG extends Directive
 
 sealed trait BuiltInInstruction extends Opcode
 case class PRINT(saType: SAType) extends BuiltInInstruction
+case class FREE(saType: SAType) extends BuiltInInstruction
 case object PRINTLN extends BuiltInInstruction
 case object FREE extends BuiltInInstruction
 case object ARRLOAD extends BuiltInInstruction
