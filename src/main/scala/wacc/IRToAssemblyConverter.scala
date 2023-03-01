@@ -35,7 +35,7 @@ object IRToAssemblyConverter {
   def convertInstructionToAssembly(
       instruction: IRType
   )(implicit instrSb: StringBuilder) = {
-    println(instruction)
+    // println(instruction)
     instrSb.append(instruction match {
       case Instr(_, _, _, _, _) => "\t"
       case _                    => ""
