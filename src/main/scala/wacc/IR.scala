@@ -106,6 +106,7 @@ object IR {
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case _                      => throw new Exception("Exhaustive")
     }
+
   /* Stores top of stack into lvalue */
   def buildLValue(
       lvalue: LValue
@@ -405,12 +406,7 @@ object IR {
   ): Unit = {
     buildRValue(
       rvalue,
-      irProgram.symbolTable.lookupType(lvalue match {
-        case i @ Identifier(_) => i
-        case ArrayElem(id, _)  => id
-        case default =>
-          throw new Exception("Attempted type lookup of non-identifier")
-      })
+      getLValueType(lvalue)
     )
     buildLValue(lvalue)
   }
