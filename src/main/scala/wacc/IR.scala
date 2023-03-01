@@ -17,22 +17,41 @@ object IR {
   import Analyser.convertSyntaxToTypeSys
 
   val getNoBytes: (SAType => Int) = _ match {
-    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType | SAPairRefType => 4
-    case SABoolType | SACharType                          => 1
+    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType |
+        SAPairRefType =>
+      4
+    case SABoolType | SACharType => 1
     case _ => throw new Exception("Unexpected LValue type")
   }
 
-  def loadRegAddr(dest: Register, src: Register, value: Int)(implicit irProgram: IRProgram) = {
+  def loadRegAddr(dest: Register, src: Register, value: Int)(implicit
+      irProgram: IRProgram
+  ) = {
     val absVal = Math.abs(value)
     val opcode = if (value < 0) SUB else ADD
-    val parts = List(absVal & 0xFF, absVal  & (0xFF << 8), absVal & (0xFF << 16), absVal & (0xFF << 24))
+    val parts = List(
+      absVal & 0xff,
+      absVal & (0xff << 8),
+      absVal & (0xff << 16),
+      absVal & (0xff << 24)
+    )
     parts.fold(0)((isFirst, part) => {
       if (part != 0) {
         if (isFirst == 0) {
-          irProgram.instructions += Instr(opcode, Some(dest), Some(src), Some(Imm(part)))
+          irProgram.instructions += Instr(
+            opcode,
+            Some(dest),
+            Some(src),
+            Some(Imm(part))
+          )
           1
         } else {
-          irProgram.instructions += Instr(opcode, Some(dest), Some(dest), Some(Imm(part)))
+          irProgram.instructions += Instr(
+            opcode,
+            Some(dest),
+            Some(dest),
+            Some(Imm(part))
+          )
           isFirst
         }
       } else {
@@ -431,8 +450,8 @@ object IR {
       thenBody: List[Statement],
       elseBody: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
-    val elseLabel = ".L" + irProgram.labelCount
-    val ifEndLabel = ".L" + irProgram.labelCount + 1
+    val elseLabel = s".L${irProgram.labelCount}"
+    val ifEndLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
     buildExpression(condition)
     irProgram.instructions += Instr(POP, Some(R8))
@@ -459,8 +478,8 @@ object IR {
       irProgram: IRProgram,
       funcName: String
   ): Unit = {
-    val conditionLabel = ".L" + irProgram.labelCount
-    val doneLabel = ".L" + irProgram.labelCount + 1
+    val conditionLabel = s".L${irProgram.labelCount}"
+    val doneLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
     irProgram.instructions += Label(conditionLabel)
     buildExpression(condition)
@@ -469,18 +488,14 @@ object IR {
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(doneLabel)),
-      None,
-      None,
-      NE
+      cond = NE
     )
     irProgram.symbolTable.enterScope()
     body.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
     irProgram.instructions += Instr(
       B,
-      Option(LabelRef(conditionLabel)),
-      None,
-      None
+      Option(LabelRef(conditionLabel))
     )
     irProgram.instructions += Label(doneLabel)
   }
