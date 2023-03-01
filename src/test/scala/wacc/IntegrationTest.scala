@@ -41,7 +41,7 @@ class IntegrationTest extends AnyFlatSpec {
       println("Running backend test for " + path.toString())
       val compileExitCode = ("./compile " + path.toString() + " --suppress").!
       if (compileExitCode != 0) {
-        throw new RuntimeException(
+        fail(
           "Compiling " + path.toString() + " led to a semantic or syntax error"
         )
       }
@@ -52,7 +52,7 @@ class IntegrationTest extends AnyFlatSpec {
       val assemblerExitCode =
         ("arm-linux-gnueabi-gcc -o " + executablePath.toString + " -mcpu=arm1176jzf-s -mtune=arm1176jzf-s secret.o " + assemblyPath.toString).!
       if (assemblerExitCode != 0) {
-        throw new RuntimeException(
+        fail(
           "Assembling " + path.toString() + " led to an error"
         )
       }
@@ -74,13 +74,6 @@ class IntegrationTest extends AnyFlatSpec {
           val programInput = programInputLine.substring(programInputLine.indexOf(':') + 2)
           executeCommand = "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
       }
-      if (exitCodeLines.length > 1) {
-          val exitCodeLine = exitCodeLines.tail.head
-          val exitCode = exitCodeLine.substring(1).trim().toInt
-          "Backend " should "correctly generate code for " + path.toString() + " test case" in {
-              executeCommand.! shouldBe (exitCode)
-          }
-      } else {
           val actualOutputLines = executeCommand.lazyLines_!.toList
           val actualOutput = if (actualOutputLines.isEmpty) "" else actualOutputLines.mkString("\n").replaceAll("\\b0x\\w*", "#addrs#")
           val exampleOutput =
@@ -92,10 +85,16 @@ class IntegrationTest extends AnyFlatSpec {
               .tail
               .mkString("\n")
               .trim()
+          println("Expected output: " + exampleOutput)
+          println("Actual output: " + actualOutput)
           "Backend " should "correctly generate code for " + path.toString() + " test case" in {
               assert(exampleOutput == actualOutput)
+              if (exitCodeLines.length > 1) {
+                val exitCodeLine = exitCodeLines.tail.head
+                val exitCode = exitCodeLine.substring(1).trim().toInt
+                executeCommand.! shouldBe (exitCode)
+              }
           }
-      }
     } else {
         "Backend " should "correctly generate code for " + path.toString() + " test case" in pending
     }
