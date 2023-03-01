@@ -634,6 +634,7 @@ object IR {
     buildFuncPrologue()
     statements.foreach(buildStatement(_))
     buildFuncEpilogue()
+    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(0)))
     irProgram.symbolTable.exitScope()
   }
 

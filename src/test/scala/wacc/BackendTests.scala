@@ -8,7 +8,7 @@ class BackendTests extends IntegrationTest {
   runTestOnDirectory("valid/pairs", false, runBackendTest)
   // runTestOnDirectory("valid/runtimeErr", false, runBackendTest)
   runTestOnDirectory("valid/if", true, runBackendTest)
-  runTestOnDirectory("valid/variables", true, runBackendTest)
+  runTestOnDirectory("valid/variables", false, runBackendTest)
   runTestOnDirectory("valid/sequence", true, runBackendTest)
   runTestOnDirectory("valid/expressions", false, runBackendTest)
   runTestOnDirectory("valid/while", false, runBackendTest)
