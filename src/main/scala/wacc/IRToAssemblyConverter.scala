@@ -205,17 +205,20 @@ object IRToAssemblyConverter {
       case ImmB(byte)     => f"#$byte"
       case LabelRef(name) => f"=${name}"
       case R0             => "r0"
+      case R1             => "r1"
+      case R2             => "r2"
+      case R3             => "r3"
+      case R4             => "r4"
       case R8             => "r8"
       case R9             => "r9"
       case R10            => "r10"
-      case R3             => "r3"
       case SP             => "sp"
       case R12            => "r12"
       case FP             => "fp"
       case PC             => "pc"
       case LR             => "lr"
       case AddrReg(reg, offset) =>
-        f"[${convertOperandToAssembly(reg)}, ${if (offset != 0) f"#$offset"
+        f"[${convertOperandToAssembly(reg)}${if (offset != 0) f" , #$offset"
           else ""}]"
     }
   }

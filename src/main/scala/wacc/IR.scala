@@ -33,7 +33,7 @@ object IR {
       case id @ Identifier(_) => {
         irProgram.instructions += Instr(
           ADD,
-          Some(R8),
+          Some(R0),
           Some(FP),
           Some(Imm(irProgram.symbolTable.lookupAddress(id)))
         )
@@ -114,7 +114,7 @@ object IR {
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(POP, Some(R1))
     val strOperand = if (getNoBytes(getLValueType(lvalue)) == 1) STRB else STR
-    irProgram.instructions += Instr(strOperand, Some(R1), Some(AddrReg(R0, 0)))
+    irProgram.instructions += Instr(strOperand, Some(R0), Some(AddrReg(R1, 0)))
   }
 
   def nonCompareInstruction(op: BinaryOp): Instr =
@@ -310,7 +310,7 @@ object IR {
     val elementSize = getNoBytes(argType)
     irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(elementSize)))
     irProgram.instructions += Instr(MOV, Some(R1), Some(Imm(args.size)))
-    args.foreach(buildExpression(_))
+    args.reverse.foreach(buildExpression(_))
     irProgram.instructions += Instr(BL, Some(LabelRef("array_literal_create")))
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
