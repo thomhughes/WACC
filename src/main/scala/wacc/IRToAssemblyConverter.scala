@@ -14,9 +14,8 @@ object IRToAssemblyConverter {
       symbolTable: SymbolTable
   ): String = {
     implicit val sb = new StringBuilder()
-    setupStartOfMain()
+    sb.append(".text\n")
     instructions.foreach(convertInstructionToAssembly)
-    setupEndOfMain()
     generatePrintAssemblyForString()
     generatePrintAssemblyForBool()
     generatePrintAssemblyForPointerTypes()
@@ -35,7 +34,7 @@ object IRToAssemblyConverter {
   def convertInstructionToAssembly(
       instruction: IRType
   )(implicit instrSb: StringBuilder) = {
-    // println(instruction)
+    //println(instruction)
     instrSb.append(instruction match {
       case Instr(_, _, _, _, _) => "\t"
       case _                    => ""
@@ -43,6 +42,8 @@ object IRToAssemblyConverter {
     instrSb.append(instruction match {
       case Label(label)                 => convertLabelToAssembly(label)
       case Data(LabelRef(label), value) => convertDataToAssembly(label, value)
+      case Ltorg => f".ltorg"
+      case Global(label) => f".global ${label}"
       case Instr(opcode, None, None, None, _) =>
         generateAssemblyForOpcode(opcode)
       case Instr(B, Some(LabelRef(label)), None, None, cond) =>
@@ -98,7 +99,6 @@ object IRToAssemblyConverter {
       case READ(typeName)  => "bl " + getReadLabelOfTypeName(typeName)
       case PRINTLN         => "bl _println"
       case MALLOC          => "bl malloc"
-      case LTORG           => ".ltorg"
       case FREE(typeName)  => "bl " + getFreeLabelOfTypeName(typeName)
       case default =>
         throw new Exception("IR Conversion Error: Invalid opcode type")
@@ -146,17 +146,6 @@ object IRToAssemblyConverter {
     }
   }
 
-  def setupStartOfMain()(implicit instrSb: StringBuilder) = {
-    instrSb.append(".text\n")
-    instrSb.append(".global main\n")
-    instrSb.append("main:\n")
-    instrSb.append("\tpush {fp, lr}\n")
-  }
-
-  def setupEndOfMain()(implicit instrSb: StringBuilder) = {
-    instrSb.append("\tmov r0, #0\n\tpop {fp, pc}\n")
-  }
-
   def getPrintLabelOfTypeName(typeName: SAType) = {
     typeName match {
       case SAIntType                                 => "_printi"
@@ -194,7 +183,7 @@ object IRToAssemblyConverter {
       .append("\n")
       .append(convertLabelToAssembly(label))
       .append("\n\t.asciz \"")
-      .append(value)
+      .append(value.replace("\"","\\\""))
       .append("\"\n.text")
       .toString()
   }

@@ -77,15 +77,14 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
       )
 
     val noBytes = t match {
-      case SAIntType | SAArrayType(_, _) | SAPairType(_, _) => 4
+      case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType => 4
       case SABoolType | SACharType                          => 1
-      case SAStringType                                     => 0
       case _ => throw new Exception("Unexpected LValue type: " + t.toString())
     }
 
     if (scoper.getScope() == 0) {
       map += (key -> (t, totalOffset))
-      totalOffset += noBytes
+      totalOffset += 4 // arm calling convention is all pushes are 4 bytes, all parameters are max 4 bytes
     } else {
       totalOffset -= noBytes
       map += (key -> (t, totalOffset))

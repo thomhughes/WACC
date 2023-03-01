@@ -106,8 +106,9 @@ case object GT extends Condition
 case object LE extends Condition
 case object AL extends Condition
 
-sealed trait Directive extends Opcode
-case object LTORG extends Directive
+sealed trait Directive extends IRType
+case object Ltorg extends Directive
+case class Global(label: String) extends Directive
 
 sealed trait BuiltInInstruction extends Opcode
 case class PRINT(saType: SAType) extends BuiltInInstruction

@@ -17,7 +17,7 @@ object IR {
   import Analyser.convertSyntaxToTypeSys
 
   val getNoBytes: (SAType => Int) = _ match {
-    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) => 4
+    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType => 4
     case SABoolType | SACharType                          => 1
     case _ => throw new Exception("Unexpected LValue type")
   }
@@ -133,7 +133,6 @@ object IR {
     )
 
   def logicalCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
-    irProgram.labelCount += 1
     irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
     (op: @unchecked) match {
       case And => {
@@ -177,6 +176,7 @@ object IR {
       cond = EQ
     )
     irProgram.instructions += Label(s".L${irProgram.labelCount}")
+    irProgram.labelCount += 1
   }
 
   def compareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
@@ -327,8 +327,8 @@ object IR {
       funcName: String
   ) = {
     // build expressions in order, will be reversed on stack
-    args.foreach(buildExpression(_))
-    irProgram.instructions += Instr(BL, Some(LabelRef(id.name)))
+    args.reverse.foreach(buildExpression(_))
+    irProgram.instructions += Instr(BL, Some(LabelRef(renameFunc(id.name))))
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
@@ -599,7 +599,7 @@ object IR {
     irProgram.instructions += Instr(SUB, Some(SP), Some(FP), Some(Imm(4)))
     irProgram.instructions += Instr(POP, Some(FP))
     irProgram.instructions += Instr(POP, Some(PC))
-    irProgram.instructions += Instr(LTORG)
+    irProgram.instructions += Ltorg
   }
 
   def buildFunc(
@@ -627,6 +627,8 @@ object IR {
       irProgram: IRProgram
   ) = {
     implicit val funcName = "0"
+    irProgram.instructions += Global("main")
+    irProgram.instructions += Label("main")
     irProgram.symbolTable.resetScope()
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()

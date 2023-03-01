@@ -57,10 +57,10 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
-          // val (instructions, updatedSymbolTable) = buildIR(program, symbolTable)
-          // val assembly = convertAssembly(instructions, updatedSymbolTable)
-          // val assemblyFileName = getAssemblyFileName(fileName)
-          // printToFile(assembly, assemblyFileName)
+           val (instructions, updatedSymbolTable) = buildIR(program, symbolTable)
+           val assembly = convertAssembly(instructions, updatedSymbolTable)
+           val assemblyFileName = getAssemblyFileName(fileName)
+           printToFile(assembly, assemblyFileName)
           sys.exit(0)
         }
       }
