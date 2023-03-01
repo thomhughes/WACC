@@ -4,6 +4,6 @@
 # but do *not* change its name.
 
 java -jar wacc-42-compiler.jar $@
-arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -c waccyruntime/runtime.c -o waccyruntime/runtime.o
+arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -c waccyruntime/runtime.c -o secret.o
 exit $?
 

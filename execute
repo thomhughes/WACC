@@ -4,6 +4,6 @@
 # but do *not* change its name.
 
 ./compile $@
-arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s waccyruntime/runtime.o $(basename $@ .wacc).s -o $(basename $@ .wacc)
+arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s secret.o $(basename $@ .wacc).s -o $(basename $@ .wacc)
 qemu-arm -L /usr/arm-linux-gnueabi/ $(basename $@ .wacc)
 exit $?
