@@ -12,6 +12,8 @@ class FunctionTable {
   def checkDuplicate(function: Func) =
     map.contains(function.identBinding.identifier.name)
 
+  def getFunctionNames = map.keySet
+
   def insertFunction(function: Func, params: (SAType, List[SAType]))(
       implicit errorList: List[Error]): List[Error] = {
     if (checkDuplicate(function))

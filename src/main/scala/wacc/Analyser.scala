@@ -1,13 +1,13 @@
 package wacc
 
+import wacc.SymbolTable
 object Analyser {
   import wacc.AST._
   import wacc.Types._
   import wacc.Errors._
 
-  val scoper = new Scoper()
   val functionTable = new FunctionTable()
-  var symbolTable = SymbolTable(scoper)
+  var symbolTable = SymbolTable()
   implicit val returnVal: SAType = SAAnyType
 
   // HELPERS
@@ -19,16 +19,22 @@ object Analyser {
     case ArrayType(arrayType, arity) =>
       SAArrayType(convertSyntaxToTypeSys(arrayType), arity)
     case PairType(fstType, sndType) =>
-      SAPairType(convertSyntaxToTypeSys(fstType),
-                 convertSyntaxToTypeSys(sndType))
+      SAPairType(
+        convertSyntaxToTypeSys(fstType),
+        convertSyntaxToTypeSys(sndType)
+      )
     case PairRefType => SAPairRefType
     case _           => throw new Exception("Unknown type")
   }
 
-  private def getTypeIfExpressionsType(expressions: List[Expression],
-                                       t: SAType,
-                                       o: SAType)(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] = {
+  private def getTypeIfExpressionsType(
+      expressions: List[Expression],
+      t: SAType,
+      o: SAType
+  )(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] = {
     expressions match {
       case expression :: tail => {
         val typeError = checkExpression(expression, t)
@@ -45,15 +51,18 @@ object Analyser {
   private def equalsTypeNoError(
       pos: Position,
       firstType: SAType,
-      secondType: SAType)(implicit errorList: List[Error]): List[Error] =
+      secondType: SAType
+  )(implicit errorList: List[Error]): List[Error] =
     equalsType(firstType, secondType) match {
       case true => {
         errorList
       }
       case _ => {
-        errorList :+ TypeError(pos,
-                               firstType.toString,
-                               List(secondType.toString))
+        errorList :+ TypeError(
+          pos,
+          firstType.toString,
+          List(secondType.toString)
+        )
       }
     }
 
@@ -70,7 +79,7 @@ object Analyser {
       case e @ BinaryOpApp(_, _, _) => e.pos
       case e @ ArrayElem(_, _)      => e.pos
       case e @ Identifier(_)        => e.pos
-      case _                        => throw new Exception("Unexpected Expression Type")
+      case _ => throw new Exception("Unexpected Expression Type")
     }
 
   private def getLValuePos(lvalue: LValue): Position = lvalue match {
@@ -89,15 +98,17 @@ object Analyser {
     case _                           => throw new Exception("Unexpected RValue")
   }
 
-  private def collectErrors[A](a: List[A], collector: A => List[Error])(
-      implicit errorList: List[Error]): List[Error] = a match {
+  private def collectErrors[A](a: List[A], collector: A => List[Error])(implicit
+      errorList: List[Error]
+  ): List[Error] = a match {
     case head :: b => collectErrors(b, collector)(errorList :++ collector(head))
     case Nil       => errorList
   }
 
-  private def collectErrors2[A, B](a: List[(A, B)],
-                                   collector: (A, B) => List[Error])(
-      implicit errorList: List[Error]): List[Error] = {
+  private def collectErrors2[A, B](
+      a: List[(A, B)],
+      collector: (A, B) => List[Error]
+  )(implicit errorList: List[Error]): List[Error] = {
     a match {
       case (a1, b1) :: c =>
         collectErrors2(c, collector)(errorList :++ collector(a1, b1))
@@ -112,8 +123,9 @@ object Analyser {
     case _                        => throw new Exception("Unexpected LValue")
   }
 
-  private def isExpressionArrayOrPairType(expression: Expression)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def isExpressionArrayOrPairType(
+      expression: Expression
+  )(implicit errorList: List[Error], funcName: String): List[Error] = {
     val typeName = expression match {
       case id @ Identifier(_)     => symbolTable.lookupVarType(id)
       case PairLiteral            => return errorList
@@ -124,9 +136,11 @@ object Analyser {
       case Left(SAArrayType(_, _)) => errorList
       case Left(SAPairType(_, _))  => errorList
       case Left(t) =>
-        errorList :+ TypeError(getExpressionPos(expression),
-                               t.toString,
-                               List(SAPairType.toString, SAArrayType.toString))
+        errorList :+ TypeError(
+          getExpressionPos(expression),
+          t.toString,
+          List(SAPairType.toString, SAArrayType.toString)
+        )
       case Right(el) => el
       case _         => throw new Exception("This shouldnt happen either.")
     }
@@ -136,7 +150,8 @@ object Analyser {
       rvalue: RValue,
       list: List[Expression],
       expectedType: SAType,
-      expectedArity: Int)(implicit errorList: List[Error]): List[Error] = {
+      expectedArity: Int
+  )(implicit errorList: List[Error], funcName: String): List[Error] = {
     list match {
       case (id @ Identifier(_)) :: next =>
         symbolTable.lookupVarType(id) match {
@@ -149,18 +164,22 @@ object Analyser {
               return (errorList :+ TypeError(
                 getRValuePos(rvalue),
                 SAArrayType(actualType, innerArity + 1).toString,
-                List(SAArrayType(expectedType, expectedArity).toString)))
+                List(SAArrayType(expectedType, expectedArity).toString)
+              ))
             }
-            return checkArrayConstraints(rvalue,
-                                         next,
-                                         expectedType,
-                                         expectedArity)
+            return checkArrayConstraints(
+              rvalue,
+              next,
+              expectedType,
+              expectedArity
+            )
           }
           case Left(t) =>
             errorList :+ TypeError(
               getRValuePos(rvalue),
               t.toString,
-              List(SAArrayType(expectedType, expectedArity).toString))
+              List(SAArrayType(expectedType, expectedArity).toString)
+            )
           case Right(el) => el
         }
       case (e: Expression) :: next =>
@@ -169,36 +188,46 @@ object Analyser {
             errorList :+ TypeError(
               getRValuePos(rvalue),
               expType.toString,
-              List(SAArrayType(expectedType, expectedArity).toString))
+              List(SAArrayType(expectedType, expectedArity).toString)
+            )
           case _ => isValidExpression(e)
         }
       case Nil => return errorList
     }
   }
 
-  private def checkRValue(rvalue: RValue, typeName: SAType)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def checkRValue(rvalue: RValue, typeName: SAType)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = {
     rvalue match {
       case NewPair(fst, snd) =>
         typeName match {
           case SAPairType(fstType, sndType) =>
-            checkExpression(snd, sndType)(checkExpression(fst, fstType))
+            checkExpression(snd, sndType)(
+              checkExpression(fst, fstType),
+              funcName
+            )
           case _ =>
             errorList :+ NewPairError(
               getRValuePos(rvalue),
-              "cannot create new pair of type " + typeName)
+              "cannot create new pair of type " + typeName
+            )
         }
       case al @ ArrayLiteral(list) =>
         typeName match {
           case SAArrayType(arrayType: SAType, 1) =>
-            collectErrors(list,
-                          (x: Expression) => (checkExpression(x, arrayType)))
+            collectErrors(
+              list,
+              (x: Expression) => (checkExpression(x, arrayType))
+            )
           case SAArrayType(arrayType: SAType, x) =>
             checkArrayConstraints(rvalue, list, arrayType, x)
           case _ =>
             errorList :+ ArrayLiteralError(
               al.pos,
-              "invalid array literal of type " + typeName)
+              "invalid array literal of type " + typeName
+            )
         }
       case PairElem(index, pair)  => checkPairElem(index, pair, typeName)
       case FunctionCall(id, args) => checkFunctionCall(id, args, typeName)
@@ -211,18 +240,23 @@ object Analyser {
   private def checkDeclarationStatement(
       typeName: SAType,
       identifier: Identifier,
-      rvalue: RValue)(implicit errorList: List[Error]): List[Error] = {
+      rvalue: RValue
+  )(implicit errorList: List[Error], funcName: String): List[Error] = {
     return checkRValue(rvalue, typeName)(
-      symbolTable.insertVar(identifier, typeName))
+      symbolTable.insertVar(identifier, typeName),
+      funcName
+    )
   }
 
-  private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = {
     val typeName = lvalue match {
       case id @ Identifier(_)     => symbolTable.lookupVarType(id)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case PairElem(index, pair)  => getPairElemType(index, pair)
-      case _                      => throw new Exception("Unresolved Syntax Error")
+      case _ => throw new Exception("Unresolved Syntax Error")
     }
     typeName match {
       case Left(typeN) => checkRValue(rvalue, typeN)
@@ -230,8 +264,10 @@ object Analyser {
     }
   }
 
-  private def getPairElemType(index: PairIndex, pair: LValue)(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] = {
+  private def getPairElemType(index: PairIndex, pair: LValue)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] = {
     val typeName = pair match {
       case id @ Identifier(_) => symbolTable.lookupVarType(id)
       case PairElem(anotherIndex, anotherPair) =>
@@ -248,16 +284,21 @@ object Analyser {
       case Left(SAPairRefType) => Left(SAUnknownType)
       case Left(t) =>
         Right(
-          errorList :+ TypeError(getLValuePos(pair),
-                                 t.toString,
-                                 List(SAPairType.toString,
-                                      SAPairRefType.toString)))
+          errorList :+ TypeError(
+            getLValuePos(pair),
+            t.toString,
+            List(SAPairType.toString, SAPairRefType.toString)
+          )
+        )
       case rel @ Right(_) => rel
     }
   }
 
-  private def checkPairElem(index: PairIndex, pair: LValue, typeName: SAType)(
-      implicit errorList: List[Error]): List[Error] =
+  private def checkPairElem(
+      index: PairIndex,
+      pair: LValue,
+      typeName: SAType
+  )(implicit errorList: List[Error], funcName: String): List[Error] =
     getPairElemType(index, pair) match {
       case Left(pairElemType) =>
         equalsTypeNoError(getLValuePos(pair), pairElemType, typeName)
@@ -265,10 +306,11 @@ object Analyser {
     }
 
   // TODO: change AST node to include print type info with inferType
-  private def checkReadStatement(lvalue: LValue)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def checkReadStatement(
+      lvalue: LValue
+  )(implicit errorList: List[Error], funcName: String): List[Error] = {
     val charError = checkLValue(lvalue, SACharType)
-    val intError = checkLValue(lvalue, SAIntType)(charError)
+    val intError = checkLValue(lvalue, SAIntType)(charError, funcName)
     if ((!(charError eq errorList) && !(intError eq charError))) {
       intError :+ ReadStatementError(getLValuePos(lvalue))
     } else {
@@ -276,44 +318,60 @@ object Analyser {
     }
   }
 
-  private def checkFreeStatement(expression: Expression)(
-      implicit errorList: List[Error]): List[Error] =
+  private def checkFreeStatement(
+      expression: Expression
+  )(implicit errorList: List[Error], funcName: String): List[Error] =
     isExpressionArrayOrPairType(expression)
 
-  private def checkExitStatement(expression: Expression)(
-      implicit errorList: List[Error]) = checkExpression(expression, SAIntType)
+  private def checkExitStatement(
+      expression: Expression
+  )(implicit errorList: List[Error], funcName: String) =
+    checkExpression(expression, SAIntType)
 
   // TODO: change AST node to include print type info with inferType
-  private def checkPrintStatement(expression: Expression)(
-      implicit errorList: List[Error]) = isValidExpression(expression)
+  private def checkPrintStatement(
+      expression: Expression
+  )(implicit errorList: List[Error], funcName: String) = isValidExpression(
+    expression
+  )
 
   // TODO: change AST node to include print type info with inferType
-  private def checkPrintLnStatement(expression: Expression)(
-      implicit errorList: List[Error]) = isValidExpression(expression)
+  private def checkPrintLnStatement(
+      expression: Expression
+  )(implicit errorList: List[Error], funcName: String) = isValidExpression(
+    expression
+  )
 
-  private def checkIfStatement(condition: Expression,
-                               thenStatements: List[Statement],
-                               elseStatements: List[Statement])(
-      implicit returnVal: SAType,
-      errorList: List[Error]): List[Error] = {
+  private def checkIfStatement(
+      condition: Expression,
+      thenStatements: List[Statement],
+      elseStatements: List[Statement]
+  )(implicit
+      returnVal: SAType,
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = {
     val conditionError = checkExpression(condition, SABoolType)
     if (!(conditionError eq errorList)) return conditionError
-    scoper.enterScope()
+    symbolTable.enterScope()
     val thenErrors =
       collectErrors(thenStatements, checkStatement)(conditionError)
-    scoper.exitScope()
-    scoper.enterScope()
+    symbolTable.exitScope()
+    symbolTable.enterScope()
     val elseErrors = collectErrors(elseStatements, checkStatement)(thenErrors)
-    scoper.exitScope()
+    symbolTable.exitScope()
     elseErrors
   }
 
-  private def isValidExpression(expression: Expression)(
-      implicit errorList: List[Error]): List[Error] =
+  private def isValidExpression(
+      expression: Expression
+  )(implicit errorList: List[Error], funcName: String): List[Error] =
     checkExpression(expression, SAAnyType)
 
-  private def checkLValue(lvalue: LValue, typeName: SAType)(
-      implicit errorList: List[Error]): List[Error] = lvalue match {
+  private def checkLValue(lvalue: LValue, typeName: SAType)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = lvalue match {
     case id @ Identifier(_) =>
       symbolTable.lookupVarType(id) match {
         case Left(t)   => equalsTypeNoError(getLValuePos(lvalue), t, typeName)
@@ -329,36 +387,46 @@ object Analyser {
     case _ => throw new Exception("Unexpected LValue")
   }
 
-  private def checkWhileStatement(condition: Expression,
-                                  doStatements: List[Statement])(
-      implicit returnVal: SAType,
-      errorList: List[Error]): List[Error] = {
+  private def checkWhileStatement(
+      condition: Expression,
+      doStatements: List[Statement]
+  )(implicit
+      returnVal: SAType,
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = {
     val conditionError = checkExpression(condition, SABoolType)
     if (!(conditionError eq errorList)) return conditionError
-    scoper.enterScope()
+    symbolTable.enterScope()
     val statementErrors =
       collectErrors(doStatements, checkStatement)(conditionError)
-    scoper.exitScope()
+    symbolTable.exitScope()
     statementErrors
   }
 
-  private def checkBeginStatement(statements: List[Statement])(
-      implicit returnVal: SAType,
-      errorList: List[Error]): List[Error] = {
-    scoper.enterScope()
+  private def checkBeginStatement(statements: List[Statement])(implicit
+      returnVal: SAType,
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = {
+    symbolTable.enterScope()
     val statementErrors = collectErrors(statements, checkStatement)
-    scoper.exitScope()
+    symbolTable.exitScope()
     statementErrors
   }
 
-  private def checkStatement(statement: Statement)(
-      implicit returnVal: SAType,
-      errorList: List[Error]): List[Error] = statement match {
+  private def checkStatement(statement: Statement)(implicit
+      returnVal: SAType,
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] = statement match {
     case SkipStatement => errorList
     case DeclarationStatement(typeName, identifier, rvalue) =>
-      checkDeclarationStatement(convertSyntaxToTypeSys(typeName),
-                                identifier,
-                                rvalue)
+      checkDeclarationStatement(
+        convertSyntaxToTypeSys(typeName),
+        identifier,
+        rvalue
+      )
     case AssignmentStatement(lvalue, rvalue) =>
       checkAssignmentStatement(lvalue, rvalue)
     case ReadStatement(lvalue)     => checkReadStatement(lvalue)
@@ -377,14 +445,18 @@ object Analyser {
     case WhileStatement(condition, doStatements) =>
       checkWhileStatement(condition, doStatements)
     case BeginStatement(statements) => checkBeginStatement(statements)
-    case _                          => throw new Exception("Unexpected Statement")
+    case _ => throw new Exception("Unexpected Statement")
   }
 
   // EXPRESSION RELATED FUNCTIONS
-  private def bothTypesMatch(lhs: Expression,
-                             rhs: Expression,
-                             validTypes: List[SAType])(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] =
+  private def bothTypesMatch(
+      lhs: Expression,
+      rhs: Expression,
+      validTypes: List[SAType]
+  )(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] =
     validTypes match {
       case t :: tail => {
         getTypeIfExpressionsType(List(lhs, rhs), t, t) match {
@@ -395,9 +467,12 @@ object Analyser {
                   case Left(lr) if equalsType(ll, lr) => l
                   case Left(lr) =>
                     Right(
-                      errorList :+ TypeError(getExpressionPos(lhs),
-                                             ll.toString,
-                                             List(lr.toString)))
+                      errorList :+ TypeError(
+                        getExpressionPos(lhs),
+                        ll.toString,
+                        List(lr.toString)
+                      )
+                    )
                   case rel @ Right(_) => rel
                 }
               case rel @ Right(_) => rel
@@ -409,12 +484,16 @@ object Analyser {
     }
 
   private def getArrayElemType(id: Identifier, indices: List[Expression])(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] =
+      implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] =
     symbolTable.lookupVarType(id) match {
       case Left(SAArrayType(arrayType, arity)) => {
         val indicesError = collectErrors(
           indices,
-          (x: Expression) => checkExpression(x, SAIntType))
+          (x: Expression) => checkExpression(x, SAIntType)
+        )
         if (!(indicesError eq errorList))
           Right(indicesError)
         else if (indices.length < arity)
@@ -423,20 +502,24 @@ object Analyser {
           Left(arrayType)
         else
           Right(
-            indicesError :+ ArrayArityError(id.pos,
-                                            arity - indices.length,
-                                            arity))
+            indicesError :+ ArrayArityError(
+              id.pos,
+              arity - indices.length,
+              arity
+            )
+          )
       }
       case Left(t) =>
         Right(
-          errorList :+ TypeError(id.pos,
-                                 t.toString,
-                                 List(SAArrayType.toString)))
+          errorList :+ TypeError(id.pos, t.toString, List(SAArrayType.toString))
+        )
       case rel @ Right(_) => rel
     }
 
-  private def getUnOpType(op: UnaryOp, expression: Expression)(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] = op match {
+  private def getUnOpType(op: UnaryOp, expression: Expression)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] = op match {
     case Negation =>
       getTypeIfExpressionsType(List(expression), SAIntType, SAIntType)
     case Chr =>
@@ -447,7 +530,7 @@ object Analyser {
           symbolTable.lookupVarType(id) match {
             case Left(SAArrayType(_, _)) => Left(SAIntType)
             case rel @ Right(_)          => rel
-            case _                       => throw new Exception("Unexpected lookup result")
+            case _ => throw new Exception("Unexpected lookup result")
           }
         case ArrayElem(id, indices) =>
           symbolTable.lookupVarType(id) match {
@@ -456,17 +539,23 @@ object Analyser {
                 Left(SAIntType)
               } else
                 Right(
-                  errorList :+ ArrayArityError(getExpressionPos(expression),
-                                               indices.length,
-                                               arity))
+                  errorList :+ ArrayArityError(
+                    getExpressionPos(expression),
+                    indices.length,
+                    arity
+                  )
+                )
             case rel @ Right(_) => rel
-            case _              => throw new Exception("Unexpected lookup result")
+            case _ => throw new Exception("Unexpected lookup result")
           }
         case _ =>
           Right(
-            errorList :+ TypeError(getExpressionPos(expression),
-                                   expression.toString,
-                                   List(SAArrayType.toString)))
+            errorList :+ TypeError(
+              getExpressionPos(expression),
+              expression.toString,
+              List(SAArrayType.toString)
+            )
+          )
       }
     case Not =>
       getTypeIfExpressionsType(List(expression), SABoolType, SABoolType)
@@ -474,25 +563,37 @@ object Analyser {
       getTypeIfExpressionsType(List(expression), SACharType, SAIntType)
   }
 
-  private def getBinOpType(binaryOp: BinaryOpApp)(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] =
+  private def getBinOpType(binaryOp: BinaryOpApp)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] =
     binaryOp.op match {
       case Mul | Div | Mod | Plus | Minus =>
-        getTypeIfExpressionsType(List(binaryOp.lhs, binaryOp.rhs),
-                                 SAIntType,
-                                 SAIntType)
+        getTypeIfExpressionsType(
+          List(binaryOp.lhs, binaryOp.rhs),
+          SAIntType,
+          SAIntType
+        )
       case And | Or =>
-        getTypeIfExpressionsType(List(binaryOp.lhs, binaryOp.rhs),
-                                 SABoolType,
-                                 SABoolType)
+        getTypeIfExpressionsType(
+          List(binaryOp.lhs, binaryOp.rhs),
+          SABoolType,
+          SABoolType
+        )
       case Gt | Ge | Lt | Le => {
-        bothTypesMatch(binaryOp.lhs, binaryOp.rhs, List(SAIntType, SACharType)) match {
+        bothTypesMatch(
+          binaryOp.lhs,
+          binaryOp.rhs,
+          List(SAIntType, SACharType)
+        ) match {
           case Left(_) => Left(SABoolType)
           case _ =>
             Right(
-              errorList :+ BinaryOpAppTypeError(binaryOp.pos,
-                                                List(SAIntType.toString,
-                                                     SACharType.toString)))
+              errorList :+ BinaryOpAppTypeError(
+                binaryOp.pos,
+                List(SAIntType.toString, SACharType.toString)
+              )
+            )
         }
       }
       case Eq | Neq => {
@@ -506,26 +607,37 @@ object Analyser {
                   errorList :+ BinaryOpAppTypeError(
                     binaryOp.pos,
                     List(SAIntType, SACharType, SABoolType, SAStringType).map(
-                      _.toString)))
+                      _.toString
+                    )
+                  )
+                )
               case Right(errorList) =>
                 Right(
                   errorList :+ BinaryOpAppTypeError(
                     binaryOp.pos,
                     List(SAIntType, SACharType, SABoolType, SAStringType).map(
-                      _.toString)))
+                      _.toString
+                    )
+                  )
+                )
             }
           case Right(errorList) =>
             Right(
               errorList :+ BinaryOpAppTypeError(
                 binaryOp.pos,
                 List(SAIntType, SACharType, SABoolType, SAStringType).map(
-                  _.toString)))
+                  _.toString
+                )
+              )
+            )
         }
       }
     }
 
-  private def getExpressionType(expression: Expression)(
-      implicit errorList: List[Error]): Either[SAType, List[Error]] =
+  private def getExpressionType(expression: Expression)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): Either[SAType, List[Error]] =
     expression match {
       case IntLiteral(_)              => Left(SAIntType)
       case BoolLiteral(_)             => Left(SABoolType)
@@ -536,11 +648,13 @@ object Analyser {
       case id @ Identifier(_)         => symbolTable.lookupVarType(id)
       case UnaryOpApp(op, expr)       => getUnOpType(op, expr)
       case boa @ BinaryOpApp(_, _, _) => getBinOpType(boa)
-      case _                          => throw new Exception("we shouldnt get this!")
+      case _ => throw new Exception("we shouldnt get this!")
     }
 
-  private def checkExpression(expression: Expression, t: SAType)(
-      implicit errorList: List[Error]): List[Error] =
+  private def checkExpression(expression: Expression, t: SAType)(implicit
+      errorList: List[Error],
+      funcName: String
+  ): List[Error] =
     getExpressionType(expression) match {
       case Left(otherType) =>
         equalsTypeNoError(getExpressionPos(expression), t, otherType)
@@ -548,8 +662,9 @@ object Analyser {
     }
 
   // FUNCTION RELATED
-  private def mapDefs(function: Func)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def mapDefs(
+      function: Func
+  )(implicit errorList: List[Error]): List[Error] = {
     val retType = convertSyntaxToTypeSys(function.identBinding.typeName)
     val params = function.params.map(_.typeName).map(convertSyntaxToTypeSys)
     functionTable.insertFunction(function, (retType, params))
@@ -558,67 +673,82 @@ object Analyser {
   private def checkFunctionCall(
       id: Identifier,
       args: List[Expression],
-      typeName: SAType)(implicit errorList: List[Error]): List[Error] = {
+      typeName: SAType
+  )(implicit errorList: List[Error], funcName: String): List[Error] = {
     functionTable.getFunctionEntry(id) match {
       case Left((_, expectedTypes)) if expectedTypes.length != args.length =>
-        errorList :+ FunctionCallError(id.pos,
-                                       args.length,
-                                       expectedTypes.length)
+        errorList :+ FunctionCallError(
+          id.pos,
+          args.length,
+          expectedTypes.length
+        )
       case Left((returnType, expectedTypes)) =>
         collectErrors2(
           args.zip(expectedTypes),
-          (x: Expression, y: SAType) => checkExpression(x, y)) :++ equalsTypeNoError(
-          id.pos,
-          typeName,
-          returnType)
+          (x: Expression, y: SAType) => checkExpression(x, y)
+        ) :++ equalsTypeNoError(id.pos, typeName, returnType)
       case Right(el) => el
     }
   }
 
-  private def checkFunction(func: Func)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def checkFunction(
+      func: Func
+  )(implicit errorList: List[Error]): List[Error] = {
+    implicit val funcName = func.identBinding.identifier.name
+    symbolTable.insertFunction(func.identBinding.identifier.name)
     def collectErrorsFunctionStatements(a: List[Statement], returnVal: SAType)(
-        implicit errorList: List[Error]): List[Error] = {
+        implicit errorList: List[Error]
+    ): List[Error] = {
       a match {
         case a :: b =>
           collectErrorsFunctionStatements(b, returnVal)(
-            checkStatement(a)(returnVal, errorList))
+            checkStatement(a)(returnVal, errorList, funcName)
+          )
         case Nil => errorList
       }
     }
-    scoper.enterScope()
     // add all params to symbol table, now in scope
     val params = func.params
     val paramErrors = collectErrors(
       params,
       (p: Parameter) =>
-        symbolTable.insertVar(p.identifier, convertSyntaxToTypeSys(p.typeName)))
+        symbolTable.insertVar(p.identifier, convertSyntaxToTypeSys(p.typeName))
+    )
     if (!(paramErrors eq errorList)) {
       return paramErrors
     }
-    scoper.enterScope()
+    symbolTable.enterScope()
     val functionReturnType: SAType = functionTable.getFunctionRet(func) match {
       case Left(t) => t
       case _       => SAAnyType
     }
     val funcErrors =
       collectErrorsFunctionStatements(func.body, functionReturnType)
-    scoper.exitScope()
-    scoper.exitScope()
+    symbolTable.exitScope()
     funcErrors
   }
 
-  private def checkFunctions(program: Program)(
-      implicit errorList: List[Error]): List[Error] = {
+  private def checkFunctions(
+      program: Program
+  )(implicit errorList: List[Error]): List[Error] = {
     collectErrors(program.functions, checkFunction)(
-      collectErrors(program.functions, mapDefs))
+      collectErrors(program.functions, mapDefs)
+    )
   }
 
   // Main function to run semantic analysis, return errors as state
-  def checkProgram(program: Program): (List[Error], SymbolTable, FunctionTable) = {
+  def checkProgram(
+      program: Program
+  ): (List[Error], SymbolTable, FunctionTable) = {
     implicit val errorList: List[Error] = List()
-    val errors = collectErrors(program.statements, (x: Statement) => checkStatement(x))(
-      checkFunctions(program))
+    implicit val funcName: String = "0"
+    symbolTable.insertFunction(funcName)
+    symbolTable.enterScope()
+    val errors =
+      collectErrors(program.statements, (x: Statement) => checkStatement(x))(
+        checkFunctions(program)
+      )
+    symbolTable.exitScope()
     (errors, symbolTable, functionTable)
   }
 }
