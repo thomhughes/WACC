@@ -209,10 +209,11 @@ object IR {
   }
 
   def buildFuncCall(id: Identifier, args: List[Expression])(implicit
-      irProgram: IRProgram
+      irProgram: IRProgram,
+      funcName: String
   ) = {
     // build expressions in order, will be reversed on stack
-    args.foreach(buildExpression(_)(irProgram, id.name))
+    args.foreach(buildExpression(_))
     irProgram.instructions += Instr(BL, Some(LabelRef(id.name)))
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
