@@ -81,16 +81,61 @@ object IR {
         case Mul   => MUL
         case Div   => DIV
         case Mod   => MOD
-        case And   => AND
-        case Or    => ORR
       },
       Some(R8),
       Some(R8),
       Some(R9)
     )
 
+  def logicalCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+    irProgram.labelCount += 1
+    irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
+    (op: @unchecked) match {
+      case And => {
+        irProgram.instructions += Instr(
+          MOV,
+          Some(R8),
+          Some(Imm(0)),
+          cond = EQ
+        )
+        irProgram.instructions += Instr(
+          B,
+          Some(LabelRef(s".L${irProgram.labelCount}")),
+          cond = EQ
+        )
+      }
+      case Or => {
+        irProgram.instructions += Instr(
+          MOV,
+          Some(R8),
+          Some(Imm(1)),
+          cond = NE
+        )
+        irProgram.instructions += Instr(
+          B,
+          Some(LabelRef(s".L${irProgram.labelCount}")),
+          cond = NE
+        )
+      }
+    }
+    irProgram.instructions += Instr(CMP, Some(R9), Some(Imm(0)))
+    irProgram.instructions += Instr(
+      MOV,
+      Some(R8),
+      Some(Imm(1)),
+      cond = NE
+    )
+    irProgram.instructions += Instr(
+      MOV,
+      Some(R8),
+      Some(Imm(0)),
+      cond = EQ
+    )
+    irProgram.instructions += Label(s".L${irProgram.labelCount}")
+  }
+
   def compareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
-    irProgram.instructions += Instr(CMP, Some(R8), Some(R8), Some(R9))
+    irProgram.instructions += Instr(CMP, Some(R8), Some(R9))
     irProgram.instructions += Instr(
       MOV,
       Some(R8),
@@ -122,13 +167,27 @@ object IR {
   }
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(R0))
+    irProgram.instructions += Instr(POP, Some(R8))
     irProgram.instructions += ((op: @unchecked) match {
-      case Not      => Instr(MVN, Some(R0), Some(R0))
-      case Negation => Instr(RSB, Some(R0), Some(R0), Some(Imm(0)))
-      case Len      => Instr(BL, Some(LabelRef("array_size")))
+      case Not => Instr(MVN, Some(R8), Some(R8))
+      case Negation => {
+        irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(
+          MOV,
+          Some(R8),
+          Some(Imm(0)),
+          cond = NE
+        )
+        Instr(
+          MOV,
+          Some(R8),
+          Some(Imm(1)),
+          cond = EQ
+        )
+      }
+      case Len => Instr(BL, Some(LabelRef("array_size")))
     })
-    irProgram.instructions += Instr(PUSH, Some(R0))
+    irProgram.instructions += Instr(PUSH, Some(R8))
   }
 
   /* Evaluates expression and places result on top of the stack */
@@ -175,9 +234,10 @@ object IR {
         irProgram.instructions += Instr(POP, Some(R9))
         irProgram.instructions += Instr(POP, Some(R8))
         op match {
-          case Plus | Minus | Mul | Div | Mod | And | Or =>
+          case Plus | Minus | Mul | Div | Mod =>
             irProgram.instructions += nonCompareInstruction(op)
-          case default => compareInstruction(op)
+          case And | Or => logicalCompareInstruction(op)
+          case default  => compareInstruction(op)
         }
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
@@ -315,6 +375,7 @@ object IR {
     irProgram.labelCount += 1
     buildExpression(condition)
     irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(1)))
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(elseLabel)),
