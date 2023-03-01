@@ -57,9 +57,9 @@ object IRToAssemblyConverter {
       case Instr(PUSH, Some(firstOp), None, None, _) =>
         f"push {${convertOperandToAssembly(firstOp)}}"
       case Instr(DIV, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
-        f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idiv\n\tmov ${convertOperandToAssembly(firstOp)}, r0"
+        f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r0"
       case Instr(MOD, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
-        f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idiv\n\tmov ${convertOperandToAssembly(firstOp)}, r1"
+        f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r1"
       case Instr(opcode, Some(firstOp), None, None, cond) =>
         f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(cond)} ${convertOperandToAssembly(firstOp)}"
       case Instr(opcode, Some(firstOp), Some(secondOp), None, cond) =>
