@@ -47,13 +47,21 @@ case class SymbolTable() {
     map(funcName).updateScoper(new Scoper)
 
   def enterScope()(implicit funcName: String) =
-    map(funcName).scoper.enterScope()
-  def exitScope()(implicit funcName: String) = map(funcName).scoper.exitScope()
+    map(funcName).enterScope()
+  def exitScope()(implicit funcName: String) = map(funcName).exitScope()
   def getScope()(implicit funcName: String) = map(funcName).scoper.getScope()
 
   def lookupAddress(identifier: Identifier)(implicit funcName: String): Int = {
     if (map.contains(funcName)) {
       map(funcName).lookupAddress(identifier)
+    } else {
+      throw new Exception(map.toString() + "," + funcName + ": can't be found.")
+    }
+  }
+
+  def getFrameSize()(implicit funcName: String): Int = {
+    if (map.contains(funcName)) {
+      map(funcName).getFrameSize()
     } else {
       throw new Exception(map.toString() + "," + funcName + ": can't be found.")
     }

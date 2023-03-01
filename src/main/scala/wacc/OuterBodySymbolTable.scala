@@ -9,23 +9,27 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
 
   val map = Map[(String, Int), (SAType, Int)]()
 
-  var totalOffset = 0
-  val scopeSizes = Stack[Int](0)
+  var totalOffset = 4 // FP, LR backup is on stack
+  var frameSize = 0
+  val scopeSizes = Stack[Int]()
 
   override def toString(): String = {
     map.toString()
   }
 
   def enterScope() = {
+    if (scoper.getScope() == 0) {
+      totalOffset = -4
+    }
     scopeSizes.push(totalOffset)
+    println(s"${scoper.getScope()}backing: $totalOffset")
     scoper.enterScope()
   }
+
   def exitScope() = {
-    totalOffset -= scopeSizes.pop()
+    totalOffset = scopeSizes.pop()
+    println(s"${scoper.getScope()}restoring: $totalOffset")
     scoper.exitScope()
-  }
-  def getScope() = {
-    scoper.getScope()
   }
 
   private def lookup(identifier: Identifier): Option[(SAType, Int)] = {
@@ -73,7 +77,7 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
         identifier.pos,
         identifier.name
       )
-    // HELPERS
+
     val noBytes = t match {
       case SAIntType | SAArrayType(_, _) | SAPairType(_, _) => 4
       case SABoolType | SACharType                          => 1
@@ -81,8 +85,14 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
       case _ => throw new Exception("Unexpected LValue type: " + t.toString())
     }
 
-    totalOffset += noBytes
-    map += (key -> (t, totalOffset))
+    if (scoper.getScope() == 0) {
+      map += (key -> (t, totalOffset))
+      totalOffset += noBytes
+    } else {
+      totalOffset -= noBytes
+      map += (key -> (t, totalOffset))
+    }
+
     errorList
   }
 
@@ -94,4 +104,6 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
       case _ => throw new Exception("identifier cannot be found")
     }
   }
+
+  def getFrameSize(): Int = -Math.min(0, map.minBy(_._2._2)._2._2)
 }
