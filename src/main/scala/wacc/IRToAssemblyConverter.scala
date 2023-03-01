@@ -159,11 +159,11 @@ object IRToAssemblyConverter {
 
   def getPrintLabelOfTypeName(typeName: SAType) = {
     typeName match {
-      case SAIntType                            => "_printi"
-      case SAStringType                         => "_prints"
-      case SABoolType                           => "_printb"
-      case SACharType                           => "_printc"
-      case SAPairType(_, _) | SAArrayType(_, _) => "_printp"
+      case SAIntType                                 => "_printi"
+      case SAStringType | SAArrayType(SACharType, 1) => "_prints"
+      case SABoolType                                => "_printb"
+      case SACharType                                => "_printc"
+      case SAPairType(_, _) | SAArrayType(_, _)      => "_printp"
       case default =>
         throw new Exception("Print not supported for type: " + typeName)
     }

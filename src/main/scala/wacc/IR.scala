@@ -503,8 +503,15 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
+    val exprType = getExpressionType(expression)
+    // Look into changing runtime to pass in &dataOut, &sizeOut
+    // and make size of arrays 8 bytes on stack :D
+    exprType match {
+      case SAArrayType(SACharType, 1) => buildStackDereference()
+      case _                          => ()
+    }
     irProgram.instructions += Instr(POP, Some(R0))
-    irProgram.instructions += Instr(PRINT(getExpressionType(expression)))
+    irProgram.instructions += Instr(PRINT(exprType))
   }
 
   def buildFree(
