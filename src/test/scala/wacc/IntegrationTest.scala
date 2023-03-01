@@ -82,7 +82,7 @@ class IntegrationTest extends AnyFlatSpec {
           }
       } else {
           val actualOutputLines = executeCommand.lazyLines_!.toList
-          val actualOutput = if (actualOutputLines.isEmpty) "" else actualOutputLines.mkString("\n")
+          val actualOutput = if (actualOutputLines.isEmpty) "" else actualOutputLines.mkString("\n").replaceAll("\\b0x\\w*", "#addrs#")
           val exampleOutput =
               Source.fromFile(path.toString)
               .getLines().toList
