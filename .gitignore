@@ -9,6 +9,8 @@
 !*.*
 # Unignore all dirs
 !*/
+!compile
+!execute
 
 secret.o
 
