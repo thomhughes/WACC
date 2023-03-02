@@ -150,14 +150,16 @@ void read(void *out, int length)
 }
 
 // Arithmetic runtime errors
-extern void error_divide_by_zero()
-{
-  fprintf(stderr, "Runtime error: division by zero\n");
-  exit(-1);
-}
-
 extern void error_arithmetic_overflow()
 {
   fprintf(stderr, "Runtime error: arithmetic overflow\n");
   exit(-1);
+}
+
+// https://developer.arm.com/documentation/dui0773/e/Coding-Considerations/Integer-division-by-zero-errors-in-C-code?lang=en
+extern int __aeabi_idiv0(void)
+{
+  fprintf(stderr, "Runtime error: division by zero\n");
+  exit(-1);
+  return 1;
 }
