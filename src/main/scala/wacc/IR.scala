@@ -107,7 +107,7 @@ object IR {
     }
   }
 
-  // dereference value at top of stack *stack
+  // dereference value at top of stack *stack, clobbers R0
   def buildStackDereference()(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(LDR, Some(R0), Some(AddrReg(R0, 0)))
@@ -621,7 +621,15 @@ object IR {
     buildFuncEpilogue()
   }
 
-  def buildRead(lvalue: LValue): Unit = {}
+  def buildRead(
+      lvalue: LValue
+  )(implicit irProgram: IRProgram, funcName: String): Unit = {
+    buildLValueReference(lvalue)
+    irProgram.instructions += Instr(POP, Some(R0))
+    val noBytes = getNoBytes(getLValueType(lvalue))
+    loadMovConstant(R1, noBytes);
+    irProgram.instructions += Instr(BL, Some(LabelRef("read")))
+  }
 
   def buildBegin(
       statements: List[Statement]

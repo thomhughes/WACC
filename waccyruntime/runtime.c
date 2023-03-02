@@ -147,6 +147,15 @@ void read(void *out, int length)
     fprintf(stdout, "Runtime error: reading into NULL value.\n");
     exit(-1);
   }
+  switch (length)
+  {
+  case 4:
+    scanf("%d", (int *)out);
+    break;
+  case 1:
+    scanf("%c", (char *)out);
+    break;
+  }
 }
 
 // Arithmetic runtime errors
