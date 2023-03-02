@@ -4,10 +4,6 @@ import wacc.SymbolTable
 object IRToAssemblyConverter {
   import scala.collection.mutable.ListBuffer
   import wacc.Types._
-  import PrintAssemblyGenerator._
-  import ReadAssemblyGenerator._
-  import FreeAssemblyGenerator._
-  import ArrayAssemblyGenerator._
 
   def convertAssembly(
       instructions: ListBuffer[IRType],
@@ -16,18 +12,6 @@ object IRToAssemblyConverter {
     implicit val sb = new StringBuilder()
     sb.append(".text\n")
     instructions.foreach(convertInstructionToAssembly)
-    generatePrintAssemblyForString()
-    generatePrintAssemblyForBool()
-    generatePrintAssemblyForPointerTypes()
-    generatePrintAssemblyForChar()
-    generatePrintAssemblyForInt()
-    generatePrintAssemblyForPrintLn()
-    generateReadAssemblyForInt()
-    generateReadAssemblyForChar()
-    generateFreeAssemblyForPair()
-    generateArrloadAssembly()
-    generateArrstoreAssembly()
-    generateBoundsCheck()
     sb.toString()
   }
 
@@ -114,8 +98,6 @@ object IRToAssemblyConverter {
       case PRINT(typeName) => "bl " + getPrintLabelOfTypeName(typeName)
       case READ(typeName)  => "bl " + getReadLabelOfTypeName(typeName)
       case PRINTLN         => "bl _println"
-      case MALLOC          => "bl malloc"
-      case FREE(typeName)  => "bl " + getFreeLabelOfTypeName(typeName)
       case default =>
         throw new Exception("IR Conversion Error: Invalid opcode type")
     }
@@ -174,20 +156,6 @@ object IRToAssemblyConverter {
     }
   }
 
-  def generatePrintAssemblyForTypeName(
-      typeName: SAType
-  )(implicit sb: StringBuilder) =
-    typeName match {
-      case SAStringType => generatePrintAssemblyForString()
-      case SAIntType    => generatePrintAssemblyForInt()
-      case SABoolType   => generatePrintAssemblyForBool()
-      case SACharType   => generatePrintAssemblyForChar()
-      case SAPairType(_, _) | SAArrayType(_, _) =>
-        generatePrintAssemblyForPointerTypes()
-      case default =>
-        throw new Exception("Print not supported for type: " + typeName)
-    }
-
   def convertLabelToAssembly(label: String): String =
     new StringBuilder(label).append(":").toString()
 
@@ -235,215 +203,5 @@ object IRToAssemblyConverter {
       case JoinedRegister(lo, hi) =>
         f"${convertOperandToAssembly(lo)}, ${convertOperandToAssembly(hi)}"
     }
-  }
-}
-
-object PrintAssemblyGenerator {
-  def generatePrintAssemblyForPrintLn()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 0")
-      .append("\n.L._println_str0:")
-      .append("\n\t.asciz \"\"")
-      .append("\n.text")
-      .append("\n_println:")
-      .append("\n\tpush {lr}")
-      .append("\n\tldr r0, =.L._println_str0")
-      .append("\n\tbl puts")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tpop {pc}\n")
-
-  def generatePrintAssemblyForInt()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 2")
-      .append("\n.L._printi_str0:")
-      .append("\n\t.asciz \"%d\"")
-      .append("\n.text")
-      .append("\n_printi:")
-      .append("\n\tpush {lr}")
-      .append("\n\tmov r1, r0")
-      .append("\n\tldr r0, =.L._printi_str0")
-      .append("\n\tbl printf")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tpop {pc}\n")
-
-  def generatePrintAssemblyForString()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 4")
-      .append("\n.L._prints_str0:")
-      .append("\n\t.asciz \"%.*s\"")
-      .append("\n.text")
-      .append("\n_prints:")
-      .append("\n\tpush {lr}")
-      .append("\n\tmov r2, r0")
-      .append("\n\tldr r1, [r0, #-4]")
-      .append("\n\tldr r0, =.L._prints_str0")
-      .append("\n\tbl printf")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tpop {pc}\n")
-
-  def generatePrintAssemblyForChar()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 2")
-      .append("\n.L._printc_str0:")
-      .append("\n\t.asciz \"%c\"")
-      .append("\n.text")
-      .append("\n_printc:")
-      .append("\n\tpush {lr}")
-      .append("\n\tmov r1, r0")
-      .append("\n\tldr r0, =.L._printc_str0")
-      .append("\n\tbl printf")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tpop {pc}\n")
-
-  def generatePrintAssemblyForBool()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 5")
-      .append("\n.L._printb_str0:")
-      .append("\n\t.asciz \"false\"")
-      .append("\n\t.word 4")
-      .append("\n.L._printb_str1:")
-      .append("\n\t.asciz \"true\"")
-      .append("\n\t.word 4")
-      .append("\n.L._printb_str2:")
-      .append("\n\t.asciz \"%.*s\"")
-      .append("\n.text")
-      .append("\n_printb:")
-      .append("\n\tpush {lr}")
-      .append("\n\tcmp r0, #0")
-      .append("\n\tbne .L_printb0")
-      .append("\n\tldr r2, =.L._printb_str0")
-      .append("\n\tb .L_printb1")
-      .append("\n.L_printb0:")
-      .append("\n\tldr r2, =.L._printb_str1")
-      .append("\n.L_printb1:")
-      .append("\n\tldr r1, [r2, #-4]")
-      .append("\n\tldr r0, =.L._printb_str2")
-      .append("\n\tbl printf")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tpop {pc}\n")
-
-  def generatePrintAssemblyForPointerTypes()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\t\n.word 2")
-      .append("\n.L._printp_str0:")
-      .append("\n\t.asciz \"%p\"")
-      .append("\n.text")
-      .append("\n_printp:")
-      .append("\n\tpush {lr}")
-      .append("\n\tmov r1, r0")
-      .append("\n\tldr r0, =.L._printp_str0")
-      .append("\n\tbl printf")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tpop {pc}\n")
-}
-
-object ReadAssemblyGenerator {
-  def generateReadAssemblyForChar()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 3")
-      .append("\n.L._readc_str0:")
-      .append("\n\t.asciz \" %c\"")
-      .append("\n.text")
-      .append("\n_readc:")
-      .append("\n\tpush {lr}")
-      .append("\n\tstrb r0, [sp, #-1]! @ push {r0}")
-      .append("\n\tmov r1, sp")
-      .append("\n\tldr r0, =.L._readc_str0")
-      .append("\n\tbl scanf")
-      .append("\n\tldrsb r0, [sp, #0]")
-      .append("\n\tadd sp, sp, #1")
-      .append("\n\tpop {pc}\n")
-
-  def generateReadAssemblyForInt()(implicit sb: StringBuilder) =
-    sb.append(".data")
-      .append("\n\t.word 2")
-      .append("\n.L._readi_str0:")
-      .append("\n\t.asciz \"%d\"")
-      .append("\n.text")
-      .append("\n_readi:")
-      .append("\n\tpush {lr}")
-      .append("\n\tstr r0, [sp, #-4]! @ push {r0}")
-      .append("\n\tmov r1, sp")
-      .append("\n\tldr r0, =.L._readi_str0")
-      .append("\n\tbl scanf")
-      .append("\n\tldr r0, [sp, #0]")
-      .append("\n\tadd sp, sp, #4")
-      .append("\n\tpop {pc}\n")
-}
-
-object FreeAssemblyGenerator {
-  def generateFreeAssemblyForPair()(implicit sb: StringBuilder) =
-    sb.append("_freepair:")
-      .append("\n\tpush {lr}")
-      .append("\n\tmov r8, r0")
-      .append("\n\tcmp r8, #0")
-      .append("\n\tbleq _errNull")
-      .append("\n\tldr r0, [r8, #0]")
-      .append("\n\tbl free")
-      .append("\n\tldr r0, [r8, #4]")
-      .append("\n\tbl free")
-      .append("\n\tmov r0, r8")
-      .append("\n\tbl free")
-      .append("\n\tpop {pc}")
-      .append("\n.data")
-      .append("\n\t.word 45")
-      .append("\n.L._errNull_str0:")
-      .append("\n\t.asciz \"fatal error: null pair dereferenced or freed\"\n")
-      .append("\n.text")
-      .append("\n_errNull:")
-      .append("\n\tldr r0, =.L._errNull_str0")
-      .append("\n\tbl _prints")
-      .append("\n\tmov r0, #255")
-      .append("\n\tbl exit\n")
-}
-
-object ArrayAssemblyGenerator {
-  def generateArrloadAssembly()(implicit sb: StringBuilder) = {
-    sb.append("_arrload:")
-      .append("\n\tpush {lr}")
-      .append("\n\tcmp r10, #0")
-      .append("\n\tmovlt r1, #10")
-      .append("\n\tbllt _boundsCheck")
-      .append("\n\tldr lr, [r3, #-4]")
-      .append("\n\tcmp r10, lr")
-      .append("\n\tmovge r1, r10")
-      .append("\n\tblge _boundsCheck")
-      .append("\n\tldr r3, [r3, r10, lsl #2]")
-      .append("\n\tpop {pc}\n")
-  }
-
-  def generateArrstoreAssembly()(implicit sb: StringBuilder) = {
-    sb.append("_arrstore:")
-      .append("\n\tpush {lr}")
-      .append("\n\tcmp r10, #0")
-      .append("\n\tmovlt r1, #10")
-      .append("\n\tbllt _boundsCheck")
-      .append("\n\tldr lr, [r3, #-4]")
-      .append("\n\tcmp r10, lr")
-      .append("\n\tmovge r1, r10")
-      .append("\n\tblge _boundsCheck")
-      .append("\n\tstr r3, [r8, r10, lsl #2]")
-      .append("\n\tpop {pc}\n")
-  }
-
-  def generateBoundsCheck()(implicit sb: StringBuilder) = {
-    sb.append(".data")
-      .append("\n\t.word 42")
-      .append("\n.L._boundsCheck_str0:")
-      .append("\n\t.asciz \"fatal error: array index %d out of bounds\"\n")
-      .append("\n.text\n")
-      .append("_boundsCheck:")
-      .append("\n\tldr r0, =.L._boundsCheck_str0")
-      .append("\n\tbl printf")
-      .append("\n\tmov r0, #0")
-      .append("\n\tbl fflush")
-      .append("\n\tmov r0, #255")
-      .append("\n\tbl exit\n")
   }
 }

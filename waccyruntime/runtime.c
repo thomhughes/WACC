@@ -143,7 +143,36 @@ extern void *pair_snd(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R
   return &in->snd;
 }
 
-// Print functions? (Optional)
+// Print functions
+extern void _printi(int i)
+{
+  printf("%d", i);
+}
+
+extern void _prints(char *string)
+{
+  printf("%s", string);
+}
+
+extern void _printb(char b)
+{
+  printf("%s", b ? "true" : "false");
+}
+
+extern void _printc(char c)
+{
+  printf("%c", c);
+}
+
+extern void _printp(void *p)
+{
+  printf("%p", p);
+}
+
+extern void _println(void)
+{
+  putchar('\n');
+}
 
 // Read functions?
 void read(void *out, int length)
