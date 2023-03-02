@@ -24,50 +24,50 @@ class Instr private (
 
 object Instr {
     def apply(opcode: Mul,
-    op1: Option[JoinedRegister],
-    op2: Option[JoinedRegister]
+    op1: JoinedRegister,
+    op2: JoinedRegister
     ): Instr =
-        new Instr(SMULL, op1, op2)
+        new Instr(SMULL, Some(op1), Some(op2))
 
     def apply(opcode: Arithmetic,
-    rd: Option[Register],
-    rn: Option[Register],
-    op2: Option[Operand]): Instr =
-        new Instr(opcode, rd, rn, op2)
+    rd: Register,
+    rn: Register,
+    op2: Operand): Instr =
+        new Instr(opcode, Some(rd), Some(rn), Some(op2))
 
     def apply(opcode: Move,
-    rd: Option[Register],
-    op2: Option[Operand]): Instr = 
-        new Instr(opcode, rd, op2)
+    rd: Register,
+    op2: Operand): Instr = 
+        new Instr(opcode, Some(rd), Some(op2))
 
     def apply(opcode: Move,
-    rd: Option[Register],
-    op2: Option[Operand],
+    rd: Register,
+    op2: Operand,
     condition: Condition): Instr = 
-        new Instr(opcode, rd, op2, cond = condition)
+        new Instr(opcode, Some(rd), Some(op2), cond = condition)
 
     def apply(opcode: Compare,
-    rn: Option[Register],
-    op2: Option[Operand]): Instr =
-        new Instr(opcode, rn, op2)
+    rn: Register,
+    op2: Operand): Instr =
+        new Instr(opcode, Some(rn), Some(op2))
 
     def apply(opcode: StackInstr,
-    r: Option[Register]): Instr =
-        new Instr(opcode, r)
+    r: Register): Instr =
+        new Instr(opcode, Some(r))
 
     def apply(opcode: MemAccess,
-    r: Option[Register],
-    sr: Option[Operand]): Instr = 
-        new Instr(opcode, r, sr)
+    r: Register,
+    sr: Operand): Instr = 
+        new Instr(opcode, Some(r), Some(sr))
 
     def apply(opcode: Branch,
-    label: Option[LabelRef]): Instr = 
-        new Instr(opcode, label)
+    label: LabelRef): Instr = 
+        new Instr(opcode, Some(label))
 
     def apply(opcode: Branch,
-    label: Option[LabelRef],
+    label: LabelRef,
     condition: Condition): Instr = 
-        new Instr(opcode, label, cond = condition)
+        new Instr(opcode, Some(label), cond = condition)
 
     def apply(opcode: BuiltInInstruction): Instr = 
         new Instr(opcode)
