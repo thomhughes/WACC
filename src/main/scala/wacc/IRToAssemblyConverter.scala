@@ -34,7 +34,7 @@ object IRToAssemblyConverter {
   def convertInstructionToAssembly(
       instruction: IRType
   )(implicit instrSb: StringBuilder) = {
-    //println(instruction)
+    // println(instruction)
     instrSb.append(instruction match {
       case Instr(_, _, _, _, _) => "\t"
       case _                    => ""
@@ -42,8 +42,8 @@ object IRToAssemblyConverter {
     instrSb.append(instruction match {
       case Label(label)                 => convertLabelToAssembly(label)
       case Data(LabelRef(label), value) => convertDataToAssembly(label, value)
-      case Ltorg => f".ltorg"
-      case Global(label) => f".global ${label}"
+      case Ltorg                        => f".ltorg"
+      case Global(label)                => f".global ${label}"
       case Instr(opcode, None, None, None, _) =>
         generateAssemblyForOpcode(opcode)
       case Instr(B, Some(LabelRef(label)), None, None, cond) =>
@@ -60,6 +60,18 @@ object IRToAssemblyConverter {
         f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r0"
       case Instr(MOD, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
         f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r1"
+      case Instr(
+            SMULL,
+            Some(JoinedRegister(firstOp, secondOp)),
+            Some(JoinedRegister(thirdOp, fourthOp)),
+            _,
+            _
+          ) =>
+        f"smull ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(
+            secondOp
+          )}, ${convertOperandToAssembly(thirdOp)}, ${convertOperandToAssembly(fourthOp)}"
+      case Instr(SMULL, _, _, _, _) =>
+        throw new Exception("IR Conversion Error: Invalid SMULL.")
       case Instr(opcode, Some(firstOp), None, None, cond) =>
         f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(cond)} ${convertOperandToAssembly(firstOp)}"
       case Instr(opcode, Some(firstOp), Some(secondOp), None, cond) =>
@@ -83,6 +95,10 @@ object IRToAssemblyConverter {
       case ADD             => "add"
       case SUB             => "sub"
       case MUL             => "mul"
+      case ADDS            => "adds"
+      case SUBS            => "subs"
+      case RSBS            => "rsbs"
+      case SMULL           => "smull"
       case MOD             => "mod"
       case AND             => "and"
       case ORR             => "orr"
@@ -183,12 +199,18 @@ object IRToAssemblyConverter {
       .append("\n")
       .append(convertLabelToAssembly(label))
       .append("\n\t.asciz \"")
-      .append(value.replace("\"","\\\""))
+      .append(value.replace("\"", "\\\""))
       .append("\"\n.text")
       .toString()
   }
 
   def convertOperandToAssembly(operand: Operand): String = {
+    val convertShiftToAssembly: Shift => String = _ match {
+      case Shift(ASR, shiftAmount) => f"asr #$shiftAmount"
+      case Shift(LSL, shiftAmount) => f"lsl #$shiftAmount"
+      case Shift(LSR, shiftAmount) => f"lsr #$shiftAmount"
+      case Shift(ROR, shiftAmount) => f"ror #$shiftAmount"
+    }
     operand match {
       case Imm(i)         => f"#$i"
       case LabelRef(name) => f"=${name}"
@@ -208,6 +230,10 @@ object IRToAssemblyConverter {
       case AddrReg(reg, offset) =>
         f"[${convertOperandToAssembly(reg)}${if (offset != 0) f" , #$offset"
           else ""}]"
+      case ShiftedRegister(reg, shift) =>
+        f"${convertOperandToAssembly(reg)}, ${convertShiftToAssembly(shift)}"
+      case JoinedRegister(lo, hi) =>
+        f"${convertOperandToAssembly(lo)}, ${convertOperandToAssembly(hi)}"
     }
   }
 }

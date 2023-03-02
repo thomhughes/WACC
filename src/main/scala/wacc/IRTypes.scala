@@ -27,11 +27,18 @@ case class Instr(
 ) extends IRType
 case class Data(name: LabelRef, value: String) extends IRType
 
+sealed trait ShiftType
+case object ASR extends ShiftType
+case object LSL extends ShiftType
+case object LSR extends ShiftType
+case object ROR extends ShiftType
+case class Shift(shiftType: ShiftType, shiftAmount: Int)
+
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
-// case class ArrayToStore(args: List[Expression]) extends Operand
-// case class ArrayLit(name: String, pos: List[Int]) extends Operand
+case class JoinedRegister(lo: Register, hi: Register) extends Operand
+case class ShiftedRegister(reg: Register, shift: Shift) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
@@ -58,6 +65,10 @@ case object ADD extends DataProcessing
 case object SUB extends DataProcessing
 case object RSB extends DataProcessing // for negation
 case object MUL extends DataProcessing
+case object ADDS extends DataProcessing
+case object SUBS extends DataProcessing
+case object RSBS extends DataProcessing // for negation
+case object SMULL extends DataProcessing
 case object DIV extends DataProcessing
 case object MOD extends DataProcessing
 case object AND extends DataProcessing

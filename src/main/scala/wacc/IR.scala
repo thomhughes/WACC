@@ -24,8 +24,9 @@ object IR {
     case _ => throw new Exception("Unexpected LValue type")
   }
 
-  def loadRegAddr(dest: Register, src: Register, value: Int)(implicit
-      irProgram: IRProgram
+  // If src is defined then it's offset from source, if not then it's offset from 0
+  def loadRegConstant(dest: Register, src: Option[Register], value: Int)(
+      implicit irProgram: IRProgram
   ) = {
     val absVal = Math.abs(value)
     val opcode = if (value < 0) SUB else ADD
@@ -37,15 +38,34 @@ object IR {
     )
     parts.fold(0)((isFirst, part) => {
       if (part != 0) {
+        // load (base +/- offs) or offs into dst
         if (isFirst == 0) {
-          irProgram.instructions += Instr(
-            opcode,
-            Some(dest),
-            Some(src),
-            Some(Imm(part))
-          )
+          src match {
+            case Some(base) => {
+              irProgram.instructions += Instr(
+                opcode,
+                Some(dest),
+                Some(src.get),
+                Some(Imm(part))
+              )
+            }
+            case _ => {
+              irProgram.instructions += Instr(
+                MOV,
+                Some(dest),
+                Some(Imm(0))
+              )
+              irProgram.instructions += Instr(
+                opcode,
+                Some(dest),
+                Some(dest),
+                Some(Imm(part))
+              )
+            }
+          }
           1
         } else {
+          // now we can keep adding each disjoint part of the 32-bit word
           irProgram.instructions += Instr(
             opcode,
             Some(dest),
@@ -69,7 +89,7 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
       case id @ Identifier(_) => {
-        loadRegAddr(R0, FP, irProgram.symbolTable.lookupAddress(id))
+        loadRegConstant(R0, Some(FP), irProgram.symbolTable.lookupAddress(id))
         irProgram.instructions += Instr(PUSH, Some(R0))
       }
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
@@ -151,19 +171,48 @@ object IR {
     irProgram.instructions += Instr(strOperand, Some(R0), Some(AddrReg(R1, 0)))
   }
 
-  def nonCompareInstruction(op: BinaryOp): Instr =
-    Instr(
-      (op: @unchecked) match {
-        case Plus  => ADD
-        case Minus => SUB
-        case Mul   => MUL
-        case Div   => DIV
-        case Mod   => MOD
-      },
-      Some(R8),
-      Some(R8),
-      Some(R9)
-    )
+  def nonCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram): Unit =
+    (op: @unchecked) match {
+      case Plus => {
+        irProgram.instructions += Instr(ADDS, Some(R8), Some(R8), Some(R9))
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = VC
+        )
+      }
+      case Minus => {
+        irProgram.instructions += Instr(SUBS, Some(R8), Some(R8), Some(R9))
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = VC
+        )
+      }
+      case Mul => {
+        irProgram.instructions += Instr(
+          SMULL,
+          Some(JoinedRegister(R8, R9)),
+          Some(JoinedRegister(R8, R9))
+        )
+        irProgram.instructions += Instr(
+          CMP,
+          Some(R9),
+          Some(ShiftedRegister(R8, Shift(ASR, 31)))
+        )
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = EQ
+        )
+      }
+      case Div => {
+        irProgram.instructions += Instr(DIV, Some(R8), Some(R8), Some(R9))
+      }
+      case Mod => {
+        irProgram.instructions += Instr(MOD, Some(R8), Some(R8), Some(R9))
+      }
+    }
 
   def logicalCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
     val doneLabel = s".L${irProgram.labelCount}"
@@ -247,7 +296,7 @@ object IR {
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, Some(R8))
-    irProgram.instructions += ((op: @unchecked) match {
+    (op: @unchecked) match {
       case Not => {
         irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
         irProgram.instructions += Instr(
@@ -256,16 +305,24 @@ object IR {
           Some(Imm(0)),
           cond = NE
         )
-        Instr(
+        irProgram.instructions += Instr(
           MOV,
           Some(R8),
           Some(Imm(1)),
           cond = EQ
         )
       }
-      case Negation => Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
-      case Len      => Instr(BL, Some(LabelRef("array_size")))
-    })
+      case Negation => {
+        irProgram.instructions += Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = VC
+        )
+      }
+      case Len =>
+        irProgram.instructions += Instr(BL, Some(LabelRef("array_size")))
+    }
     irProgram.instructions += Instr(PUSH, Some(R8))
   }
 
@@ -276,7 +333,7 @@ object IR {
     implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
     expr match {
       case IntLiteral(value) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(value)))
+        loadRegConstant(R8, None, value)
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case CharLiteral(char) => {
@@ -316,10 +373,9 @@ object IR {
         irProgram.instructions += Instr(POP, Some(R9))
         irProgram.instructions += Instr(POP, Some(R8))
         op match {
-          case Plus | Minus | Mul | Div | Mod =>
-            irProgram.instructions += nonCompareInstruction(op)
-          case And | Or => logicalCompareInstruction(op)
-          case default  => compareInstruction(op)
+          case Plus | Minus | Mul | Div | Mod => nonCompareInstruction(op)
+          case And | Or                       => logicalCompareInstruction(op)
+          case default                        => compareInstruction(op)
         }
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
@@ -615,7 +671,7 @@ object IR {
     irProgram.instructions += Instr(ADD, Some(FP), Some(SP), Some(Imm(4)))
     val frameSize = irProgram.symbolTable.getFrameSize()
     if (irProgram.symbolTable.getFrameSize() > 0) {
-      loadRegAddr(SP, SP, -frameSize)
+      loadRegConstant(SP, Some(SP), -frameSize)
     }
   }
 

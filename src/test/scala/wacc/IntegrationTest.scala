@@ -68,35 +68,44 @@ class IntegrationTest extends AnyFlatSpec {
         .toList
         .dropWhile(x => !x.replace(" ", "").startsWith("#Exit:"))
 
-      var executeCommand = "qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString
+      var executeCommand =
+        "qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString
       if (programInputLines.length != 0) {
-          val programInputLine = programInputLines.head
-          val programInput = programInputLine.substring(programInputLine.indexOf(':') + 2)
-          executeCommand = "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
+        val programInputLine = programInputLines.head
+        val programInput =
+          programInputLine.substring(programInputLine.indexOf(':') + 2)
+        executeCommand =
+          "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
       }
-          val actualOutputLines = executeCommand.lazyLines_!.toList
-          val actualOutput = if (actualOutputLines.isEmpty) "" else actualOutputLines.mkString("\n").replaceAll("\\b0x\\w*", "#addrs#")
-          val exampleOutput =
-              Source.fromFile(path.toString)
-              .getLines().toList
-              .dropWhile(x => !x.equals("# Output:"))
-              .takeWhile(x => !x.equals(""))
-              .map(x => x.substring(1).strip())
-              .tail
-              .mkString("\n")
-              .trim()
-          println("Expected output: " + exampleOutput)
-          println("Actual output: " + actualOutput)
-          "Backend " should "correctly generate code for " + path.toString() + " test case" in {
-              assert(exampleOutput == actualOutput)
-              if (exitCodeLines.length > 1) {
-                val exitCodeLine = exitCodeLines.tail.head
-                val exitCode = exitCodeLine.substring(1).trim().toInt
-                executeCommand.! shouldBe (exitCode)
-              }
-          }
+      val actualOutputLines = executeCommand.lazyLines_!.toList
+      val actualOutput =
+        if (actualOutputLines.isEmpty) ""
+        else actualOutputLines.mkString("\n").replaceAll("\\b0x\\w*", "#addrs#")
+      val exampleOutput =
+        Source
+          .fromFile(path.toString)
+          .getLines()
+          .toList
+          .dropWhile(x => !x.equals("# Output:"))
+          .takeWhile(x => !x.equals(""))
+          .map(x => x.substring(1).trim())
+          .tail
+          .mkString("\n")
+          .trim()
+      println("Expected output: " + exampleOutput)
+      println("Actual output: " + actualOutput)
+      "Backend " should "correctly generate code for " + path
+        .toString() + " test case" in {
+        assert(exampleOutput == actualOutput)
+        if (exitCodeLines.length > 1) {
+          val exitCodeLine = exitCodeLines.tail.head
+          val exitCode = exitCodeLine.substring(1).trim().toInt
+          executeCommand.! shouldBe (exitCode)
+        }
+      }
     } else {
-        "Backend " should "correctly generate code for " + path.toString() + " test case" in pending
+      "Backend " should "correctly generate code for " + path
+        .toString() + " test case" in pending
     }
   }
 
