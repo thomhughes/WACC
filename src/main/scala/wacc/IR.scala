@@ -603,7 +603,14 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
     irProgram.instructions += Instr(POP, Some(R0))
-    irProgram.instructions += Instr(FREE(getExpressionType(expression)))
+    getExpressionType(expression) match {
+      case SAArrayType(_, _) =>
+        irProgram.instructions += Instr(BL, Some(LabelRef("array_free")))
+      case SAPairType(_, _) =>
+        irProgram.instructions += Instr(BL, Some(LabelRef("pair_free")))
+      case unexpected =>
+        throw new Exception("Unable to free type: " + unexpected)
+    }
   }
 
   def buildReturn(
