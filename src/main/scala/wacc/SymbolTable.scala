@@ -66,4 +66,7 @@ case class SymbolTable() {
       throw new Exception(map.toString() + "," + funcName + ": can't be found.")
     }
   }
+
+  def encountered(identifier: Identifier)(implicit funcName: String): Unit =
+    map(funcName).encountered(identifier)
 }

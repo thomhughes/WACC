@@ -6,6 +6,7 @@
 struct array
 {
   void **data;
+  unsigned elemsize;
   unsigned size;
 };
 
@@ -32,6 +33,7 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   va_start(args, _R3);
   struct array *out;
   out = (struct array *)calloc(1, sizeof(struct array) + elemsize * size);
+  out->elemsize = elemsize;
   out->size = size;
   out->data = (void **)&out->size + 1;
   if (elemsize == 1)
@@ -84,7 +86,11 @@ unsigned array_size(struct array *in) { return in->size; }
 extern void *array_access(struct array *in, unsigned index)
 {
   check_array_access(in, index);
-  // printf("Accessing: %d from %p (%d) -> %d\n", index, in, in->size, ((int *)in->data)[index]);
+  if (in->elemsize == 1)
+  {
+    return &((unsigned char *)in->data)[index];
+  }
+
   return &in->data[index];
 }
 

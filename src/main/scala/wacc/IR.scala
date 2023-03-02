@@ -25,6 +25,12 @@ object IR {
       throw new Exception("Unexpected LValue type: " + unexpected)
   }
 
+  def getLoadDataOperand(t: SAType): Opcode =
+    if (getNoBytes(t) == 1) LDRB else LDR
+
+  def getStoreDataOperand(t: SAType): Opcode =
+    if (getNoBytes(t) == 1) STRB else STR
+
   def constantToChunks(value: Int): List[Int] = {
     val absVal = Math.abs(value)
     List(
@@ -93,7 +99,7 @@ object IR {
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
       case PairElem(index, innerLValue) => {
         buildLValueReference(innerLValue)
-        buildStackDereference()
+        buildStackDereference(getLValueType(innerLValue))
         irProgram.instructions += Instr(POP, Some(R0))
         index match {
           case Fst =>
@@ -108,9 +114,13 @@ object IR {
   }
 
   // dereference value at top of stack *stack, clobbers R0
-  def buildStackDereference()(implicit irProgram: IRProgram): Unit = {
+  def buildStackDereference(t: SAType)(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, Some(R0))
-    irProgram.instructions += Instr(LDR, Some(R0), Some(AddrReg(R0, 0)))
+    irProgram.instructions += Instr(
+      getLoadDataOperand(t),
+      Some(R0),
+      Some(AddrReg(R0, 0))
+    )
     irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
@@ -165,8 +175,11 @@ object IR {
     buildLValueReference(lvalue)
     irProgram.instructions += Instr(POP, Some(R1))
     irProgram.instructions += Instr(POP, Some(R0))
-    val strOperand = if (getNoBytes(getLValueType(lvalue)) == 1) STRB else STR
-    irProgram.instructions += Instr(strOperand, Some(R0), Some(AddrReg(R1, 0)))
+    irProgram.instructions += Instr(
+      getStoreDataOperand(getLValueType(lvalue)),
+      Some(R0),
+      Some(AddrReg(R1, 0))
+    )
   }
 
   def nonCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram): Unit =
@@ -339,7 +352,7 @@ object IR {
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case BoolLiteral(bool) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(bool)))
+        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(bool.toInt)))
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case StringLiteral(string) => {
@@ -354,12 +367,8 @@ object IR {
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case id @ Identifier(_) => {
-        val loadDataOperand = irProgram.symbolTable.lookupType(id) match {
-          case SABoolType | SACharType => LDRB
-          case _                       => LDR
-        }
         irProgram.instructions += Instr(
-          loadDataOperand,
+          getLoadDataOperand(irProgram.symbolTable.lookupType(id)),
           Some(R8),
           Some(AddrReg(FP, irProgram.symbolTable.lookupAddress(id)))
         )
@@ -400,7 +409,8 @@ object IR {
     length offset is used to store the length of each array before each elem
      */
     val elementSize = argType match {
-      case SAArrayType(arrayType, _) => getNoBytes(arrayType)
+      case SAArrayType(arrayType, 1) => getNoBytes(arrayType)
+      case SAArrayType(_, _)         => 4
       case _ => throw new Exception("Unexpected LValue type")
     }
     irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(elementSize)))
@@ -425,7 +435,7 @@ object IR {
       funcName: String
   ): Unit = {
     buildArrayLoadReference(id, indices)
-    buildStackDereference()
+    buildStackDereference(getArrayElemType(id, indices))
   }
 
   // after this function is called, the pointer to the list will be on the top of the stack
@@ -441,7 +451,7 @@ object IR {
         buildExpression(head)
         // arg is now on top of stack: we will pop and proceed
         irProgram.instructions += Instr(POP, Some(R1))
-        buildStackDereference()
+        buildStackDereference(getArrayElemType(id, next))
         irProgram.instructions += Instr(POP, Some(R0))
         irProgram.instructions += Instr(BL, Some(LabelRef("array_access")))
         irProgram.instructions += Instr(PUSH, Some(R0))
@@ -471,9 +481,9 @@ object IR {
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
       case FunctionCall(id, args) => buildFuncCall(id, args)
       case NewPair(e1, e2)        => buildNewPair(e1, e2, argType)
-      case p @ PairElem(_, _) => {
+      case p @ PairElem(index, innerLValue) => {
         buildLValueReference(p)
-        buildStackDereference()
+        buildStackDereference(getPairElemType(index, innerLValue))
       }
       case default =>
         throw new Exception("Invalid rhs for assignment/declaration")
@@ -565,7 +575,7 @@ object IR {
       case PairLiteral      => SAPairType(SAAnyType, SAAnyType)
       case Identifier(id) =>
         irProgram.symbolTable.lookupType(Identifier(id)((0, 0)))
-      case ArrayElem(id, indices) => SAIntType
+      case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case BinaryOpApp(op, lexpr, _) =>
         op match {
           case Eq | Gt | Ge | Lt | Le | Neq | And | Or => SABoolType
@@ -588,11 +598,11 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
     val exprType = getExpressionType(expression)
-    // Look into changing runtime to pass in &dataOut, &sizeOut
-    // and make size of arrays 8 bytes on stack :D
+
+    // Dereference arrays to access value of data
     exprType match {
-      case SAArrayType(SACharType, 1) => buildStackDereference()
-      case _                          => ()
+      case at @ SAArrayType(_, _) => buildStackDereference(at)
+      case _                      => ()
     }
     irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += Instr(PRINT(exprType))
@@ -650,6 +660,7 @@ object IR {
       irProgram: IRProgram,
       funcName: String
   ) = {
+    irProgram.symbolTable.encountered(id)
     buildAssignment(id, rvalue)
   }
 
@@ -703,6 +714,9 @@ object IR {
       renameFunc(func.identBinding.identifier.name)
     )
     irProgram.symbolTable.resetScope()
+    func.params.foreach((param: Parameter) =>
+      irProgram.symbolTable.encountered(param.identifier)
+    )
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()
     func.body.foreach(buildStatement(_))
