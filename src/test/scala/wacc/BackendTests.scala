@@ -9,7 +9,7 @@ class BackendTests extends IntegrationTest {
   runTestOnDirectory("valid/if", true, runBackendTest)
   runTestOnDirectory("valid/variables", true, runBackendTest)
   runTestOnDirectory("valid/sequence", true, runBackendTest)
-  runTestOnDirectory("valid/expressions", false, runBackendTest)
+  runTestOnDirectory("valid/expressions", true, runBackendTest)
   runTestOnDirectory("valid/while", false, runBackendTest)
   runTestOnDirectory("valid/IO", false, runBackendTest)
   runTestOnDirectory("valid/scope", false, runBackendTest)
