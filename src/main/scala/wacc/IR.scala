@@ -293,25 +293,25 @@ object IR {
   }
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(POP, Some(R0))
     (op: @unchecked) match {
       case Not => {
-        irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(CMP, Some(R0), Some(Imm(0)))
         irProgram.instructions += Instr(
           MOV,
-          Some(R8),
+          Some(R0),
           Some(Imm(0)),
           cond = NE
         )
         irProgram.instructions += Instr(
           MOV,
-          Some(R8),
+          Some(R0),
           Some(Imm(1)),
           cond = EQ
         )
       }
       case Negation => {
-        irProgram.instructions += Instr(RSBS, Some(R8), Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(RSBS, Some(R0), Some(R0), Some(Imm(0)))
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
@@ -321,7 +321,7 @@ object IR {
       case Len =>
         irProgram.instructions += Instr(BL, Some(LabelRef("array_size")))
     }
-    irProgram.instructions += Instr(PUSH, Some(R8))
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   /* Evaluates expression and places result on top of the stack */

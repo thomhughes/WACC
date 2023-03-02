@@ -199,7 +199,7 @@ object IRToAssemblyConverter {
       .append("\n")
       .append(convertLabelToAssembly(label))
       .append("\n\t.asciz \"")
-      .append(value.replace("\"", "\\\""))
+      .append(value.replace("\"", "\\\"").replace("\n", "\\n"))
       .append("\"\n.text")
       .toString()
   }

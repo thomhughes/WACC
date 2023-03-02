@@ -1,7 +1,6 @@
 package wacc
 
 import scala.collection.mutable.ListBuffer
-import wacc.AST.Expression
 import wacc.Types.SAType
 
 import wacc.SymbolTable

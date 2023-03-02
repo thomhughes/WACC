@@ -67,7 +67,7 @@ void check_array_access(struct array *in, unsigned index)
 {
   if (in == NULL || in->data == NULL)
   {
-    fprintf(stderr, "Runtime error: invalid array %p", in);
+    fprintf(stderr, "Runtime error: invalid array %p\n", in);
     exit(-1);
   }
   else if (index >= in->size)
@@ -99,7 +99,7 @@ void check_pair(struct pair *in)
 {
   if (in == NULL)
   {
-    fprintf(stderr, "Runtime error: invalid pair %p", in);
+    fprintf(stderr, "Runtime error: invalid pair %p\n", in);
     exit(-1);
   }
 }

@@ -1,6 +1,7 @@
 package wacc
 
 import org.scalatest.flatspec.AnyFlatSpec
+import java.io.ByteArrayOutputStream
 
 class IntegrationTest extends AnyFlatSpec {
   import java.nio.file.{Files, Paths, Path}
@@ -77,10 +78,11 @@ class IntegrationTest extends AnyFlatSpec {
         executeCommand =
           "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
       }
-      val actualOutputLines = executeCommand.lazyLines_!.toList
+      val actualOutputLines = new ByteArrayOutputStream()
+      (executeCommand #> actualOutputLines).!
+      actualOutputLines.close()
       val actualOutput =
-        if (actualOutputLines.isEmpty) ""
-        else actualOutputLines.mkString("\n").replaceAll("\\b0x\\w*", "#addrs#")
+        actualOutputLines.toString().replaceAll("\\b0x\\w*", "#addrs#")
       val exampleOutput =
         Source
           .fromFile(path.toString)
@@ -91,9 +93,6 @@ class IntegrationTest extends AnyFlatSpec {
           .map(x => x.substring(1).trim())
           .tail
           .mkString("\n")
-          .trim()
-      println("Expected output: " + exampleOutput)
-      println("Actual output: " + actualOutput)
       "Backend " should "correctly generate code for " + path
         .toString() + " test case" in {
         assert(exampleOutput == actualOutput)

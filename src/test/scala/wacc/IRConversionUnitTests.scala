@@ -1,12 +1,12 @@
 package wacc
 
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
-import wacc.IR._
-import wacc.Parser._
-import wacc.Types._
-import scala.collection.mutable.ListBuffer
-import wacc.Analyser.checkProgram
+// import org.scalatest.matchers.should.Matchers._
+// import wacc.IR._
+// import wacc.Parser._
+// import wacc.Types._
+// import scala.collection.mutable.ListBuffer
+// import wacc.Analyser.checkProgram
 import org.scalatest.BeforeAndAfterEach
 
 class IRConversionUnitTests extends AnyFlatSpec with BeforeAndAfterEach {
