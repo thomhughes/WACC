@@ -161,5 +161,4 @@ extern int __aeabi_idiv0(void)
 {
   fprintf(stderr, "Runtime error: division by zero\n");
   exit(-1);
-  return 1;
 }
