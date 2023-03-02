@@ -246,27 +246,27 @@ object IR {
   }
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(R8))
+    irProgram.instructions += Instr(POP, Some(R0))
     irProgram.instructions += ((op: @unchecked) match {
       case Not => {
-        irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(CMP, Some(R0), Some(Imm(0)))
         irProgram.instructions += Instr(
           MOV,
-          Some(R8),
+          Some(R0),
           Some(Imm(0)),
           cond = NE
         )
         Instr(
           MOV,
-          Some(R8),
+          Some(R0),
           Some(Imm(1)),
           cond = EQ
         )
       }
-      case Negation => Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
+      case Negation => Instr(RSB, Some(R0), Some(R0), Some(Imm(0)))
       case Len      => Instr(BL, Some(LabelRef("array_size")))
     })
-    irProgram.instructions += Instr(PUSH, Some(R8))
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   /* Evaluates expression and places result on top of the stack */
