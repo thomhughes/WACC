@@ -24,60 +24,57 @@ object IR {
     case _ => throw new Exception("Unexpected LValue type")
   }
 
-  // If src is defined then it's offset from source, if not then it's offset from 0
-  def loadRegConstant(dest: Register, src: Option[Register], value: Int)(
-      implicit irProgram: IRProgram
-  ) = {
+  def constantToChunks(value: Int): List[Int] = {
     val absVal = Math.abs(value)
-    val opcode = if (value < 0) SUB else ADD
-    val parts = List(
+    List(
       absVal & 0xff,
       absVal & (0xff << 8),
       absVal & (0xff << 16),
       absVal & (0xff << 24)
+    ).filter(_ != 0)
+  }
+
+  def loadRemainingChunks(positive: Boolean, dest: Register, chunks: List[Int])(
+      implicit irProgram: IRProgram
+  ) = {
+    val opcode = if (positive) ADD else SUB
+    chunks.foreach(x =>
+      irProgram.instructions += Instr(
+        opcode,
+        Some(dest),
+        Some(dest),
+        Some(Imm(x))
+      )
     )
-    parts.fold(0)((isFirst, part) => {
-      if (part != 0) {
-        // load (base +/- offs) or offs into dst
-        if (isFirst == 0) {
-          src match {
-            case Some(base) => {
-              irProgram.instructions += Instr(
-                opcode,
-                Some(dest),
-                Some(src.get),
-                Some(Imm(part))
-              )
-            }
-            case _ => {
-              irProgram.instructions += Instr(
-                MOV,
-                Some(dest),
-                Some(Imm(0))
-              )
-              irProgram.instructions += Instr(
-                opcode,
-                Some(dest),
-                Some(dest),
-                Some(Imm(part))
-              )
-            }
-          }
-          1
-        } else {
-          // now we can keep adding each disjoint part of the 32-bit word
-          irProgram.instructions += Instr(
-            opcode,
-            Some(dest),
-            Some(dest),
-            Some(Imm(part))
-          )
-          isFirst
-        }
-      } else {
-        isFirst
+  }
+
+  def loadMovConstant(dest: Register, value: Int)(implicit
+      irProgram: IRProgram
+  ) = {
+    val chunks = constantToChunks(value)
+    irProgram.instructions += Instr(MOV, Some(dest), Some(Imm(0)))
+    loadRemainingChunks(value > 0, dest, chunks)
+  }
+
+  // If src is defined then it's offset from source, if not then it's offset from 0
+  def loadRegConstant(dest: Register, src: Register, value: Int)(implicit
+      irProgram: IRProgram
+  ) = {
+    val chunks = constantToChunks(value)
+    val opcode = if (value > 0) ADD else SUB
+    chunks match {
+      case Nil =>
+        irProgram.instructions += Instr(MOV, Some(dest), Some(Imm(0)))
+      case head :: next => {
+        irProgram.instructions += Instr(
+          opcode,
+          Some(dest),
+          Some(src),
+          Some(Imm(head))
+        )
+        loadRemainingChunks(value > 0, dest, next)
       }
-    })
+    }
   }
 
   def getScope()(implicit irProgram: IRProgram, funcName: String) =
@@ -89,7 +86,7 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
       case id @ Identifier(_) => {
-        loadRegConstant(R0, Some(FP), irProgram.symbolTable.lookupAddress(id))
+        loadRegConstant(R0, FP, irProgram.symbolTable.lookupAddress(id))
         irProgram.instructions += Instr(PUSH, Some(R0))
       }
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
@@ -178,7 +175,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = VC
+          cond = VS
         )
       }
       case Minus => {
@@ -186,7 +183,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = VC
+          cond = VS
         )
       }
       case Mul => {
@@ -203,7 +200,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = EQ
+          cond = NE
         )
       }
       case Div => {
@@ -313,11 +310,11 @@ object IR {
         )
       }
       case Negation => {
-        irProgram.instructions += Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(RSBS, Some(R8), Some(R8), Some(Imm(0)))
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = VC
+          cond = VS
         )
       }
       case Len =>
@@ -333,7 +330,7 @@ object IR {
     implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
     expr match {
       case IntLiteral(value) => {
-        loadRegConstant(R8, None, value)
+        loadMovConstant(R8, value)
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case CharLiteral(char) => {
@@ -671,7 +668,7 @@ object IR {
     irProgram.instructions += Instr(ADD, Some(FP), Some(SP), Some(Imm(4)))
     val frameSize = irProgram.symbolTable.getFrameSize()
     if (irProgram.symbolTable.getFrameSize() > 0) {
-      loadRegConstant(SP, Some(SP), -frameSize)
+      loadRegConstant(SP, SP, -frameSize)
     }
   }
 
