@@ -1,0 +1,8 @@
+begin
+  int x = 3;
+  begin
+    x = 4;
+    int x = 5
+  end
+  println x
+end

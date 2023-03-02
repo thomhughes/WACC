@@ -3,6 +3,7 @@ package wacc
 case class OuterBodySymbolTable(var scoper: Scoper) {
   import scala.collection.mutable.Map
   import scala.collection.mutable.Stack
+  import scala.collection.mutable.Set
   import wacc.Types._
   import wacc.AST.Identifier
   import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
@@ -12,6 +13,8 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
   var totalOffset = 4 // FP, LR backup is on stack
   var frameSize = 0
   val scopeSizes = Stack[Int]()
+  val seen_set = Set[(String, Int)]()
+  var mutable = true
 
   override def toString(): String = {
     map.toString()
@@ -35,7 +38,7 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
     while (iter.hasNext) {
       val curr = iter.next()
       val key = (identifier.name, curr)
-      if (map.contains(key)) {
+      if (mutable && map.contains(key) || !mutable && seen_set.contains(key)) {
         return Some(map(key))
       }
     }
@@ -93,7 +96,15 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
     errorList
   }
 
-  def updateScoper(newScoper: Scoper): Unit = scoper = newScoper
+  def updateScoper(newScoper: Scoper): Unit = {
+    scoper = newScoper
+    mutable = false 
+  }
+
+  def encountered(identifier: Identifier): Unit = {
+    val key = (identifier.name, scoper.getScope())
+    seen_set += key
+  }
 
   def lookupAddress(identifier: Identifier): Int = {
     lookup(identifier) match {

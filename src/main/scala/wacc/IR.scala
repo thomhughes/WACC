@@ -650,6 +650,7 @@ object IR {
       irProgram: IRProgram,
       funcName: String
   ) = {
+    irProgram.symbolTable.encountered(id)
     buildAssignment(id, rvalue)
   }
 
@@ -703,6 +704,7 @@ object IR {
       renameFunc(func.identBinding.identifier.name)
     )
     irProgram.symbolTable.resetScope()
+    func.params.foreach((param: Parameter) => irProgram.symbolTable.encountered(param.identifier))
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()
     func.body.foreach(buildStatement(_))
