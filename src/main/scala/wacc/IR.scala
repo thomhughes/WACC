@@ -18,10 +18,11 @@ object IR {
 
   val getNoBytes: (SAType => Int) = _ match {
     case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType |
-        SAPairRefType =>
+        SAPairRefType | SAUnknownType =>
       4
     case SABoolType | SACharType => 1
-    case _ => throw new Exception("Unexpected LValue type")
+    case unexpected =>
+      throw new Exception("Unexpected LValue type: " + unexpected)
   }
 
   def constantToChunks(value: Int): List[Int] = {
@@ -437,11 +438,11 @@ object IR {
     def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
       case Nil => {}
       case head :: next => {
-        buildStackDereference()
-        irProgram.instructions += Instr(POP, Some(R0))
         buildExpression(head)
         // arg is now on top of stack: we will pop and proceed
         irProgram.instructions += Instr(POP, Some(R1))
+        buildStackDereference()
+        irProgram.instructions += Instr(POP, Some(R0))
         irProgram.instructions += Instr(BL, Some(LabelRef("array_access")))
         irProgram.instructions += Instr(PUSH, Some(R0))
         buildArrLoadHelper(next)
