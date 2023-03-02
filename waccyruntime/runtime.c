@@ -44,7 +44,7 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   }
   else
   {
-    fprintf(stderr,
+    fprintf(stdout,
             "Runtime error: Unknown runtime error, array of element size: %d\n",
             elemsize);
   }
@@ -56,7 +56,7 @@ extern void array_free(struct array *in)
 {
   if (in == NULL)
   {
-    fprintf(stderr, "Runtime error: attempting to free NULL array.\n");
+    fprintf(stdout, "Runtime error: attempting to free NULL array.\n");
     exit(-1);
   }
   free(in);
@@ -67,12 +67,12 @@ void check_array_access(struct array *in, unsigned index)
 {
   if (in == NULL || in->data == NULL)
   {
-    fprintf(stderr, "Runtime error: invalid array %p\n", in);
+    fprintf(stdout, "Runtime error: invalid array %p\n", in);
     exit(-1);
   }
   else if (index >= in->size)
   {
-    fprintf(stderr,
+    fprintf(stdout,
             "Runtime error: array of size %d invalid access of index %d\n",
             in->size, index);
     exit(-1);
@@ -99,7 +99,7 @@ void check_pair(struct pair *in)
 {
   if (in == NULL)
   {
-    fprintf(stderr, "Runtime error: invalid pair %p\n", in);
+    fprintf(stdout, "Runtime error: invalid pair %p\n", in);
     exit(-1);
   }
 }
@@ -118,7 +118,7 @@ extern void pair_free(struct pair *in)
 {
   if (in == NULL)
   {
-    fprintf(stderr, "Runtime error: attempting to free NULL pair.\n");
+    fprintf(stdout, "Runtime error: attempting to free NULL pair.\n");
     exit(-1);
   }
   free(in);
@@ -144,21 +144,30 @@ void read(void *out, int length)
 {
   if (out == NULL)
   {
-    fprintf(stderr, "Runtime error: reading into NULL value.\n");
+    fprintf(stdout, "Runtime error: reading into NULL value.\n");
     exit(-1);
+  }
+  switch (length)
+  {
+  case 4:
+    scanf("%d", (int *)out);
+    break;
+  case 1:
+    scanf("%c", (char *)out);
+    break;
   }
 }
 
 // Arithmetic runtime errors
 extern void error_arithmetic_overflow()
 {
-  fprintf(stderr, "Runtime error: arithmetic overflow\n");
+  fprintf(stdout, "Runtime error: arithmetic overflow\n");
   exit(-1);
 }
 
 // https://developer.arm.com/documentation/dui0773/e/Coding-Considerations/Integer-division-by-zero-errors-in-C-code?lang=en
 extern int __aeabi_idiv0(void)
 {
-  fprintf(stderr, "Runtime error: division by zero\n");
+  fprintf(stdout, "Runtime error: division by zero\n");
   exit(-1);
 }

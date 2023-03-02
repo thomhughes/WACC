@@ -79,10 +79,13 @@ class IntegrationTest extends AnyFlatSpec {
           "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
       }
       val actualOutputLines = new ByteArrayOutputStream()
-      (executeCommand #> actualOutputLines).!
+      val actualExitCode = (executeCommand #> actualOutputLines).!
       actualOutputLines.close()
       val actualOutput =
-        actualOutputLines.toString().replaceAll("\\b0x\\w*", "#addrs#")
+        actualOutputLines
+        .toString()
+        .replaceAll("\\b0x\\w*", "#addrs#")
+        .replaceAll("Runtime error:.*\n", "#runtime_error#")
       val exampleOutput =
         Source
           .fromFile(path.toString)
@@ -99,7 +102,7 @@ class IntegrationTest extends AnyFlatSpec {
         if (exitCodeLines.length > 1) {
           val exitCodeLine = exitCodeLines.tail.head
           val exitCode = exitCodeLine.substring(1).trim().toInt
-          executeCommand.! shouldBe (exitCode)
+          actualExitCode shouldBe (exitCode)
         }
       }
     } else {
