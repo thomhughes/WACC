@@ -3,6 +3,17 @@
 #
 # JARs aren't checked in, they are fetched by sbt
 #
+# Ignore all
+*
+# Unignore all with extensions
+!*.*
+# Unignore all dirs
+!*/
+!compile
+!execute
+
+secret.o
+
 /lib/*.jar
 /test/files/codelib/*.jar
 /test/files/lib/*.jar
@@ -68,3 +79,6 @@ wacc-42-compiler.jar
 
 # testing file for cli
 /test.wacc
+
+*.s
+

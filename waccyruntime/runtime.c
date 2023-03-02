@@ -23,9 +23,7 @@ void array_literal_create_longs(long *data, unsigned size, va_list elemlist)
   for (int i = 0; i < size; ++i)
   {
     data[i] = va_arg(elemlist, long);
-    // printf("%ld ", data[i]);
   }
-  // printf("\n");
 }
 
 extern struct array *array_literal_create(unsigned elemsize, unsigned size, void *_R2, void *_R3, ...)
@@ -34,7 +32,6 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   va_start(args, _R3);
   struct array *out;
   out = (struct array *)calloc(1, sizeof(struct array) + elemsize * size);
-  // printf("Creating array literal with elemntsize: %d, %d!\n", elemsize, size);
   out->size = size;
   out->data = (void **)&out->size + 1;
   if (elemsize == 1)
@@ -55,11 +52,22 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   return out;
 }
 
+extern void array_free(struct array *in)
+{
+  if (in == NULL)
+  {
+    fprintf(stderr, "Runtime error: attempting to free NULL array.\n");
+    exit(-1);
+  }
+  free(in);
+  in = NULL;
+}
+
 void check_array_access(struct array *in, unsigned index)
 {
   if (in == NULL || in->data == NULL)
   {
-    fprintf(stderr, "Runtime error: invalid array %p", in);
+    fprintf(stderr, "Runtime error: invalid array %p\n", in);
     exit(-1);
   }
   else if (index >= in->size)
@@ -87,6 +95,15 @@ struct pair
   void *snd;
 };
 
+void check_pair(struct pair *in)
+{
+  if (in == NULL)
+  {
+    fprintf(stderr, "Runtime error: invalid pair %p\n", in);
+    exit(-1);
+  }
+}
+
 extern struct pair *pair_create(void *_R0, void *_R1, void *_R2, void *_R3, void *fst, void *snd)
 {
   struct pair *out;
@@ -97,13 +114,51 @@ extern struct pair *pair_create(void *_R0, void *_R1, void *_R2, void *_R3, void
   return out;
 }
 
+extern void pair_free(struct pair *in)
+{
+  if (in == NULL)
+  {
+    fprintf(stderr, "Runtime error: attempting to free NULL pair.\n");
+    exit(-1);
+  }
+  free(in);
+  in = NULL;
+}
+
 extern void *pair_fst(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R4)
 {
+  check_pair(in);
   return &in->fst;
 }
 
 extern void *pair_snd(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R4)
 {
+  check_pair(in);
   return &in->snd;
 }
+
 // Print functions? (Optional)
+
+// Read functions?
+void read(void *out, int length)
+{
+  if (out == NULL)
+  {
+    fprintf(stderr, "Runtime error: reading into NULL value.\n");
+    exit(-1);
+  }
+}
+
+// Arithmetic runtime errors
+extern void error_arithmetic_overflow()
+{
+  fprintf(stderr, "Runtime error: arithmetic overflow\n");
+  exit(-1);
+}
+
+// https://developer.arm.com/documentation/dui0773/e/Coding-Considerations/Integer-division-by-zero-errors-in-C-code?lang=en
+extern int __aeabi_idiv0(void)
+{
+  fprintf(stderr, "Runtime error: division by zero\n");
+  exit(-1);
+}

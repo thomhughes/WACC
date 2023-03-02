@@ -17,9 +17,65 @@ object IR {
   import Analyser.convertSyntaxToTypeSys
 
   val getNoBytes: (SAType => Int) = _ match {
-    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType => 4
-    case SABoolType | SACharType                          => 1
-    case _ => throw new Exception("Unexpected LValue type")
+    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType |
+        SAPairRefType | SAUnknownType =>
+      4
+    case SABoolType | SACharType => 1
+    case unexpected =>
+      throw new Exception("Unexpected LValue type: " + unexpected)
+  }
+
+  def constantToChunks(value: Int): List[Int] = {
+    val absVal = Math.abs(value)
+    List(
+      absVal & 0xff,
+      absVal & (0xff << 8),
+      absVal & (0xff << 16),
+      absVal & (0xff << 24)
+    ).filter(_ != 0)
+  }
+
+  def loadRemainingChunks(positive: Boolean, dest: Register, chunks: List[Int])(
+      implicit irProgram: IRProgram
+  ) = {
+    val opcode = if (positive) ADD else SUB
+    chunks.foreach(x =>
+      irProgram.instructions += Instr(
+        opcode,
+        Some(dest),
+        Some(dest),
+        Some(Imm(x))
+      )
+    )
+  }
+
+  def loadMovConstant(dest: Register, value: Int)(implicit
+      irProgram: IRProgram
+  ) = {
+    val chunks = constantToChunks(value)
+    irProgram.instructions += Instr(MOV, Some(dest), Some(Imm(0)))
+    loadRemainingChunks(value > 0, dest, chunks)
+  }
+
+  // If src is defined then it's offset from source, if not then it's offset from 0
+  def loadRegConstant(dest: Register, src: Register, value: Int)(implicit
+      irProgram: IRProgram
+  ) = {
+    val chunks = constantToChunks(value)
+    val opcode = if (value > 0) ADD else SUB
+    chunks match {
+      case Nil =>
+        irProgram.instructions += Instr(MOV, Some(dest), Some(Imm(0)))
+      case head :: next => {
+        irProgram.instructions += Instr(
+          opcode,
+          Some(dest),
+          Some(src),
+          Some(Imm(head))
+        )
+        loadRemainingChunks(value > 0, dest, next)
+      }
+    }
   }
 
   def getScope()(implicit irProgram: IRProgram, funcName: String) =
@@ -31,12 +87,7 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
       case id @ Identifier(_) => {
-        irProgram.instructions += Instr(
-          ADD,
-          Some(R0),
-          Some(FP),
-          Some(Imm(irProgram.symbolTable.lookupAddress(id)))
-        )
+        loadRegConstant(R0, FP, irProgram.symbolTable.lookupAddress(id))
         irProgram.instructions += Instr(PUSH, Some(R0))
       }
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
@@ -118,21 +169,52 @@ object IR {
     irProgram.instructions += Instr(strOperand, Some(R0), Some(AddrReg(R1, 0)))
   }
 
-  def nonCompareInstruction(op: BinaryOp): Instr =
-    Instr(
-      (op: @unchecked) match {
-        case Plus  => ADD
-        case Minus => SUB
-        case Mul   => MUL
-        case Div   => DIV
-        case Mod   => MOD
-      },
-      Some(R8),
-      Some(R8),
-      Some(R9)
-    )
+  def nonCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram): Unit =
+    (op: @unchecked) match {
+      case Plus => {
+        irProgram.instructions += Instr(ADDS, Some(R8), Some(R8), Some(R9))
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = VS
+        )
+      }
+      case Minus => {
+        irProgram.instructions += Instr(SUBS, Some(R8), Some(R8), Some(R9))
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = VS
+        )
+      }
+      case Mul => {
+        irProgram.instructions += Instr(
+          SMULL,
+          Some(JoinedRegister(R8, R9)),
+          Some(JoinedRegister(R8, R9))
+        )
+        irProgram.instructions += Instr(
+          CMP,
+          Some(R9),
+          Some(ShiftedRegister(R8, Shift(ASR, 31)))
+        )
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = NE
+        )
+      }
+      case Div => {
+        irProgram.instructions += Instr(DIV, Some(R8), Some(R8), Some(R9))
+      }
+      case Mod => {
+        irProgram.instructions += Instr(MOD, Some(R8), Some(R8), Some(R9))
+      }
+    }
 
   def logicalCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+    val doneLabel = s".L${irProgram.labelCount}"
+    irProgram.labelCount += 1
     irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
     (op: @unchecked) match {
       case And => {
@@ -144,7 +226,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           B,
-          Some(LabelRef(s".L${irProgram.labelCount}")),
+          Some(LabelRef(doneLabel)),
           cond = EQ
         )
       }
@@ -157,7 +239,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           B,
-          Some(LabelRef(s".L${irProgram.labelCount}")),
+          Some(LabelRef(doneLabel)),
           cond = NE
         )
       }
@@ -175,8 +257,7 @@ object IR {
       Some(Imm(0)),
       cond = EQ
     )
-    irProgram.instructions += Label(s".L${irProgram.labelCount}")
-    irProgram.labelCount += 1
+    irProgram.instructions += Label(doneLabel)
   }
 
   def compareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
@@ -212,27 +293,35 @@ object IR {
   }
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(R8))
-    irProgram.instructions += ((op: @unchecked) match {
+    irProgram.instructions += Instr(POP, Some(R0))
+    (op: @unchecked) match {
       case Not => {
-        irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(0)))
+        irProgram.instructions += Instr(CMP, Some(R0), Some(Imm(0)))
         irProgram.instructions += Instr(
           MOV,
-          Some(R8),
+          Some(R0),
           Some(Imm(0)),
           cond = NE
         )
-        Instr(
+        irProgram.instructions += Instr(
           MOV,
-          Some(R8),
+          Some(R0),
           Some(Imm(1)),
           cond = EQ
         )
       }
-      case Negation => Instr(RSB, Some(R8), Some(R8), Some(Imm(0)))
-      case Len      => Instr(BL, Some(LabelRef("array_size")))
-    })
-    irProgram.instructions += Instr(PUSH, Some(R8))
+      case Negation => {
+        irProgram.instructions += Instr(RSBS, Some(R0), Some(R0), Some(Imm(0)))
+        irProgram.instructions += Instr(
+          BL,
+          Some(LabelRef("error_arithmetic_overflow")),
+          cond = VS
+        )
+      }
+      case Len =>
+        irProgram.instructions += Instr(BL, Some(LabelRef("array_size")))
+    }
+    irProgram.instructions += Instr(PUSH, Some(R0))
   }
 
   /* Evaluates expression and places result on top of the stack */
@@ -242,7 +331,7 @@ object IR {
     implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
     expr match {
       case IntLiteral(value) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(value)))
+        loadMovConstant(R8, value)
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
       case CharLiteral(char) => {
@@ -282,10 +371,9 @@ object IR {
         irProgram.instructions += Instr(POP, Some(R9))
         irProgram.instructions += Instr(POP, Some(R8))
         op match {
-          case Plus | Minus | Mul | Div | Mod =>
-            irProgram.instructions += nonCompareInstruction(op)
-          case And | Or => logicalCompareInstruction(op)
-          case default  => compareInstruction(op)
+          case Plus | Minus | Mul | Div | Mod => nonCompareInstruction(op)
+          case And | Or                       => logicalCompareInstruction(op)
+          case default                        => compareInstruction(op)
         }
         irProgram.instructions += Instr(PUSH, Some(R8))
       }
@@ -350,11 +438,11 @@ object IR {
     def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
       case Nil => {}
       case head :: next => {
-        buildStackDereference()
-        irProgram.instructions += Instr(POP, Some(R0))
         buildExpression(head)
         // arg is now on top of stack: we will pop and proceed
         irProgram.instructions += Instr(POP, Some(R1))
+        buildStackDereference()
+        irProgram.instructions += Instr(POP, Some(R0))
         irProgram.instructions += Instr(BL, Some(LabelRef("array_access")))
         irProgram.instructions += Instr(PUSH, Some(R0))
         buildArrLoadHelper(next)
@@ -416,8 +504,8 @@ object IR {
       thenBody: List[Statement],
       elseBody: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
-    val elseLabel = ".L" + irProgram.labelCount
-    val ifEndLabel = ".L" + irProgram.labelCount + 1
+    val elseLabel = s".L${irProgram.labelCount}"
+    val ifEndLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
     buildExpression(condition)
     irProgram.instructions += Instr(POP, Some(R8))
@@ -444,8 +532,8 @@ object IR {
       irProgram: IRProgram,
       funcName: String
   ): Unit = {
-    val conditionLabel = ".L" + irProgram.labelCount
-    val doneLabel = ".L" + irProgram.labelCount + 1
+    val conditionLabel = s".L${irProgram.labelCount}"
+    val doneLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
     irProgram.instructions += Label(conditionLabel)
     buildExpression(condition)
@@ -454,18 +542,14 @@ object IR {
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(doneLabel)),
-      None,
-      None,
-      NE
+      cond = NE
     )
     irProgram.symbolTable.enterScope()
     body.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
     irProgram.instructions += Instr(
       B,
-      Option(LabelRef(conditionLabel)),
-      None,
-      None
+      Option(LabelRef(conditionLabel))
     )
     irProgram.instructions += Label(doneLabel)
   }
@@ -519,7 +603,14 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
     irProgram.instructions += Instr(POP, Some(R0))
-    irProgram.instructions += Instr(FREE(getExpressionType(expression)))
+    getExpressionType(expression) match {
+      case SAArrayType(_, _) =>
+        irProgram.instructions += Instr(BL, Some(LabelRef("array_free")))
+      case SAPairType(_, _) =>
+        irProgram.instructions += Instr(BL, Some(LabelRef("pair_free")))
+      case unexpected =>
+        throw new Exception("Unable to free type: " + unexpected)
+    }
   }
 
   def buildReturn(
@@ -585,12 +676,7 @@ object IR {
     irProgram.instructions += Instr(ADD, Some(FP), Some(SP), Some(Imm(4)))
     val frameSize = irProgram.symbolTable.getFrameSize()
     if (irProgram.symbolTable.getFrameSize() > 0) {
-      irProgram.instructions += Instr(
-        SUB,
-        Some(SP),
-        Some(SP),
-        Some(Imm(frameSize))
-      )
+      loadRegConstant(SP, SP, -frameSize)
     }
   }
 
@@ -633,6 +719,7 @@ object IR {
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()
     statements.foreach(buildStatement(_))
+    irProgram.instructions += Instr(MOV, Some(R0), Some(Imm(0)))
     buildFuncEpilogue()
     irProgram.symbolTable.exitScope()
   }
