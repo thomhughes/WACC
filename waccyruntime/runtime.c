@@ -153,7 +153,7 @@ void read(void *out, int length)
     scanf("%d", (int *)out);
     break;
   case 1:
-    scanf("%c", (char *)out);
+    scanf(" %c", (char *)out);
     break;
   }
 }

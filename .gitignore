@@ -12,7 +12,7 @@
 !compile
 !execute
 
-secret.o
+*.o
 
 /lib/*.jar
 /test/files/codelib/*.jar
