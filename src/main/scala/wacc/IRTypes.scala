@@ -74,11 +74,7 @@ case object AND extends DataProcessing
 case object ORR extends DataProcessing
 case object MOV extends DataProcessing
 case object MOVB extends DataProcessing
-case object MVN extends DataProcessing
 case object CMP extends DataProcessing
-case object CMN extends DataProcessing
-case object TST extends DataProcessing
-case object TEQ extends DataProcessing
 
 sealed trait StackInstr extends Opcode
 case object PUSH extends StackInstr
@@ -93,7 +89,6 @@ case object STRB extends MemAccess
 sealed trait Branch extends Opcode
 case object B extends Branch
 case object BL extends Branch
-case object BX extends Branch
 
 sealed trait Condition
 case object EQ extends Condition
