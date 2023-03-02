@@ -50,8 +50,6 @@ object IRToAssemblyConverter {
         f"b${generateAssemblyForConditionCode(cond)} ${label}"
       case Instr(BL, Some(LabelRef(label)), None, None, cond) =>
         f"bl${generateAssemblyForConditionCode(cond)} ${label}"
-      case Instr(BX, Some(LabelRef(label)), None, None, cond) =>
-        f"bx${generateAssemblyForConditionCode(cond)} ${label}"
       case Instr(POP, Some(firstOp), None, None, _) =>
         f"pop {${convertOperandToAssembly(firstOp)}}"
       case Instr(PUSH, Some(firstOp), None, None, _) =>
@@ -106,10 +104,6 @@ object IRToAssemblyConverter {
       case STR             => "str"
       case STRB            => "strb"
       case CMP             => "cmp"
-      case MVN             => "mvn"
-      case TST             => "tst"
-      case CMN             => "cmn"
-      case TEQ             => "teq"
       case LDRB            => "ldrb"
       case PRINT(typeName) => "bl " + getPrintLabelOfTypeName(typeName)
       case READ(typeName)  => "bl " + getReadLabelOfTypeName(typeName)
