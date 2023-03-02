@@ -25,10 +25,10 @@ object IR {
       throw new Exception("Unexpected LValue type: " + unexpected)
   }
 
-  def getLoadDataOperand(t: SAType): Opcode =
+  def getLoadDataOperand(t: SAType): MemAccess =
     if (getNoBytes(t) == 1) LDRB else LDR
 
-  def getStoreDataOperand(t: SAType): Opcode =
+  def getStoreDataOperand(t: SAType): MemAccess =
     if (getNoBytes(t) == 1) STRB else STR
 
   def constantToChunks(value: Int): List[Int] = {
@@ -189,7 +189,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = VS
+          VS
         )
       }
       case Minus => {
@@ -197,7 +197,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = VS
+          VS
         )
       }
       case Mul => {
@@ -214,7 +214,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = NE
+          NE
         )
       }
       case Div => {
@@ -235,12 +235,12 @@ object IR {
           MOV,
           Some(R8),
           Some(Imm(0)),
-          cond = EQ
+          EQ
         )
         irProgram.instructions += Instr(
           B,
           Some(LabelRef(doneLabel)),
-          cond = EQ
+          EQ
         )
       }
       case Or => {
@@ -248,12 +248,12 @@ object IR {
           MOV,
           Some(R8),
           Some(Imm(1)),
-          cond = NE
+          NE
         )
         irProgram.instructions += Instr(
           B,
           Some(LabelRef(doneLabel)),
-          cond = NE
+          NE
         )
       }
     }
@@ -262,13 +262,13 @@ object IR {
       MOV,
       Some(R8),
       Some(Imm(1)),
-      cond = NE
+      NE
     )
     irProgram.instructions += Instr(
       MOV,
       Some(R8),
       Some(Imm(0)),
-      cond = EQ
+      EQ
     )
     irProgram.instructions += Label(doneLabel)
   }
@@ -279,7 +279,6 @@ object IR {
       MOV,
       Some(R8),
       Some(Imm(1)),
-      None,
       (op: @unchecked) match {
         case Eq  => EQ
         case Gt  => GT
@@ -293,7 +292,6 @@ object IR {
       MOV,
       Some(R8),
       Some(Imm(0)),
-      None,
       (op: @unchecked) match {
         case Eq  => NE
         case Gt  => LE
@@ -314,13 +312,13 @@ object IR {
           MOV,
           Some(R0),
           Some(Imm(0)),
-          cond = NE
+          NE
         )
         irProgram.instructions += Instr(
           MOV,
           Some(R0),
           Some(Imm(1)),
-          cond = EQ
+          EQ
         )
       }
       case Negation => {
@@ -328,7 +326,7 @@ object IR {
         irProgram.instructions += Instr(
           BL,
           Some(LabelRef("error_arithmetic_overflow")),
-          cond = VS
+          VS
         )
       }
       case Len =>
@@ -523,8 +521,6 @@ object IR {
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(elseLabel)),
-      None,
-      None,
       NE
     )
     irProgram.symbolTable.enterScope()
@@ -552,7 +548,7 @@ object IR {
     irProgram.instructions += Instr(
       B,
       Option(LabelRef(doneLabel)),
-      cond = NE
+      NE
     )
     irProgram.symbolTable.enterScope()
     body.foreach(buildStatement(_))
