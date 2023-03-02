@@ -4,6 +4,7 @@ import scala.collection.mutable.ListBuffer
 import wacc.Types.SAType
 
 import wacc.SymbolTable
+import java.rmi.registry.Registry
 case class IRProgram(
     val instructions: ListBuffer[IRType],
     var stringLiteralCounter: Int,
@@ -13,17 +14,68 @@ case class IRProgram(
 
 sealed trait IRType
 case class Label(name: String) extends IRType
-case class EnterScope(scopeNo: Int) extends IRType
-case class ExitScope(scopeNo: Int) extends IRType
-case class EnterFrame(scopeNo: Int) extends IRType
-case class ExitFrame(scopeNo: Int) extends IRType
-case class Instr(
-    opcode: Opcode,
-    op1: Option[Operand] = None,
-    op2: Option[Operand] = None,
-    op3: Option[Operand] = None,
-    cond: Condition = AL
+class Instr private (
+    val opcode: Opcode,
+    val op1: Option[Operand] = None,
+    val op2: Option[Operand] = None,
+    val op3: Option[Operand] = None,
+    val cond: Condition = AL
 ) extends IRType
+
+object Instr {
+    def apply(opcode: Mul,
+    op1: JoinedRegister,
+    op2: JoinedRegister
+    ): Instr =
+        new Instr(SMULL, Some(op1), Some(op2))
+
+    def apply(opcode: Arithmetic,
+    rd: Register,
+    rn: Register,
+    op2: Operand): Instr =
+        new Instr(opcode, Some(rd), Some(rn), Some(op2))
+
+    def apply(opcode: Move,
+    rd: Register,
+    op2: Operand): Instr = 
+        new Instr(opcode, Some(rd), Some(op2))
+
+    def apply(opcode: Move,
+    rd: Register,
+    op2: Operand,
+    condition: Condition): Instr = 
+        new Instr(opcode, Some(rd), Some(op2), cond = condition)
+
+    def apply(opcode: Compare,
+    rn: Register,
+    op2: Operand): Instr =
+        new Instr(opcode, Some(rn), Some(op2))
+
+    def apply(opcode: StackInstr,
+    r: Register): Instr =
+        new Instr(opcode, Some(r))
+
+    def apply(opcode: MemAccess,
+    r: Register,
+    sr: Operand): Instr = 
+        new Instr(opcode, Some(r), Some(sr))
+
+    def apply(opcode: Branch,
+    label: LabelRef): Instr = 
+        new Instr(opcode, Some(label))
+
+    def apply(opcode: Branch,
+    label: LabelRef,
+    condition: Condition): Instr = 
+        new Instr(opcode, Some(label), cond = condition)
+
+    def apply(opcode: BuiltInInstruction): Instr = 
+        new Instr(opcode)
+    
+    def unapply(instr: Instr): Option[(Opcode, Option[Operand], Option[Operand], Option[Operand], Condition)] =
+        Some((instr.opcode, instr.op1, instr.op2, instr.op3, instr.cond))
+}
+
 case class Data(name: LabelRef, value: String) extends IRType
 
 sealed trait ShiftType
@@ -36,8 +88,8 @@ case class Shift(shiftType: ShiftType, shiftAmount: Int)
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
-case class JoinedRegister(lo: Register, hi: Register) extends Operand
-case class ShiftedRegister(reg: Register, shift: Shift) extends Operand
+case class JoinedRegister(lo: Register, hi: Register) extends Operand with Register
+case class ShiftedRegister(reg: Register, shift: Shift) extends Operand with Register
 
 sealed trait Register extends Operand
 case object R0 extends Register
@@ -59,26 +111,26 @@ case class AddrReg(reg: Register, offset: Int = 0) extends Address
 
 sealed trait Opcode
 
-sealed trait DataProcessing extends Opcode
-case object ADD extends DataProcessing
-case object SUB extends DataProcessing
-case object RSB extends DataProcessing // for negation
-case object MUL extends DataProcessing
-case object ADDS extends DataProcessing
-case object SUBS extends DataProcessing
-case object RSBS extends DataProcessing // for negation
-case object SMULL extends DataProcessing
-case object DIV extends DataProcessing
-case object MOD extends DataProcessing
-case object AND extends DataProcessing
-case object ORR extends DataProcessing
-case object MOV extends DataProcessing
-case object MOVB extends DataProcessing
-case object MVN extends DataProcessing
-case object CMP extends DataProcessing
-case object CMN extends DataProcessing
-case object TST extends DataProcessing
-case object TEQ extends DataProcessing
+sealed trait Mul extends Opcode
+case object SMULL extends Mul
+
+// case class ArithInstr(opcode: Arithmetic, rd: Register, rs: Register, op2: Operand) extends IRType
+
+sealed trait Arithmetic extends Opcode
+case object ADD extends Arithmetic
+case object SUB extends Arithmetic
+case object ADDS extends Arithmetic
+case object SUBS extends Arithmetic
+case object RSBS extends Arithmetic
+case object DIV extends Arithmetic
+case object MOD extends Arithmetic
+
+sealed trait Move extends Opcode 
+case object MOV extends Move
+case object MOVB extends Move
+
+sealed trait Compare extends Opcode
+case object CMP extends Compare
 
 sealed trait StackInstr extends Opcode
 case object PUSH extends StackInstr
@@ -86,14 +138,13 @@ case object POP extends StackInstr
 
 sealed trait MemAccess extends Opcode
 case object LDR extends MemAccess
-case object STR extends MemAccess
 case object LDRB extends MemAccess
+case object STR extends MemAccess
 case object STRB extends MemAccess
 
 sealed trait Branch extends Opcode
 case object B extends Branch
 case object BL extends Branch
-case object BX extends Branch
 
 sealed trait Condition
 case object EQ extends Condition
