@@ -1,7 +1,6 @@
 package wacc
 
 import scala.collection.mutable.ListBuffer
-import wacc.AST.Expression
 import wacc.Types.SAType
 
 import wacc.SymbolTable
@@ -30,8 +29,6 @@ case class Data(name: LabelRef, value: String) extends IRType
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
-// case class ArrayToStore(args: List[Expression]) extends Operand
-// case class ArrayLit(name: String, pos: List[Int]) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register

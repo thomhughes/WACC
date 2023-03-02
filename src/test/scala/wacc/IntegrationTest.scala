@@ -76,7 +76,8 @@ class IntegrationTest extends AnyFlatSpec {
           executeCommand = "sh -c \"echo \'" + programInput + "\' | qemu-arm -L /usr/arm-linux-gnueabi/ " + executablePath.toString + "\""
       }
       val actualOutputLines = new ByteArrayOutputStream()
-      (executeCommand).#>(actualOutputLines).!
+      (executeCommand #> actualOutputLines).!
+      actualOutputLines.close()
       val actualOutput = actualOutputLines.toString().replaceAll("\\b0x\\w*", "#addrs#")
       val exampleOutput =
           Source.fromFile(path.toString)
