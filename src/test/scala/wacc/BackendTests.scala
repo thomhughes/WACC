@@ -12,5 +12,5 @@ class BackendTests extends IntegrationTest {
   runTestOnDirectory("valid/expressions", true, runBackendTest)
   runTestOnDirectory("valid/while", true, runBackendTest)
   runTestOnDirectory("valid/IO", true, runBackendTest)
-  runTestOnDirectory("valid/scope", false, runBackendTest)
+  runTestOnDirectory("valid/scope", true, runBackendTest)
 }

@@ -39,7 +39,6 @@ class IntegrationTest extends AnyFlatSpec {
       return
     }
     if (run) {
-      println("Running backend test for " + path.toString())
       val compileExitCode = ("./compile " + path.toString() + " --suppress").!
       if (compileExitCode != 0) {
         fail(
