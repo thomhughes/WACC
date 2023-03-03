@@ -23,23 +23,26 @@ class Instr private (
     val cond: Condition = AL
 ) extends IRType {
   override def toString(): String = {
-    val op1Str = op1 match {
-      case Some(op) => op.toString
+    val sb = new StringBuilder()
+    sb ++= "Instr("
+    sb ++= (op1 match {
+      case Some(op) => op.toString + ","
       case None     => ""
-    }
-    val op2Str = op2 match {
-      case Some(op) => op.toString
+    })
+    sb ++= (op2 match {
+      case Some(op) => op.toString + ","
       case None     => ""
-    }
-    val op3Str = op3 match {
-      case Some(op) => op.toString
+    })
+    sb ++= (op3 match {
+      case Some(op) => op.toString + ","
       case None     => ""
-    }
-    val condStr = cond match {
+    })
+    sb ++= (cond match {
       case AL => ""
-      case _  => cond.toString
-    }
-    condStr + " " + opcode.toString + " " + op1Str + " " + op2Str + " " + op3Str
+      case _  => cond.toString + ","
+    })
+    sb ++= ")"
+    sb.toString()
   }
 }
 
@@ -107,10 +110,8 @@ case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
 case class JoinedRegister(lo: Register, hi: Register)
     extends Operand
-    with Register
 case class ShiftedRegister(reg: Register, shift: Shift)
     extends Operand
-    with Register
 case class RegisterList(registers: List[Register]) extends Operand
 case class BranchLabel(name: String) extends Operand
 
