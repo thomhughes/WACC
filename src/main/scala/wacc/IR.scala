@@ -218,10 +218,16 @@ object IR {
         )
       }
       case Div => {
-        irProgram.instructions += Instr(DIV, R8, R8, R9)
+        irProgram.instructions += Instr(MOV, R0, R8)
+        irProgram.instructions += Instr(MOV, R1, R9)
+        irProgram.instructions += Instr(DIV)
+        irProgram.instructions += Instr(MOV, R8, R0)
       }
       case Mod => {
-        irProgram.instructions += Instr(MOD, R8, R8, R9)
+        irProgram.instructions += Instr(MOV, R0, R8)
+        irProgram.instructions += Instr(MOV, R1, R9)
+        irProgram.instructions += Instr(MOD)
+        irProgram.instructions += Instr(MOV, R8, R1)
       }
     }
 

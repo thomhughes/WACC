@@ -142,8 +142,6 @@ case object SUB extends Arithmetic
 case object ADDS extends Arithmetic
 case object SUBS extends Arithmetic
 case object RSBS extends Arithmetic
-case object DIV extends Arithmetic
-case object MOD extends Arithmetic
 
 sealed trait Move extends Opcode 
 case object MOV extends Move
@@ -191,6 +189,7 @@ case class Global(label: String) extends Directive
 
 sealed trait BuiltInInstruction extends Opcode
 case class PRINT(saType: SAType) extends BuiltInInstruction
-case class FREE(saType: SAType) extends BuiltInInstruction
 case class READ(saType: SAType) extends BuiltInInstruction
 case object PRINTLN extends BuiltInInstruction
+case object DIV extends BuiltInInstruction
+case object MOD extends BuiltInInstruction
