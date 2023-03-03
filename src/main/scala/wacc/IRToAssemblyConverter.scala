@@ -15,7 +15,7 @@ object IRToAssemblyConverter {
     sb.toString()
   }
 
-  def convertInstructionToAssembly(
+  private def convertInstructionToAssembly(
       instruction: IRType
   )(implicit instrSb: StringBuilder) = {
     instrSb.append(instruction match {
@@ -30,22 +30,23 @@ object IRToAssemblyConverter {
       case Instr(opcode, None, None, None, _) =>
         generateAssemblyForOpcode(opcode)
       case Instr(opcode, Some(firstOp), None, None, cond) =>
-        f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(cond)} ${convertOperandToAssembly(firstOp)}"
+        f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(
+          cond)} ${convertOperandToAssembly(firstOp)}"
       case Instr(opcode, Some(firstOp), Some(secondOp), None, cond) =>
         f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(
-            cond
-          )} ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}"
+          cond
+        )} ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(secondOp)}"
       case Instr(opcode, Some(firstOp), Some(secondOp), Some(thirdOp), cond) =>
         f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(cond)} ${convertOperandToAssembly(
-            firstOp
-          )}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
+          firstOp
+        )}, ${convertOperandToAssembly(secondOp)}, ${convertOperandToAssembly(thirdOp)}"
       case default =>
         throw new Exception("IR Conversion Error: Invalid instruction type")
     })
     instrSb.append("\n")
   }
 
-  def generateAssemblyForOpcode(opcode: Opcode): String = {
+  private def generateAssemblyForOpcode(opcode: Opcode): String = {
     opcode match {
       case MOV             => "mov"
       case LDR             => "ldr"
@@ -68,19 +69,11 @@ object IRToAssemblyConverter {
       case DIV | MOD       => "bl __aeabi_idivmod"
       case PRINTLN         => "bl _println"
       case default =>
-      throw new Exception("IR Conversion Error: Invalid opcode type")
+        throw new Exception("IR Conversion Error: Invalid opcode type")
     }
   }
 
-  def getFreeLabelOfTypeName(typeName: SAType): String = {
-    typeName match {
-      case SAPairType(_, _)  => "_freepair"
-      case SAArrayType(_, _) => "free"
-      case _ => throw new Exception("IR-To-Assembly Error: Invalid opcode type")
-    }
-  }
-
-  def getReadLabelOfTypeName(typeName: SAType): String = {
+  private def getReadLabelOfTypeName(typeName: SAType): String = {
     typeName match {
       case SAIntType  => "_readi"
       case SACharType => "_readc"
@@ -89,7 +82,7 @@ object IRToAssemblyConverter {
     }
   }
 
-  def generateAssemblyForConditionCode(condition: Condition) = {
+  private def generateAssemblyForConditionCode(condition: Condition) = {
     condition match {
       case EQ => "eq"
       case NE => "ne"
@@ -113,7 +106,7 @@ object IRToAssemblyConverter {
     }
   }
 
-  def getPrintLabelOfTypeName(typeName: SAType) = {
+  private def getPrintLabelOfTypeName(typeName: SAType) = {
     typeName match {
       case SAIntType                                 => "_printi"
       case SAStringType | SAArrayType(SACharType, 1) => "_prints"
@@ -125,10 +118,10 @@ object IRToAssemblyConverter {
     }
   }
 
-  def convertLabelToAssembly(label: String): String =
+  private def convertLabelToAssembly(label: String): String =
     new StringBuilder(label).append(":").toString()
 
-  def convertDataToAssembly(label: String, value: String): String = {
+  private def convertDataToAssembly(label: String, value: String): String = {
     val dataSb = new StringBuilder()
     dataSb
       .append(".data\n\t.word ")
@@ -141,7 +134,7 @@ object IRToAssemblyConverter {
       .toString()
   }
 
-  def convertOperandToAssembly(operand: Operand): String = {
+  private def convertOperandToAssembly(operand: Operand): String = {
     val convertShiftToAssembly: Shift => String = _ match {
       case Shift(ASR, shiftAmount) => f"asr #$shiftAmount"
       case Shift(LSL, shiftAmount) => f"lsl #$shiftAmount"
@@ -149,21 +142,21 @@ object IRToAssemblyConverter {
       case Shift(ROR, shiftAmount) => f"ror #$shiftAmount"
     }
     operand match {
-      case Imm(i)         => f"#$i"
-      case LabelRef(name) => f"=${name}"
-      case R0             => "r0"
-      case R1             => "r1"
-      case R2             => "r2"
-      case R3             => "r3"
-      case R4             => "r4"
-      case R8             => "r8"
-      case R9             => "r9"
-      case R10            => "r10"
-      case SP             => "sp"
-      case R12            => "r12"
-      case FP             => "fp"
-      case PC             => "pc"
-      case LR             => "lr"
+      case Imm(i)            => f"#$i"
+      case LabelRef(name)    => f"=${name}"
+      case R0                => "r0"
+      case R1                => "r1"
+      case R2                => "r2"
+      case R3                => "r3"
+      case R4                => "r4"
+      case R8                => "r8"
+      case R9                => "r9"
+      case R10               => "r10"
+      case SP                => "sp"
+      case R12               => "r12"
+      case FP                => "fp"
+      case PC                => "pc"
+      case LR                => "lr"
       case BranchLabel(name) => name
       case RegisterList(registers) =>
         registers
@@ -171,7 +164,7 @@ object IRToAssemblyConverter {
           .mkString("{", ", ", "}")
       case AddrReg(reg, offset) =>
         f"[${convertOperandToAssembly(reg)}${if (offset != 0) f" , #$offset"
-          else ""}]"
+        else ""}]"
       case ShiftedRegister(reg, shift) =>
         f"${convertOperandToAssembly(reg)}, ${convertShiftToAssembly(shift)}"
       case JoinedRegister(lo, hi) =>

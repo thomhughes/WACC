@@ -8,13 +8,12 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
   import wacc.AST.Identifier
   import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
 
-  val map = Map[(String, Int), (SAType, Int)]()
+  private val map = Map[(String, Int), (SAType, Int)]()
 
-  var totalOffset = 4 // FP, LR backup is on stack
-  var frameSize = 0
-  val scopeSizes = Stack[Int]()
-  val seen_set = Set[(String, Int)]()
-  var mutable = true
+  private var totalOffset = 4 // FP, LR backup is on stack
+  private val scopeSizes = Stack[Int]()
+  private val seen_set = Set[(String, Int)]()
+  private var mutable = true
 
   override def toString(): String = {
     map.toString()
@@ -69,9 +68,11 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
     }
   }
 
-  def insertVar(identifier: Identifier, t: SAType)(implicit
-      errorList: List[Error]
-  ): List[Error] = {
+  def insertVar(identifier: Identifier, t: SAType)(
+      implicit
+      errorList: List[Error]): List[Error] = {
+    if (!mutable)
+      throw new Exception("SymbolTable has been locked; cannot be added to")
     val key = (identifier.name, scoper.getScope())
     if (map.contains(key))
       return errorList :+ RedeclaredVariableError(
@@ -79,26 +80,21 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
         identifier.name
       )
 
-    val noBytes = t match {
-      case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType | SAUnknownType => 4
-      case SABoolType | SACharType                          => 1
-      case _ => throw new Exception("Unexpected LValue type: " + t.toString())
-    }
-
     if (scoper.getScope() == 0) {
       map += (key -> (t, totalOffset))
       totalOffset += 4 // arm calling convention is all pushes are 4 bytes, all parameters are max 4 bytes
     } else {
-      totalOffset -= noBytes
+      totalOffset -= getNoBytes(t)
       map += (key -> (t, totalOffset))
     }
 
     errorList
   }
 
-  def updateScoper(newScoper: Scoper): Unit = {
-    scoper = newScoper
-    mutable = false 
+  // Resets scoper object and makes the object immutable
+  def resetScope(): Unit = {
+    scoper = new Scoper
+    mutable = false
   }
 
   def encountered(identifier: Identifier): Unit = {
@@ -109,10 +105,11 @@ case class OuterBodySymbolTable(var scoper: Scoper) {
   def lookupAddress(identifier: Identifier): Int = {
     lookup(identifier) match {
       case Some((_, offset)) => offset
-      case _ => throw new Exception("identifier cannot be found")
+      case _                 => throw new Exception("identifier cannot be found")
     }
   }
 
+  // Scope 0 is reserved for parameters of a function; positive as they are stored above FP
   def getFrameSize(): Int =
     if (map.isEmpty) 0 else -Math.min(0, map.minBy(_._2._2)._2._2)
 }

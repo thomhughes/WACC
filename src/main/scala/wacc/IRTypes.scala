@@ -13,6 +13,7 @@ case class IRProgram(
 )
 
 sealed trait IRType
+
 case class Label(name: String) extends IRType
 class Instr private (
     val opcode: Opcode,
@@ -21,79 +22,75 @@ class Instr private (
     val op3: Option[Operand] = None,
     val cond: Condition = AL
 ) extends IRType {
-    override def toString(): String = {
-        val op1Str = op1 match {
-            case Some(op) => op.toString
-            case None => ""
-        }
-        val op2Str = op2 match {
-            case Some(op) => op.toString
-            case None => ""
-        }
-        val op3Str = op3 match {
-            case Some(op) => op.toString
-            case None => ""
-        }
-        val condStr = cond match {
-            case AL => ""
-            case _ => cond.toString
-        }
-        condStr + " " + opcode.toString + " " + op1Str + " " + op2Str + " " + op3Str
+  override def toString(): String = {
+    val op1Str = op1 match {
+      case Some(op) => op.toString
+      case None     => ""
     }
+    val op2Str = op2 match {
+      case Some(op) => op.toString
+      case None     => ""
+    }
+    val op3Str = op3 match {
+      case Some(op) => op.toString
+      case None     => ""
+    }
+    val condStr = cond match {
+      case AL => ""
+      case _  => cond.toString
+    }
+    condStr + " " + opcode.toString + " " + op1Str + " " + op2Str + " " + op3Str
+  }
 }
 
+// Overloaded to enforce correctness of no arguments and type of arguments
 object Instr {
-    def apply(opcode: Mul,
-    op1: JoinedRegister,
-    op2: JoinedRegister
-    ): Instr =
-        new Instr(SMULL, Some(op1), Some(op2))
+  // SMULL
+  def apply(opcode: Mul, op1: JoinedRegister, op2: JoinedRegister): Instr =
+    new Instr(SMULL, Some(op1), Some(op2))
 
-    def apply(opcode: Arithmetic,
-    rd: Register,
-    rn: Register,
-    op2: Operand): Instr =
-        new Instr(opcode, Some(rd), Some(rn), Some(op2))
+  // Arithmetic operations
+  def apply(opcode: Arithmetic,
+            rd: Register,
+            rn: Register,
+            op2: Operand): Instr =
+    new Instr(opcode, Some(rd), Some(rn), Some(op2))
 
-    def apply(opcode: Move,
-    rd: Register,
-    op2: Operand): Instr = 
-        new Instr(opcode, Some(rd), Some(op2))
+  // Move opertations
+  def apply(opcode: Move, rd: Register, op2: Operand): Instr =
+    new Instr(opcode, Some(rd), Some(op2))
 
-    def apply(opcode: Move,
-    rd: Register,
-    op2: Operand,
-    condition: Condition): Instr = 
-        new Instr(opcode, Some(rd), Some(op2), cond = condition)
+  def apply(opcode: Move,
+            rd: Register,
+            op2: Operand,
+            condition: Condition): Instr =
+    new Instr(opcode, Some(rd), Some(op2), cond = condition)
 
-    def apply(opcode: Compare,
-    rn: Register,
-    op2: Operand): Instr =
-        new Instr(opcode, Some(rn), Some(op2))
+  // CMP
+  def apply(opcode: Compare, rn: Register, op2: Operand): Instr =
+    new Instr(opcode, Some(rn), Some(op2))
 
-    def apply(opcode: StackInstr,
-    r: RegisterList): Instr =
-        new Instr(opcode, Some(r))
+  def apply(opcode: StackInstr, r: RegisterList): Instr =
+    new Instr(opcode, Some(r))
 
-    def apply(opcode: MemAccess,
-    r: Register,
-    sr: Operand): Instr = 
-        new Instr(opcode, Some(r), Some(sr))
+  // Memory access
+  def apply(opcode: MemAccess, r: Register, sr: Operand): Instr =
+    new Instr(opcode, Some(r), Some(sr))
 
-    def apply(opcode: Branch,
-    label: BranchLabel): Instr = 
-        new Instr(opcode, Some(label))
+  def apply(opcode: Branch, label: BranchLabel): Instr =
+    new Instr(opcode, Some(label))
 
-    def apply(opcode: Branch,
-    label: BranchLabel,
-    condition: Condition): Instr = 
-        new Instr(opcode, Some(label), cond = condition)
+  def apply(opcode: Branch, label: BranchLabel, condition: Condition): Instr =
+    new Instr(opcode, Some(label), cond = condition)
 
-    def apply(opcode: BuiltInInstruction): Instr = 
-        new Instr(opcode)
-    
-    def unapply(instr: Instr): Option[(Opcode, Option[Operand], Option[Operand], Option[Operand], Condition)] =
-        Some((instr.opcode, instr.op1, instr.op2, instr.op3, instr.cond))
+  // Buil-in instructions (deferring to IRToAssembly/Runtime)
+  def apply(opcode: BuiltInInstruction): Instr =
+    new Instr(opcode)
+
+  // unapply defined to allow pattern matching
+  def unapply(instr: Instr): Option[
+    (Opcode, Option[Operand], Option[Operand], Option[Operand], Condition)] =
+    Some((instr.opcode, instr.op1, instr.op2, instr.op3, instr.cond))
 }
 
 case class Data(name: LabelRef, value: String) extends IRType
@@ -108,8 +105,12 @@ case class Shift(shiftType: ShiftType, shiftAmount: Int)
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
-case class JoinedRegister(lo: Register, hi: Register) extends Operand with Register
-case class ShiftedRegister(reg: Register, shift: Shift) extends Operand with Register
+case class JoinedRegister(lo: Register, hi: Register)
+    extends Operand
+    with Register
+case class ShiftedRegister(reg: Register, shift: Shift)
+    extends Operand
+    with Register
 case class RegisterList(registers: List[Register]) extends Operand
 case class BranchLabel(name: String) extends Operand
 
@@ -143,7 +144,7 @@ case object ADDS extends Arithmetic
 case object SUBS extends Arithmetic
 case object RSBS extends Arithmetic
 
-sealed trait Move extends Opcode 
+sealed trait Move extends Opcode
 case object MOV extends Move
 case object MOVB extends Move
 

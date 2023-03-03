@@ -63,4 +63,13 @@ object Types {
       case _ =>
         firstType == SAAnyType || secondType == SAAnyType || firstType == secondType
     }
+
+  def getNoBytes(saType: SAType): Int = saType match {
+    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType |
+        SAPairRefType | SAUnknownType =>
+      4
+    case SABoolType | SACharType => 1
+    case unexpected =>
+      throw new Exception("Unexpected LValue type: " + unexpected)
+  }
 }

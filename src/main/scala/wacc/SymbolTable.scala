@@ -7,22 +7,24 @@ case class SymbolTable() {
   import wacc.AST.Identifier
   import wacc.Errors.Error
 
-  val map = Map[String, OuterBodySymbolTable]()
+  private val map = Map[String, OuterBodySymbolTable]()
 
   override def toString(): String = {
     map.toString()
   }
 
-  def lookupVarType(identifier: Identifier)(implicit
+  // Used during SA; uses ErrorList
+  def lookupVarType(identifier: Identifier)(
+      implicit
       errorList: List[Error],
-      funcName: String
-  ): Either[SAType, List[Error]] = {
+      funcName: String): Either[SAType, List[Error]] = {
     if (map.contains(funcName)) {
       return map(funcName).lookupVarType(identifier)
     }
     throw new Exception(map.toString() + "," + funcName + ": can't be found.")
   }
 
+  // Used after SA; does not use ErrorList
   def lookupType(identifier: Identifier)(implicit funcName: String): SAType = {
     if (map.contains(funcName)) {
       return map(funcName).lookupType(identifier)
@@ -33,10 +35,10 @@ case class SymbolTable() {
   def insertFunction(funcName: String): Unit =
     map += funcName -> new OuterBodySymbolTable(new Scoper)
 
-  def insertVar(identifier: Identifier, t: SAType)(implicit
+  def insertVar(identifier: Identifier, t: SAType)(
+      implicit
       errorList: List[Error],
-      funcName: String
-  ): List[Error] = {
+      funcName: String): List[Error] = {
     if (map.contains(funcName)) {
       return map(funcName).insertVar(identifier, t)
     }
@@ -44,10 +46,11 @@ case class SymbolTable() {
   }
 
   def resetScope()(implicit funcName: String) =
-    map(funcName).updateScoper(new Scoper)
+    map(funcName).resetScope()
 
   def enterScope()(implicit funcName: String) =
     map(funcName).enterScope()
+
   def exitScope()(implicit funcName: String) = map(funcName).exitScope()
   def getScope()(implicit funcName: String) = map(funcName).scoper.getScope()
 
