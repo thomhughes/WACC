@@ -18,7 +18,6 @@ object IRToAssemblyConverter {
   def convertInstructionToAssembly(
       instruction: IRType
   )(implicit instrSb: StringBuilder) = {
-    // println(instruction)
     instrSb.append(instruction match {
       case Instr(_, _, _, _, _) => "\t"
       case _                    => ""
@@ -34,26 +33,10 @@ object IRToAssemblyConverter {
         f"b${generateAssemblyForConditionCode(cond)} ${label}"
       case Instr(BL, Some(LabelRef(label)), None, None, cond) =>
         f"bl${generateAssemblyForConditionCode(cond)} ${label}"
-      case Instr(POP, Some(firstOp), None, None, _) =>
-        f"pop {${convertOperandToAssembly(firstOp)}}"
-      case Instr(PUSH, Some(firstOp), None, None, _) =>
-        f"push {${convertOperandToAssembly(firstOp)}}"
       case Instr(DIV, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
         f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r0"
       case Instr(MOD, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
         f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r1"
-      case Instr(
-            SMULL,
-            Some(JoinedRegister(firstOp, secondOp)),
-            Some(JoinedRegister(thirdOp, fourthOp)),
-            _,
-            _
-          ) =>
-        f"smull ${convertOperandToAssembly(firstOp)}, ${convertOperandToAssembly(
-            secondOp
-          )}, ${convertOperandToAssembly(thirdOp)}, ${convertOperandToAssembly(fourthOp)}"
-      case Instr(SMULL, _, _, _, _) =>
-        throw new Exception("IR Conversion Error: Invalid SMULL.")
       case Instr(opcode, Some(firstOp), None, None, cond) =>
         f"${generateAssemblyForOpcode(opcode)}${generateAssemblyForConditionCode(cond)} ${convertOperandToAssembly(firstOp)}"
       case Instr(opcode, Some(firstOp), Some(secondOp), None, cond) =>
@@ -75,6 +58,8 @@ object IRToAssemblyConverter {
       case MOV             => "mov"
       case LDR             => "ldr"
       case ADD             => "add"
+      case POP             => "pop"
+      case PUSH            => "push"
       case SUB             => "sub"
       case ADDS            => "adds"
       case SUBS            => "subs"
@@ -89,7 +74,7 @@ object IRToAssemblyConverter {
       case READ(typeName)  => "bl " + getReadLabelOfTypeName(typeName)
       case PRINTLN         => "bl _println"
       case default =>
-        throw new Exception("IR Conversion Error: Invalid opcode type")
+      throw new Exception("IR Conversion Error: Invalid opcode type")
     }
   }
 
@@ -185,6 +170,10 @@ object IRToAssemblyConverter {
       case FP             => "fp"
       case PC             => "pc"
       case LR             => "lr"
+      case RegisterList(registers) =>
+        registers
+          .map(convertOperandToAssembly)
+          .mkString("{", ", ", "}")
       case AddrReg(reg, offset) =>
         f"[${convertOperandToAssembly(reg)}${if (offset != 0) f" , #$offset"
           else ""}]"
