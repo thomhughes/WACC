@@ -72,13 +72,8 @@ object Instr {
         new Instr(opcode, Some(rn), Some(op2))
 
     def apply(opcode: StackInstr,
-<<<<<<< HEAD
     r: Register): Instr =
         new Instr(opcode, Some(r))
-=======
-    r: Option[RegisterList]): Instr =
-        new Instr(opcode, r)
->>>>>>> ir_refactor
 
     def apply(opcode: MemAccess,
     r: Register,
