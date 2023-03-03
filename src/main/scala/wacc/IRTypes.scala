@@ -4,7 +4,7 @@ import scala.collection.mutable.ListBuffer
 import wacc.Types.SAType
 
 import wacc.SymbolTable
-import java.rmi.registry.Registry
+
 case class IRProgram(
     val instructions: ListBuffer[IRType],
     var stringLiteralCounter: Int,
