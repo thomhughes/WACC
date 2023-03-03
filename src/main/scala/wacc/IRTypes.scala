@@ -5,6 +5,7 @@ import wacc.Types.SAType
 
 import wacc.SymbolTable
 
+// Container for IR related objects, passed around implicitly in IR.scala
 case class IRProgram(
     val instructions: ListBuffer[IRType],
     var stringLiteralCounter: Int,
@@ -15,6 +16,7 @@ case class IRProgram(
 sealed trait IRType
 
 case class Label(name: String) extends IRType
+
 class Instr private (
     val opcode: Opcode,
     val op1: Option[Operand] = None,

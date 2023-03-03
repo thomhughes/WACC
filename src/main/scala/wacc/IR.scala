@@ -1,16 +1,11 @@
 package wacc
 
-import scala.collection.mutable.ListBuffer
-import scala.language.implicitConversions
-
-import wacc.SymbolTable
-// memmap maps from scope to no of bytes used
-// every time we come accross a new variable,
-// we increment memMap by 4 and map var to that
-// address
-
 object IR {
-
+  import scala.collection.mutable.ListBuffer
+  import scala.language.implicitConversions
+  
+  import wacc.SymbolTable
+  
   // map from scope no to no of bytes
   import AST._
   import Types._

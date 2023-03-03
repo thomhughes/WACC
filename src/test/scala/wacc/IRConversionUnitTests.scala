@@ -12,11 +12,14 @@ import org.scalatest.BeforeAndAfterAll
 
 class IRConversionUnitTests extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterAll {
   
-  val c = Analyser.getClass.getDeclaredConstructor()
+  // Required to reset Map, as it is persistent between tests otherwise
+  val analyserInstance = Analyser.getClass.getDeclaredConstructor()
 
-  override def beforeAll() = c.setAccessible(true)
+  override protected def beforeAll() = analyserInstance.setAccessible(true)
 
-  override def beforeEach() = c.newInstance()
+  override protected  def beforeEach() = analyserInstance.newInstance()
+
+  override protected def afterAll() = analyserInstance.setAccessible(false)
 
   def buildInstructions(input: String) = {
     val program = parseAsProgram(input)
