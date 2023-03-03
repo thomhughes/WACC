@@ -25,21 +25,22 @@ class Instr private (
   override def toString(): String = {
     val sb = new StringBuilder()
     sb ++= "Instr("
+    sb ++= (opcode.toString)
     sb ++= (op1 match {
-      case Some(op) => op.toString + ","
+      case Some(op) => "," + op.toString
       case None     => ""
     })
     sb ++= (op2 match {
-      case Some(op) => op.toString + ","
+      case Some(op) => "," + op.toString
       case None     => ""
     })
     sb ++= (op3 match {
-      case Some(op) => op.toString + ","
+      case Some(op) => "," + op.toString
       case None     => ""
     })
     sb ++= (cond match {
       case AL => ""
-      case _  => cond.toString + ","
+      case _  => "," + cond.toString
     })
     sb ++= ")"
     sb.toString()
