@@ -103,9 +103,9 @@ object IR {
         irProgram.instructions += Instr(POP, RegisterList(List(R0)))
         index match {
           case Fst =>
-            irProgram.instructions += Instr(BL, LabelRef("pair_fst"))
+            irProgram.instructions += Instr(BL, BranchLabel("pair_fst"))
           case Snd =>
-            irProgram.instructions += Instr(BL, LabelRef("pair_snd"))
+            irProgram.instructions += Instr(BL, BranchLabel("pair_snd"))
         }
         irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
       }
@@ -188,7 +188,7 @@ object IR {
         irProgram.instructions += Instr(ADDS, R8, R8, R9)
         irProgram.instructions += Instr(
           BL,
-          LabelRef("error_arithmetic_overflow"),
+          BranchLabel("error_arithmetic_overflow"),
           VS
         )
       }
@@ -196,7 +196,7 @@ object IR {
         irProgram.instructions += Instr(SUBS, R8, R8, R9)
         irProgram.instructions += Instr(
           BL,
-          LabelRef("error_arithmetic_overflow"),
+          BranchLabel("error_arithmetic_overflow"),
           VS
         )
       }
@@ -213,7 +213,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           BL,
-          LabelRef("error_arithmetic_overflow"),
+          BranchLabel("error_arithmetic_overflow"),
           NE
         )
       }
@@ -239,7 +239,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           B,
-          LabelRef(doneLabel),
+          BranchLabel(doneLabel),
           EQ
         )
       }
@@ -252,7 +252,7 @@ object IR {
         )
         irProgram.instructions += Instr(
           B,
-          LabelRef(doneLabel),
+          BranchLabel(doneLabel),
           NE
         )
       }
@@ -325,12 +325,12 @@ object IR {
         irProgram.instructions += Instr(RSBS, R0, R0, Imm(0))
         irProgram.instructions += Instr(
           BL,
-          LabelRef("error_arithmetic_overflow"),
+          BranchLabel("error_arithmetic_overflow"),
           VS
         )
       }
       case Len =>
-        irProgram.instructions += Instr(BL, LabelRef("array_size"))
+        irProgram.instructions += Instr(BL, BranchLabel("array_size"))
     }
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
@@ -414,7 +414,7 @@ object IR {
     irProgram.instructions += Instr(MOV, R0, Imm(elementSize))
     irProgram.instructions += Instr(MOV, R1, Imm(args.size))
     args.reverse.foreach(buildExpression(_))
-    irProgram.instructions += Instr(BL, LabelRef("array_literal_create"))
+    irProgram.instructions += Instr(BL, BranchLabel("array_literal_create"))
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
@@ -424,7 +424,7 @@ object IR {
   ) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
-    irProgram.instructions += Instr(BL, LabelRef(renameFunc(id.name)))
+    irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
@@ -451,7 +451,7 @@ object IR {
         irProgram.instructions += Instr(POP, RegisterList(List(R1)))
         buildStackDereference(getArrayElemType(id, next))
         irProgram.instructions += Instr(POP, RegisterList(List(R0)))
-        irProgram.instructions += Instr(BL, LabelRef("array_access"))
+        irProgram.instructions += Instr(BL, BranchLabel("array_access"))
         irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
         buildArrLoadHelper(next)
       }
@@ -465,7 +465,7 @@ object IR {
   ) = {
     buildExpression(e2)
     buildExpression(e1)
-    irProgram.instructions += Instr(BL, LabelRef("pair_create"))
+    irProgram.instructions += Instr(BL, BranchLabel("pair_create"))
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
@@ -493,7 +493,7 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
     irProgram.instructions += Instr(POP, RegisterList(List(R0)))
-    irProgram.instructions += Instr(BL, LabelRef("exit"))
+    irProgram.instructions += Instr(BL, BranchLabel("exit"))
   }
 
   def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit
@@ -520,13 +520,13 @@ object IR {
     irProgram.instructions += Instr(CMP, R8, Imm(1))
     irProgram.instructions += Instr(
       B,
-      LabelRef(elseLabel),
+      BranchLabel(elseLabel),
       NE
     )
     irProgram.symbolTable.enterScope()
     thenBody.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
-    irProgram.instructions += Instr(B, LabelRef(ifEndLabel))
+    irProgram.instructions += Instr(B, BranchLabel(ifEndLabel))
     irProgram.instructions += Label(elseLabel)
     irProgram.symbolTable.enterScope()
     elseBody.foreach(buildStatement(_))
@@ -547,7 +547,7 @@ object IR {
     irProgram.instructions += Instr(CMP, R8, Imm(1))
     irProgram.instructions += Instr(
       B,
-      LabelRef(doneLabel),
+      BranchLabel(doneLabel),
       NE
     )
     irProgram.symbolTable.enterScope()
@@ -555,7 +555,7 @@ object IR {
     irProgram.symbolTable.exitScope()
     irProgram.instructions += Instr(
       B,
-      LabelRef(conditionLabel)
+      BranchLabel(conditionLabel)
     )
     irProgram.instructions += Label(doneLabel)
   }
@@ -611,9 +611,9 @@ object IR {
     irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     getExpressionType(expression) match {
       case SAArrayType(_, _) =>
-        irProgram.instructions += Instr(BL, LabelRef("array_free"))
+        irProgram.instructions += Instr(BL, BranchLabel("array_free"))
       case SAPairType(_, _) =>
-        irProgram.instructions += Instr(BL, LabelRef("pair_free"))
+        irProgram.instructions += Instr(BL, BranchLabel("pair_free"))
       case unexpected =>
         throw new Exception("Unable to free type: " + unexpected)
     }
@@ -634,7 +634,7 @@ object IR {
     irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     val noBytes = getNoBytes(getLValueType(lvalue))
     loadMovConstant(R1, noBytes);
-    irProgram.instructions += Instr(BL, LabelRef("read"))
+    irProgram.instructions += Instr(BL, BranchLabel("read"))
   }
 
   def buildBegin(

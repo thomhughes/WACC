@@ -29,10 +29,6 @@ object IRToAssemblyConverter {
       case Global(label)                => f".global ${label}"
       case Instr(opcode, None, None, None, _) =>
         generateAssemblyForOpcode(opcode)
-      case Instr(B, Some(LabelRef(label)), None, None, cond) =>
-        f"b${generateAssemblyForConditionCode(cond)} ${label}"
-      case Instr(BL, Some(LabelRef(label)), None, None, cond) =>
-        f"bl${generateAssemblyForConditionCode(cond)} ${label}"
       case Instr(DIV, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
         f"mov r0, ${convertOperandToAssembly(secondOp)}\n\tmov r1, ${convertOperandToAssembly(thirdOp)}\n\tbl __aeabi_idivmod\n\tmov ${convertOperandToAssembly(firstOp)}, r0"
       case Instr(MOD, Some(firstOp), Some(secondOp), Some(thirdOp), _) =>
@@ -70,6 +66,8 @@ object IRToAssemblyConverter {
       case STRB            => "strb"
       case CMP             => "cmp"
       case LDRB            => "ldrb"
+      case B               => "b"
+      case BL              => "bl"
       case PRINT(typeName) => "bl " + getPrintLabelOfTypeName(typeName)
       case READ(typeName)  => "bl " + getReadLabelOfTypeName(typeName)
       case PRINTLN         => "bl _println"
@@ -170,6 +168,7 @@ object IRToAssemblyConverter {
       case FP             => "fp"
       case PC             => "pc"
       case LR             => "lr"
+      case BranchLabel(name) => name
       case RegisterList(registers) =>
         registers
           .map(convertOperandToAssembly)

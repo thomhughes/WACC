@@ -81,11 +81,11 @@ object Instr {
         new Instr(opcode, Some(r), Some(sr))
 
     def apply(opcode: Branch,
-    label: LabelRef): Instr = 
+    label: BranchLabel): Instr = 
         new Instr(opcode, Some(label))
 
     def apply(opcode: Branch,
-    label: LabelRef,
+    label: BranchLabel,
     condition: Condition): Instr = 
         new Instr(opcode, Some(label), cond = condition)
 
@@ -111,6 +111,7 @@ case class LabelRef(name: String) extends Operand
 case class JoinedRegister(lo: Register, hi: Register) extends Operand with Register
 case class ShiftedRegister(reg: Register, shift: Shift) extends Operand with Register
 case class RegisterList(registers: List[Register]) extends Operand
+case class BranchLabel(name: String) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
