@@ -20,7 +20,27 @@ class Instr private (
     val op2: Option[Operand] = None,
     val op3: Option[Operand] = None,
     val cond: Condition = AL
-) extends IRType
+) extends IRType {
+    override def toString(): String = {
+        val op1Str = op1 match {
+            case Some(op) => op.toString
+            case None => ""
+        }
+        val op2Str = op2 match {
+            case Some(op) => op.toString
+            case None => ""
+        }
+        val op3Str = op3 match {
+            case Some(op) => op.toString
+            case None => ""
+        }
+        val condStr = cond match {
+            case AL => ""
+            case _ => cond.toString
+        }
+        condStr + " " + opcode.toString + " " + op1Str + " " + op2Str + " " + op3Str
+    }
+}
 
 object Instr {
     def apply(opcode: Mul,
@@ -52,7 +72,7 @@ object Instr {
         new Instr(opcode, rn, op2)
 
     def apply(opcode: StackInstr,
-    r: Option[Register]): Instr =
+    r: Option[RegisterList]): Instr =
         new Instr(opcode, r)
 
     def apply(opcode: MemAccess,
@@ -90,6 +110,7 @@ case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
 case class JoinedRegister(lo: Register, hi: Register) extends Operand with Register
 case class ShiftedRegister(reg: Register, shift: Shift) extends Operand with Register
+case class RegisterList(registers: List[Register]) extends Operand
 
 sealed trait Register extends Operand
 case object R0 extends Register
