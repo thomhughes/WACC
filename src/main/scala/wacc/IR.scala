@@ -94,20 +94,20 @@ object IR {
     lvalue match {
       case id @ Identifier(_) => {
         loadRegConstant(R0, FP, irProgram.symbolTable.lookupAddress(id))
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
       }
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
       case PairElem(index, innerLValue) => {
         buildLValueReference(innerLValue)
         buildStackDereference(getLValueType(innerLValue))
-        irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+        irProgram.instructions += Instr(POP, RegisterList(List(R0)))
         index match {
           case Fst =>
             irProgram.instructions += Instr(BL, LabelRef("pair_fst"))
           case Snd =>
             irProgram.instructions += Instr(BL, LabelRef("pair_snd"))
         }
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
       }
       case _ => throw new Exception("Invalid lhs for assignment/declaration")
     }
@@ -115,13 +115,13 @@ object IR {
 
   // dereference value at top of stack *stack, clobbers R0
   def buildStackDereference(t: SAType)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     irProgram.instructions += Instr(
       getLoadDataOperand(t),
       R0,
       AddrReg(R0, 0)
     )
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
   private def getPairElemType(index: PairIndex, pair: LValue)(implicit
@@ -173,8 +173,8 @@ object IR {
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildLValueReference(lvalue)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R1))))
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(R1)))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     irProgram.instructions += Instr(
       getStoreDataOperand(getLValueType(lvalue)),
       R0,
@@ -304,7 +304,7 @@ object IR {
   }
 
   def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     (op: @unchecked) match {
       case Not => {
         irProgram.instructions += Instr(CMP, R0, Imm(0))
@@ -332,7 +332,7 @@ object IR {
       case Len =>
         irProgram.instructions += Instr(BL, LabelRef("array_size"))
     }
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
   /* Evaluates expression and places result on top of the stack */
@@ -343,26 +343,26 @@ object IR {
     expr match {
       case IntLiteral(value) => {
         loadMovConstant(R8, value)
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case CharLiteral(char) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(char.toInt)))
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(MOV, R8, Imm(char.toInt))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case BoolLiteral(bool) => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(bool.toInt)))
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(MOV, R8, Imm(bool.toInt))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case StringLiteral(string) => {
         val label = LabelRef(".L.str" + irProgram.stringLiteralCounter)
         irProgram.instructions += Data(label, string)
         irProgram.stringLiteralCounter += 1
-        irProgram.instructions += Instr(LDR, Some(R8), Some(label))
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(LDR, R8, label)
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case PairLiteral => {
-        irProgram.instructions += Instr(MOV, Some(R8), Some(Imm(0)))
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(MOV, R8, Imm(0))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case id @ Identifier(_) => {
         irProgram.instructions += Instr(
@@ -370,19 +370,19 @@ object IR {
           R8,
           AddrReg(FP, irProgram.symbolTable.lookupAddress(id))
         )
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case BinaryOpApp(op, lexpr, rexpr) => {
         buildExpression(lexpr)
         buildExpression(rexpr)
-        irProgram.instructions += Instr(POP, Some(RegisterList(List(R9))))
-        irProgram.instructions += Instr(POP, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(POP, RegisterList(List(R9)))
+        irProgram.instructions += Instr(POP, RegisterList(List(R8)))
         op match {
           case Plus | Minus | Mul | Div | Mod => nonCompareInstruction(op)
           case And | Or                       => logicalCompareInstruction(op)
           case default                        => compareInstruction(op)
         }
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R8))))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R8)))
       }
       case UnaryOpApp(op, expr) => {
         buildExpression(expr)
@@ -414,8 +414,8 @@ object IR {
     irProgram.instructions += Instr(MOV, R0, Imm(elementSize))
     irProgram.instructions += Instr(MOV, R1, Imm(args.size))
     args.reverse.foreach(buildExpression(_))
-    irProgram.instructions += Instr(BL, Some(LabelRef("array_literal_create")))
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(BL, LabelRef("array_literal_create"))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
   def buildFuncCall(id: Identifier, args: List[Expression])(implicit
@@ -424,8 +424,8 @@ object IR {
   ) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
-    irProgram.instructions += Instr(BL, Some(LabelRef(renameFunc(id.name))))
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(BL, LabelRef(renameFunc(id.name)))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
   def buildArrayAccess(id: Identifier, indices: List[Expression])(implicit
@@ -448,11 +448,11 @@ object IR {
       case head :: next => {
         buildExpression(head)
         // arg is now on top of stack: we will pop and proceed
-        irProgram.instructions += Instr(POP, Some(RegisterList(List(R1))))
+        irProgram.instructions += Instr(POP, RegisterList(List(R1)))
         buildStackDereference(getArrayElemType(id, next))
-        irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
-        irProgram.instructions += Instr(BL, Some(LabelRef("array_access")))
-        irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+        irProgram.instructions += Instr(POP, RegisterList(List(R0)))
+        irProgram.instructions += Instr(BL, LabelRef("array_access"))
+        irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
         buildArrLoadHelper(next)
       }
     }
@@ -465,8 +465,8 @@ object IR {
   ) = {
     buildExpression(e2)
     buildExpression(e1)
-    irProgram.instructions += Instr(BL, Option(LabelRef("pair_create")))
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(BL, LabelRef("pair_create"))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
   /* Evaluates rvalue and places result on top of the stack */
@@ -492,8 +492,8 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
-    irProgram.instructions += Instr(BL, Some(LabelRef("exit")))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
+    irProgram.instructions += Instr(BL, LabelRef("exit"))
   }
 
   def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit
@@ -516,8 +516,8 @@ object IR {
     val ifEndLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
     buildExpression(condition)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R8))))
-    irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(1)))
+    irProgram.instructions += Instr(POP, RegisterList(List(R8)))
+    irProgram.instructions += Instr(CMP, R8, Imm(1))
     irProgram.instructions += Instr(
       B,
       LabelRef(elseLabel),
@@ -543,8 +543,8 @@ object IR {
     irProgram.labelCount += 2
     irProgram.instructions += Label(conditionLabel)
     buildExpression(condition)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R8))))
-    irProgram.instructions += Instr(CMP, Some(R8), Some(Imm(1)))
+    irProgram.instructions += Instr(POP, RegisterList(List(R8)))
+    irProgram.instructions += Instr(CMP, R8, Imm(1))
     irProgram.instructions += Instr(
       B,
       LabelRef(doneLabel),
@@ -600,11 +600,7 @@ object IR {
       case at @ SAArrayType(_, _) => buildStackDereference(at)
       case _                      => ()
     }
-<<<<<<< HEAD
-    irProgram.instructions += Instr(POP, R0)
-=======
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
->>>>>>> ir_refactor
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     irProgram.instructions += Instr(PRINT(exprType))
   }
 
@@ -612,7 +608,7 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     getExpressionType(expression) match {
       case SAArrayType(_, _) =>
         irProgram.instructions += Instr(BL, LabelRef("array_free"))
@@ -627,7 +623,7 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     buildFuncEpilogue()
   }
 
@@ -635,7 +631,7 @@ object IR {
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildLValueReference(lvalue)
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(R0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     val noBytes = getNoBytes(getLValueType(lvalue))
     loadMovConstant(R1, noBytes);
     irProgram.instructions += Instr(BL, LabelRef("read"))
@@ -689,8 +685,8 @@ object IR {
   def renameFunc(functionName: String) = "wacc_" + functionName
 
   def buildFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(LR))))
-    irProgram.instructions += Instr(PUSH, Some(RegisterList(List(FP))))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(LR)))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
     // Store frame pointer as pointer to frame pointer on stack
     irProgram.instructions += Instr(ADD, FP, SP, Imm(4))
     val frameSize = irProgram.symbolTable.getFrameSize()
@@ -701,9 +697,9 @@ object IR {
 
   // Inserted after function returns (all functions must return to be correct)
   def buildFuncEpilogue()(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += Instr(SUB, Some(SP), Some(FP), Some(Imm(4)))
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(FP))))
-    irProgram.instructions += Instr(POP, Some(RegisterList(List(PC))))
+    irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
+    irProgram.instructions += Instr(POP, RegisterList(List(FP)))
+    irProgram.instructions += Instr(POP, RegisterList(List(PC)))
     irProgram.instructions += Ltorg
   }
 

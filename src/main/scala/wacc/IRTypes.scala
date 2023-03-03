@@ -72,7 +72,7 @@ object Instr {
         new Instr(opcode, Some(rn), Some(op2))
 
     def apply(opcode: StackInstr,
-    r: Register): Instr =
+    r: RegisterList): Instr =
         new Instr(opcode, Some(r))
 
     def apply(opcode: MemAccess,
@@ -134,8 +134,6 @@ sealed trait Opcode
 
 sealed trait Mul extends Opcode
 case object SMULL extends Mul
-
-// case class ArithInstr(opcode: Arithmetic, rd: Register, rs: Register, op2: Operand) extends IRType
 
 sealed trait Arithmetic extends Opcode
 case object ADD extends Arithmetic
