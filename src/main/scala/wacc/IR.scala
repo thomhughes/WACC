@@ -16,22 +16,13 @@ object IR {
   import Types._
   import Analyser.convertSyntaxToTypeSys
 
-  val getNoBytes: (SAType => Int) = _ match {
-    case SAIntType | SAArrayType(_, _) | SAPairType(_, _) | SAStringType |
-        SAPairRefType | SAUnknownType =>
-      4
-    case SABoolType | SACharType => 1
-    case unexpected =>
-      throw new Exception("Unexpected LValue type: " + unexpected)
-  }
-
-  def getLoadDataOperand(t: SAType): MemAccess =
+  private def getLoadDataOperand(t: SAType): MemAccess =
     if (getNoBytes(t) == 1) LDRB else LDR
 
-  def getStoreDataOperand(t: SAType): MemAccess =
+  private def getStoreDataOperand(t: SAType): MemAccess =
     if (getNoBytes(t) == 1) STRB else STR
 
-  def constantToChunks(value: Int): List[Int] = {
+  private def constantToChunks(value: Int): List[Int] = {
     val absVal = Math.abs(value)
     List(
       absVal & 0xff,
@@ -41,32 +32,34 @@ object IR {
     ).filter(_ != 0)
   }
 
-  def loadRemainingChunks(positive: Boolean, dest: Register, chunks: List[Int])(
+  private def loadRemainingChunks(positive: Boolean,
+                                  dest: Register,
+                                  chunks: List[Int])(
       implicit irProgram: IRProgram
   ) = {
     val opcode = if (positive) ADD else SUB
-    chunks.foreach(x =>
-      irProgram.instructions += Instr(
-        opcode,
-        dest,
-        dest,
-        Imm(x)
-      )
-    )
+    chunks.foreach(
+      x =>
+        irProgram.instructions += Instr(
+          opcode,
+          dest,
+          dest,
+          Imm(x)
+      ))
   }
 
-  def loadMovConstant(dest: Register, value: Int)(implicit
-      irProgram: IRProgram
-  ) = {
+  private def loadMovConstant(dest: Register, value: Int)(
+      implicit
+      irProgram: IRProgram) = {
     val chunks = constantToChunks(value)
     irProgram.instructions += Instr(MOV, dest, Imm(0))
     loadRemainingChunks(value > 0, dest, chunks)
   }
 
   // If src is defined then it's offset from source, if not then it's offset from 0
-  def loadRegConstant(dest: Register, src: Register, value: Int)(implicit
-      irProgram: IRProgram
-  ) = {
+  private def loadRegConstant(dest: Register, src: Register, value: Int)(
+      implicit
+      irProgram: IRProgram) = {
     val chunks = constantToChunks(value)
     val opcode = if (value > 0) ADD else SUB
     chunks match {
@@ -84,11 +77,8 @@ object IR {
     }
   }
 
-  def getScope()(implicit irProgram: IRProgram, funcName: String) =
-    irProgram.symbolTable.getScope()
-
   /* Pushes lvalue reference to top of stack */
-  def buildLValueReference(
+  private def buildLValueReference(
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
@@ -124,10 +114,10 @@ object IR {
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
-  private def getPairElemType(index: PairIndex, pair: LValue)(implicit
+  private def getPairElemType(index: PairIndex, pair: LValue)(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ): SAType =
+      funcName: String): SAType =
     getLValueType(pair) match {
       case SAPairType(fstType, sndType) =>
         index match {
@@ -135,7 +125,7 @@ object IR {
           case Snd => sndType
         }
       case SAPairRefType => SAUnknownType
-      case t => throw new Exception(s"Invalid type $t for pair element")
+      case t             => throw new Exception(s"Invalid type $t for pair element")
     }
 
   private def getArrayElemType(id: Identifier, indices: List[Expression])(
@@ -157,7 +147,7 @@ object IR {
       case _ => throw new Exception("Invalid type for array element")
     }
 
-  def getLValueType(
+  private def getLValueType(
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): SAType =
     lvalue match {
@@ -169,7 +159,7 @@ object IR {
     }
 
   /* Stores top of stack into lvalue */
-  def buildLValue(
+  private def buildLValue(
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildLValueReference(lvalue)
@@ -182,7 +172,8 @@ object IR {
     )
   }
 
-  def nonCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram): Unit =
+  private def nonCompareInstruction(op: BinaryOp)(
+      implicit irProgram: IRProgram): Unit =
     (op: @unchecked) match {
       case Plus => {
         irProgram.instructions += Instr(ADDS, R8, R8, R9)
@@ -225,7 +216,8 @@ object IR {
       }
     }
 
-  def logicalCompareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+  private def logicalCompareInstruction(op: BinaryOp)(
+      implicit irProgram: IRProgram) = {
     val doneLabel = s".L${irProgram.labelCount}"
     irProgram.labelCount += 1
     irProgram.instructions += Instr(CMP, R8, Imm(0))
@@ -273,7 +265,8 @@ object IR {
     irProgram.instructions += Label(doneLabel)
   }
 
-  def compareInstruction(op: BinaryOp)(implicit irProgram: IRProgram) = {
+  private def compareInstruction(op: BinaryOp)(
+      implicit irProgram: IRProgram) = {
     irProgram.instructions += Instr(CMP, R8, R9)
     irProgram.instructions += Instr(
       MOV,
@@ -336,7 +329,7 @@ object IR {
   }
 
   /* Evaluates expression and places result on top of the stack */
-  def buildExpression(
+  private def buildExpression(
       expr: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
@@ -392,14 +385,14 @@ object IR {
         }
       }
       case ArrayElem(id, indices) => buildArrayAccess(id, indices)
-      case default => throw new Exception("Invalid expression type")
+      case default                => throw new Exception("Invalid expression type")
     }
   }
 
-  def buildArrayLiteral(args: List[Expression], argType: SAType)(implicit
+  private def buildArrayLiteral(args: List[Expression], argType: SAType)(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ): Unit = {
+      funcName: String): Unit = {
     /*
     we need to return something that can then be stored in a given variable
     the variable will store the address that has been malloced which will be
@@ -409,7 +402,7 @@ object IR {
     val elementSize = argType match {
       case SAArrayType(arrayType, 1) => getNoBytes(arrayType)
       case SAArrayType(_, _)         => 4
-      case _ => throw new Exception("Unexpected LValue type")
+      case _                         => throw new Exception("Unexpected LValue type")
     }
     irProgram.instructions += Instr(MOV, R0, Imm(elementSize))
     irProgram.instructions += Instr(MOV, R1, Imm(args.size))
@@ -418,26 +411,27 @@ object IR {
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
-  def buildFuncCall(id: Identifier, args: List[Expression])(implicit
+  private def buildFuncCall(id: Identifier, args: List[Expression])(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ) = {
+      funcName: String) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
     irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
 
-  def buildArrayAccess(id: Identifier, indices: List[Expression])(implicit
+  private def buildArrayAccess(id: Identifier, indices: List[Expression])(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ): Unit = {
+      funcName: String): Unit = {
     buildArrayLoadReference(id, indices)
     buildStackDereference(getArrayElemType(id, indices))
   }
 
   // after this function is called, the pointer to the list will be on the top of the stack
-  def buildArrayLoadReference(id: Identifier, indices: List[Expression])(
+  private def buildArrayLoadReference(id: Identifier,
+                                      indices: List[Expression])(
       implicit
       irProgram: IRProgram,
       funcName: String
@@ -459,10 +453,10 @@ object IR {
     buildArrLoadHelper(indices)
   }
 
-  def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(implicit
+  private def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ) = {
+      funcName: String) = {
     buildExpression(e2)
     buildExpression(e1)
     irProgram.instructions += Instr(BL, BranchLabel("pair_create"))
@@ -470,10 +464,10 @@ object IR {
   }
 
   /* Evaluates rvalue and places result on top of the stack */
-  def buildRValue(rvalue: RValue, argType: SAType)(implicit
+  private def buildRValue(rvalue: RValue, argType: SAType)(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ): Unit = {
+      funcName: String): Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
@@ -488,7 +482,7 @@ object IR {
     }
   }
 
-  def buildExit(
+  private def buildExit(
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
@@ -496,10 +490,10 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("exit"))
   }
 
-  def buildAssignment(lvalue: LValue, rvalue: RValue)(implicit
+  private def buildAssignment(lvalue: LValue, rvalue: RValue)(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ): Unit = {
+      funcName: String): Unit = {
     buildRValue(
       rvalue,
       getLValueType(lvalue)
@@ -507,7 +501,7 @@ object IR {
     buildLValue(lvalue)
   }
 
-  def buildIf(
+  private def buildIf(
       condition: Expression,
       thenBody: List[Statement],
       elseBody: List[Statement]
@@ -534,10 +528,10 @@ object IR {
     irProgram.instructions += Label(ifEndLabel)
   }
 
-  def buildWhile(condition: Expression, body: List[Statement])(implicit
+  private def buildWhile(condition: Expression, body: List[Statement])(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ): Unit = {
+      funcName: String): Unit = {
     val conditionLabel = s".L${irProgram.labelCount}"
     val doneLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
@@ -560,7 +554,7 @@ object IR {
     irProgram.instructions += Label(doneLabel)
   }
 
-  def getExpressionType(
+  private def getExpressionType(
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): SAType = {
     expression match {
@@ -575,7 +569,7 @@ object IR {
       case BinaryOpApp(op, lexpr, _) =>
         op match {
           case Eq | Gt | Ge | Lt | Le | Neq | And | Or => SABoolType
-          case _ => getExpressionType(lexpr)
+          case _                                       => getExpressionType(lexpr)
         }
       case UnaryOpApp(op, expr) =>
         op match {
@@ -589,7 +583,7 @@ object IR {
     }
   }
 
-  def buildPrint(
+  private def buildPrint(
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
@@ -604,7 +598,7 @@ object IR {
     irProgram.instructions += Instr(PRINT(exprType))
   }
 
-  def buildFree(
+  private def buildFree(
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
@@ -619,7 +613,7 @@ object IR {
     }
   }
 
-  def buildReturn(
+  private def buildReturn(
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
@@ -627,7 +621,7 @@ object IR {
     buildFuncEpilogue()
   }
 
-  def buildRead(
+  private def buildRead(
       lvalue: LValue
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildLValueReference(lvalue)
@@ -637,7 +631,7 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("read"))
   }
 
-  def buildBegin(
+  private def buildBegin(
       statements: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     irProgram.symbolTable.enterScope()
@@ -645,22 +639,22 @@ object IR {
     irProgram.symbolTable.exitScope()
   }
 
-  def buildPrintln(
+  private def buildPrintln(
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildPrint(expression)
     irProgram.instructions += Instr(PRINTLN)
   }
 
-  def buildDeclaration(argType: SAType, id: Identifier, rvalue: RValue)(implicit
+  private def buildDeclaration(argType: SAType, id: Identifier, rvalue: RValue)(
+      implicit
       irProgram: IRProgram,
-      funcName: String
-  ) = {
+      funcName: String) = {
     irProgram.symbolTable.encountered(id)
     buildAssignment(id, rvalue)
   }
 
-  def buildStatement(
+  private def buildStatement(
       statement: Statement
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     statement match {
@@ -678,11 +672,11 @@ object IR {
       case BeginStatement(statements)   => buildBegin(statements)
       case ReadStatement(e)             => buildRead(e)
       case PrintLnStatement(e)          => buildPrintln(e)
-      case _ => throw new Exception("Invalid statement type")
+      case _                            => throw new Exception("Invalid statement type")
     }
   }
 
-  def renameFunc(functionName: String) = "wacc_" + functionName
+  private def renameFunc(functionName: String) = "wacc_" + functionName
 
   def buildFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(LR)))
@@ -696,14 +690,15 @@ object IR {
   }
 
   // Inserted after function returns (all functions must return to be correct)
-  def buildFuncEpilogue()(implicit irProgram: IRProgram, funcName: String) = {
+  private def buildFuncEpilogue()(implicit irProgram: IRProgram,
+                                  funcName: String) = {
     irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
     irProgram.instructions += Instr(POP, RegisterList(List(FP)))
     irProgram.instructions += Instr(POP, RegisterList(List(PC)))
     irProgram.instructions += Ltorg
   }
 
-  def buildFunc(
+  private def buildFunc(
       func: Func
   )(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Label(
@@ -711,25 +706,22 @@ object IR {
     )
     irProgram.symbolTable.resetScope()
     func.params.foreach((param: Parameter) =>
-      irProgram.symbolTable.encountered(param.identifier)
-    )
+      irProgram.symbolTable.encountered(param.identifier))
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()
     func.body.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
   }
 
-  def buildFuncs(
+  private def buildFuncs(
       functions: List[Func]
   )(implicit irProgram: IRProgram) = {
     functions.foreach((func: Func) =>
-      buildFunc(func)(irProgram, func.identBinding.identifier.name)
-    )
+      buildFunc(func)(irProgram, func.identBinding.identifier.name))
   }
 
-  def buildMain(statements: List[Statement])(implicit
-      irProgram: IRProgram
-  ) = {
+  private def buildMain(statements: List[Statement])(implicit
+                                                     irProgram: IRProgram) = {
     implicit val funcName = "0"
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
