@@ -58,7 +58,7 @@ object Main {
           sys.exit(200)
         } else {
           val instructions = buildIR(program, symbolTable)
-          val assembly = convertAssembly(peepholeOptimisation(instructions to List))
+          val assembly = convertAssembly(peepholeOptimisation(instructions))
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)
           sys.exit(0)
