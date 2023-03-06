@@ -738,10 +738,10 @@ object IR {
   def buildIR(
       ast: Program,
       symbolTable: SymbolTable
-  ): (ListBuffer[IRType], SymbolTable) = {
+  ): ListBuffer[IRType] = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
     buildFuncs(ast.functions)
     buildMain(ast.statements)
-    (irProgram.instructions, irProgram.symbolTable)
+    irProgram.instructions
   }
 }

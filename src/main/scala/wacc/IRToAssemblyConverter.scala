@@ -1,14 +1,12 @@
 package wacc
 
 object IRToAssemblyConverter {
-  import wacc.SymbolTable
-  import scala.collection.mutable.ListBuffer
+  import scala.collection.immutable.List
   import wacc.Types._
 
   // Main function called externally. Passes a strinbuilder around implicitly
   def convertAssembly(
-      instructions: ListBuffer[IRType],
-      symbolTable: SymbolTable
+      instructions: List[IRType]
   ): String = {
     implicit val sb = new StringBuilder()
     sb.append(".text\n")
