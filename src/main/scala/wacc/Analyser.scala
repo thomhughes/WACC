@@ -5,6 +5,7 @@ object Analyser {
   import wacc.AST._
   import wacc.Types._
   import wacc.Errors._
+  import scala.collection.mutable.Map
 
   val functionTable = new FunctionTable()
   var symbolTable = SymbolTable()
@@ -198,7 +199,8 @@ object Analyser {
   private def checkRValue(rvalue: RValue, typeName: SAType)(
       implicit
       errorList: List[Error],
-      funcName: String): List[Error] = {
+      funcName: String,
+      funcMap: Map[String, String]): List[Error] = {
     rvalue match {
       case NewPair(fst, snd) =>
         typeName match {
@@ -240,17 +242,18 @@ object Analyser {
       typeName: SAType,
       identifier: Identifier,
       rvalue: RValue
-  )(implicit errorList: List[Error], funcName: String): List[Error] = {
+  )(implicit errorList: List[Error], funcName: String, funcMap: Map[String, String]): List[Error] = {
     return checkRValue(rvalue, typeName)(
       symbolTable.insertVar(identifier, typeName),
-      funcName
+      funcName, funcMap
     )
   }
 
   private def checkAssignmentStatement(lvalue: LValue, rvalue: RValue)(
       implicit
       errorList: List[Error],
-      funcName: String): List[Error] = {
+      funcName: String,
+      funcMap: Map[String, String]): List[Error] = {
     val typeName = lvalue match {
       case id @ Identifier(_)     => symbolTable.lookupVarType(id)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
@@ -348,7 +351,8 @@ object Analyser {
   )(implicit
     returnVal: SAType,
     errorList: List[Error],
-    funcName: String): List[Error] = {
+    funcName: String,
+    funcMap: Map[String, String]): List[Error] = {
     val conditionError = checkExpression(condition, SABoolType)
     if (!(conditionError eq errorList)) return conditionError
     symbolTable.enterScope()
@@ -391,7 +395,8 @@ object Analyser {
   )(implicit
     returnVal: SAType,
     errorList: List[Error],
-    funcName: String): List[Error] = {
+    funcName: String,
+    funcMap: Map[String, String]): List[Error] = {
     val conditionError = checkExpression(condition, SABoolType)
     if (!(conditionError eq errorList)) return conditionError
     symbolTable.enterScope()
@@ -405,7 +410,8 @@ object Analyser {
       implicit
       returnVal: SAType,
       errorList: List[Error],
-      funcName: String): List[Error] = {
+      funcName: String,
+      funcMap: Map[String, String]): List[Error] = {
     symbolTable.enterScope()
     val statementErrors = collectErrors(statements, checkStatement)
     symbolTable.exitScope()
@@ -416,7 +422,8 @@ object Analyser {
       implicit
       returnVal: SAType,
       errorList: List[Error],
-      funcName: String): List[Error] = statement match {
+      funcName: String,
+      funcMap: Map[String, String]): List[Error] = statement match {
     case SkipStatement => errorList
     case DeclarationStatement(typeName, identifier, rvalue) =>
       checkDeclarationStatement(
@@ -670,7 +677,7 @@ object Analyser {
       id: Identifier,
       args: List[Expression],
       typeName: SAType
-  )(implicit errorList: List[Error], funcName: String): List[Error] = {
+  )(implicit errorList: List[Error], funcName: String, funcMap: Map[String, String]): List[Error] = {
     functionTable.getFunctionEntry(id) match {
       case Left((_, expectedTypes)) if expectedTypes.length != args.length =>
         errorList :+ FunctionCallError(
@@ -689,7 +696,8 @@ object Analyser {
 
   private def checkFunction(
       func: Func
-  )(implicit errorList: List[Error]): List[Error] = {
+  )(implicit errorList: List[Error],
+  funcMap: Map[String, String]): List[Error] = {
     implicit val funcName = func.identBinding.identifier.name
     symbolTable.insertFunction(func.identBinding.identifier.name)
     def collectErrorsFunctionStatements(a: List[Statement], returnVal: SAType)(
@@ -698,7 +706,7 @@ object Analyser {
       a match {
         case a :: b =>
           collectErrorsFunctionStatements(b, returnVal)(
-            checkStatement(a)(returnVal, errorList, funcName)
+            checkStatement(a)(returnVal, errorList, funcName, funcMap)
           )
         case Nil => errorList
       }
@@ -726,7 +734,7 @@ object Analyser {
 
   private def checkFunctions(
       program: Program
-  )(implicit errorList: List[Error]): List[Error] = {
+  )(implicit errorList: List[Error], funcMap: Map[String, String]): List[Error] = {
     collectErrors(program.functions, checkFunction)(
       collectErrors(program.functions, mapDefs)
     )
@@ -735,7 +743,7 @@ object Analyser {
   // Main function to run semantic analysis, return errors as state
   def checkProgram(
       program: Program
-  ): (List[Error], SymbolTable, FunctionTable) = {
+  )(implicit funcMap: Map[String, String]): (List[Error], SymbolTable, FunctionTable) = {
     implicit val errorList: List[Error] = List()
     implicit val funcName: String = "0"
     symbolTable.insertFunction(funcName)

@@ -5,7 +5,7 @@ import wacc.Types._
 
 class FunctionTable {
   import wacc.AST.{Func, Identifier}
-  import wacc.Errors.{Error, UndeclaredFunctionError, RedeclaredFunctionError}
+  import wacc.Errors.{Error, UndeclaredFunctionError, RedeclaredFunctionError, PossibleMissingImportError}
 
   val map = Map[String, (Types.SAType, List[Types.SAType])]()
 
@@ -38,12 +38,16 @@ class FunctionTable {
         function.identBinding.identifier.name))
   }
 
-  def getFunctionEntry(identifier: Identifier)(implicit errorList: List[Error])
+  def getFunctionEntry(identifier: Identifier)(implicit errorList: List[Error], funcMap: Map[String, String])
     : Either[(SAType, List[SAType]), List[Error]] = {
     if (map.contains(identifier.name)) {
       return Left(map(identifier.name))
     }
-    Right(errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
+    val libName = funcMap.get(identifier.name)
+    libName match {
+      case Some(value) => Right(errorList :+ PossibleMissingImportError(value, identifier.pos, identifier.name))
+      case None => Right(errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
+    }
   }
 
   def getFunctionParams(identifier: Identifier)(

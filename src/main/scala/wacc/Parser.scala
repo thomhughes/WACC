@@ -26,7 +26,8 @@ object Parser {
   import java.io.File
 
   lazy val `<program>` =
-    Program("begin" *> many(`<func>`), `<statements>` <* "end")
+    Program(many("import" *> `<import>`), "begin" *> many(`<func>`), `<statements>` <* "end")
+  lazy val `<import>` = Import(`<string>`)
   lazy val `<func>` = Func(attempt(
                              IdentBinding(`<type>` <|> pure(NoneType),
                                           Identifier(`<identifier>`)) <* "("),
