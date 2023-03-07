@@ -10,6 +10,7 @@ object Main {
   import wacc.Analyser.checkProgram
   import wacc.IR.buildIR
   import wacc.IRToAssemblyConverter.convertAssembly
+  import wacc.Peephole.peepholeOptimisation
 
   def printErrors(ers: Seq[Error], fileName: String) =
     ers.foreach(error => {
@@ -56,8 +57,8 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
-          val (instructions, updatedSymbolTable) = buildIR(program, symbolTable)
-          val assembly = convertAssembly(instructions, updatedSymbolTable)
+          val instructions = buildIR(program, symbolTable)
+          val assembly = convertAssembly(peepholeOptimisation(instructions))
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)
           sys.exit(0)

@@ -24,7 +24,7 @@ class IRConversionUnitTests extends AnyFlatSpec with BeforeAndAfterEach with Bef
   def buildInstructions(input: String) = {
     val program = parseAsProgram(input)
     val (_, symbolTable, _) = checkProgram(program)
-    val (instructions, _) = buildIR(program, symbolTable)
+    val instructions = buildIR(program, symbolTable)
     instructions
   }
 

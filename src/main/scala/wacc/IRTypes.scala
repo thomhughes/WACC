@@ -47,6 +47,17 @@ class Instr private (
     sb ++= ")"
     sb.toString()
   }
+
+  override def equals(other: Any): Boolean =
+    other match {
+      case other: Instr =>
+        this.opcode == other.opcode &&
+          this.op1 == other.op1 &&
+          this.op2 == other.op2 &&
+          this.op3 == other.op3 &&
+          this.cond == other.cond
+      case _ => false
+    }
 }
 
 // Overloaded to enforce correctness of no arguments and type of arguments
