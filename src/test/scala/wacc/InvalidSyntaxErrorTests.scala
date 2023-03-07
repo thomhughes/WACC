@@ -12,4 +12,5 @@ class InvalidSyntaxErrorTests extends IntegrationTest {
     runTestOnDirectory("invalid/syntaxErr/sequence", true, runFrontendTest)
     runTestOnDirectory("invalid/syntaxErr/variables", true, runFrontendTest)
     runTestOnDirectory("invalid/syntaxErr/while", true, runFrontendTest)
+    runTestOnDirectory("invalid/syntaxErr/fullpairtypes", true, runFrontendTest)
 }

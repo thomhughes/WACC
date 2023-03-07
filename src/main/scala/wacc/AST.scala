@@ -80,7 +80,7 @@ object AST {
       with PairElemType
   case class PairType(fstType: PairElemType, sndType: PairElemType)(
       val pos: (Int, Int))
-      extends Type
+      extends Type with PairElemType
 
   sealed trait UnaryOp
   case object Not extends UnaryOp
