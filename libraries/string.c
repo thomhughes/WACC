@@ -11,3 +11,8 @@ int WACC(atoi)(char *str)
 {
     return atoi(str);
 }
+
+char *WACC(strcat)(char* str1, char *str2) {
+    strcat(str1, str2);
+    return str1;
+}

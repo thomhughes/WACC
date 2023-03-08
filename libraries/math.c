@@ -14,3 +14,7 @@ int WACC(srand)(unsigned int seed) {
 int WACC(rand)(void) {
     return rand();
 }
+
+int WACC(abs)(int n) {
+    return abs(n);
+}

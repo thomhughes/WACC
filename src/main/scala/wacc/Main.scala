@@ -53,7 +53,25 @@ object Main {
   }
 
   def parseLibraries(): Map[String, List[(String, (Type, List[Type]))]] = {
-    Map(("array", List(("qsort", (IntType, List(ArrayType(IntType, 1)(0,0)))))), ("string", List(("strlen", (IntType, List(StringType))), ("atoi", (IntType, (List(StringType)))))), ("math", List(("pow", (IntType, List(IntType, IntType))), ("rand", (IntType, List())), ("srand", (IntType, (List(IntType)))))))
+    Map(("array", List(
+      ("contains", (BoolType, List(ArrayType(IntType, 1)(0,0), IntType))),
+      ("reverse", (IntType, List(ArrayType(IntType, 1)(0,0)))),
+      ("sum", (IntType, List(ArrayType(IntType, 1)(0,0)))),
+      ("min", (IntType, List(ArrayType(IntType, 1)(0,0)))),
+      ("max", (IntType, List(ArrayType(IntType, 1)(0,0)))),
+      ("qsort", (IntType, List(ArrayType(IntType, 1)(0,0)))))),
+    ("string", List(
+      ("strcat", (StringType, List(StringType, StringType))),
+      ("strlen", (IntType, List(StringType))),
+      ("atoi", (IntType, (List(StringType)))))),
+    ("math", List(
+      ("abs", (IntType, List(IntType))),
+      ("pow", (IntType, List(IntType, IntType))),
+      ("rand", (IntType, List())),
+      ("srand", (IntType, (List(IntType)))))),
+    ("file", List (
+      ("file_read", (StringType, List(StringType, IntType))))
+    ))
   }
 
   def reverseLibToFuncMap(map: Map[String, List[(String, (Type, List[Type]))]]): Map[String, String] = {
