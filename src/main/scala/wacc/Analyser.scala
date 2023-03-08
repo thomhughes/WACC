@@ -799,15 +799,46 @@ object Analyser {
       case DeclarationStatement(typeName, id, rvalue) => {
         symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName)); s
       }
+      case IfStatement(cond, thenBlock, elseBlock) => {
+        symbolTable.enterScope()
+        val updatedThenBlock = renameOverloadedFunctionCalls(thenBlock, functionTable)
+        symbolTable.exitScope()
+        symbolTable.enterScope()
+        val updatedElseBlock = renameOverloadedFunctionCalls(elseBlock, functionTable)
+        symbolTable.exitScope()
+        IfStatement(
+          cond,
+          updatedThenBlock,
+          updatedElseBlock
+        )((0, 0))
+      }
+      case BeginStatement(statements) => {
+        symbolTable.enterScope()
+        val updatedStatements = renameOverloadedFunctionCalls(statements, functionTable)
+        symbolTable.exitScope()
+        BeginStatement(updatedStatements)((0, 0))
+      }
+      case WhileStatement(cond, body) => {
+        symbolTable.enterScope()
+        val updatedBody = renameOverloadedFunctionCalls(body, functionTable)
+        symbolTable.exitScope()
+        WhileStatement(cond, updatedBody)((0, 0))
+      }
       case _ => s
     })
 
-  def renameOverloadedFunctionDefinition(func: Func, functionTable: FunctionTable):  Func = 
+  def renameOverloadedFunctionDefinition(func: Func, functionTable: FunctionTable)(implicit errorList: List[Error]): Func = 
     func match {
       case Func(IdentBinding(retType, funcId), params, body) => {
-        Func(IdentBinding(retType, renameFunctionName(funcId, TypeSignature(convertSyntaxToTypeSys(retType), params.map(p => p match {
+        val newFunctionName = renameFunctionName(funcId,
+        TypeSignature(convertSyntaxToTypeSys(retType), params.map(p => p match {
           case Parameter(paramType, _) => convertSyntaxToTypeSys(paramType)
-        })), functionTable))((0, 0)), params, body)((0, 0))
+        })), functionTable)
+        implicit val funcName = newFunctionName.name
+        symbolTable.enterScope()
+        val updatedFunctionBody = renameOverloadedFunctionCalls(body, functionTable)
+        symbolTable.exitScope()
+        Func(IdentBinding(retType, newFunctionName)((0, 0)), params, updatedFunctionBody)((0, 0))
       }
     }
 
