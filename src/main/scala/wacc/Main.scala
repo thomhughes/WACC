@@ -68,10 +68,8 @@ object Main {
       ("abs", (IntType, List(IntType))),
       ("pow", (IntType, List(IntType, IntType))),
       ("rand", (IntType, List())),
-      ("srand", (IntType, (List(IntType)))))),
-    ("file", List (
-      ("file_read", (StringType, List(StringType, IntType))))
-    ))
+      ("srand", (IntType, (List(IntType))))))
+    )
   }
 
   def reverseLibToFuncMap(map: Map[String, List[(String, (Type, List[Type]))]]): Map[String, String] = {
