@@ -5,6 +5,7 @@
 
 java -jar wacc-42-compiler.jar $@
 STATUS=$?
+arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -c libraries/string.c -o string.o
 arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -c waccyruntime/runtime.c -o secret.o
 exit $STATUS
 

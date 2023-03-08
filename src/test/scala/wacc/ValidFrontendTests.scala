@@ -15,4 +15,5 @@ class ValidFrontendTests extends IntegrationTest {
     runTestOnDirectory("valid/IO", true, runFrontendTest)
     runTestOnDirectory("valid/scope", true, runFrontendTest)
     runTestOnDirectory("valid/fullpairtypes", true, runFrontendTest)
+    runTestOnDirectory("valid/stdlib", true, runFrontendTest)
 }

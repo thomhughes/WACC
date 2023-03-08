@@ -3,6 +3,7 @@ package wacc
 object IR {
   import scala.collection.mutable.ListBuffer
   import scala.language.implicitConversions
+  import scala.collection.mutable.Map
   
   import wacc.SymbolTable
   
@@ -415,9 +416,21 @@ object IR {
   private def buildFuncCall(id: Identifier, args: List[Expression])(
       implicit
       irProgram: IRProgram,
-      funcName: String) = {
+      funcName: String,
+      funcToLibMap: Map[String, String]) = {
     // build expressions in order, will be reversed on stack
+    val paramRegs = List(R0, R1, R2, R3, R4)
     args.reverse.foreach(buildExpression(_))
+    funcToLibMap.get(id.name) match {
+      case Some(_) => {
+        var counter = 0
+        args.foreach({exp =>
+          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(counter))))
+          counter += 1
+        })
+      }
+      case None =>
+    }
     irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
   }
@@ -468,7 +481,8 @@ object IR {
   private def buildRValue(rvalue: RValue, argType: SAType)(
       implicit
       irProgram: IRProgram,
-      funcName: String): Unit = {
+      funcName: String,
+      funcToLibMap: Map[String, String]): Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
@@ -494,7 +508,8 @@ object IR {
   private def buildAssignment(lvalue: LValue, rvalue: RValue)(
       implicit
       irProgram: IRProgram,
-      funcName: String): Unit = {
+      funcName: String,
+      funcToLibMap: Map[String, String]): Unit = {
     buildRValue(
       rvalue,
       getLValueType(lvalue)
@@ -506,7 +521,7 @@ object IR {
       condition: Expression,
       thenBody: List[Statement],
       elseBody: List[Statement]
-  )(implicit irProgram: IRProgram, funcName: String): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String]): Unit = {
     val elseLabel = s".L${irProgram.labelCount}"
     val ifEndLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
@@ -532,7 +547,8 @@ object IR {
   private def buildWhile(condition: Expression, body: List[Statement])(
       implicit
       irProgram: IRProgram,
-      funcName: String): Unit = {
+      funcName: String,
+      funcToLibMap: Map[String, String]): Unit = {
     val conditionLabel = s".L${irProgram.labelCount}"
     val doneLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
@@ -634,7 +650,7 @@ object IR {
 
   private def buildBegin(
       statements: List[Statement]
-  )(implicit irProgram: IRProgram, funcName: String): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String]): Unit = {
     irProgram.symbolTable.enterScope()
     statements.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
@@ -650,14 +666,15 @@ object IR {
   private def buildDeclaration(argType: SAType, id: Identifier, rvalue: RValue)(
       implicit
       irProgram: IRProgram,
-      funcName: String) = {
+      funcName: String,
+      funcToLibMap: Map[String, String]) = {
     irProgram.symbolTable.encountered(id)
     buildAssignment(id, rvalue)
   }
 
   private def buildStatement(
       statement: Statement
-  )(implicit irProgram: IRProgram, funcName: String): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String]): Unit = {
     statement match {
       case ExitStatement(e) => buildExit(e)
       case AssignmentStatement(lvalue, rvalue) =>
@@ -701,7 +718,7 @@ object IR {
 
   private def buildFunc(
       func: Func
-  )(implicit irProgram: IRProgram, funcName: String) = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String]) = {
     irProgram.instructions += Label(
       renameFunc(func.identBinding.identifier.name)
     )
@@ -716,13 +733,13 @@ object IR {
 
   private def buildFuncs(
       functions: List[Func]
-  )(implicit irProgram: IRProgram) = {
+  )(implicit irProgram: IRProgram, funcToLibMap: Map[String, String]) = {
     functions.foreach((func: Func) =>
-      buildFunc(func)(irProgram, func.identBinding.identifier.name))
+      buildFunc(func)(irProgram, func.identBinding.identifier.name, funcToLibMap))
   }
 
   private def buildMain(statements: List[Statement])(implicit
-                                                     irProgram: IRProgram) = {
+                                                     irProgram: IRProgram, funcToLibMap: Map[String, String]) = {
     implicit val funcName = "0"
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
@@ -738,7 +755,7 @@ object IR {
   def buildIR(
       ast: Program,
       symbolTable: SymbolTable
-  ): ListBuffer[IRType] = {
+  )(implicit funcToLibMap: Map[String, String]): ListBuffer[IRType] = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
     buildFuncs(ast.functions)
     buildMain(ast.statements)

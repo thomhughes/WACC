@@ -6,16 +6,12 @@ object Main {
   import parsley.{Success, Failure}
   import wacc.Errors.SyntaxError
   import wacc.Parser.parse
-  import wacc.AST.Program
   import wacc.Analyser.checkProgram
   import wacc.IR.buildIR
   import wacc.IRToAssemblyConverter.convertAssembly
   import wacc.Peephole.peepholeOptimisation
-  import java.nio.file.{Files, Paths}
-  import scala.jdk.CollectionConverters._
-  import wacc.AST.Func
-  import wacc.AST.Import
   import scala.collection.mutable.Map
+  import wacc.AST._
 
   def printErrors(ers: Seq[Error], fileName: String) =
     ers.foreach(error => {
@@ -56,26 +52,17 @@ object Main {
     }
   }
 
-  def parseLibraries() = {
-    implicit val libFuncMap: Map[String, List[Func]] = Map()
-    Files
-      .walk(Paths.get("wacc_examples/libraries"))
-      .iterator()
-      .asScala
-      .filter(Files.isRegularFile(_))
-      .foreach((x) => parseAndAddToMap(x.toString()))
-    libFuncMap
+  def parseLibraries(): Map[String, List[(String, (Type, List[Type]))]] = {
+    Map(("string", List(("strlen", (IntType, List(StringType))))))
   }
 
-  def addDependency(importRef: Import)(implicit newFuncs: List[Func], funcMap: Map[String, List[Func]]) = {
-    newFuncs :+ funcMap.get(importRef.importName)
-  }
-
-  def reverseLibToFuncMap(map: Map[String, List[Func]]): Map[String, String] = {
+  def reverseLibToFuncMap(map: Map[String, List[(String, (Type, List[Type]))]]): Map[String, String] = {
     val funcToLibMap: Map[String, String] = Map()
-    map.foreach((x: (String, List[Func])) => x._2.foreach((func: Func) => {
-      funcToLibMap += ((func.identBinding.identifier.name, x._1))
-    }))
+    map.foreach((x: (String, List[(String, (Type, List[Type]))])) => {
+      x._2.foreach((y: (String, (Type, List[Type]))) => {
+        funcToLibMap += ((y._1, x._1))
+      })
+    })
     funcToLibMap
   }
 
@@ -89,17 +76,14 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        implicit val libToFuncMap = parseLibraries()
+        implicit val libToFuncMap: Map[String, List[(String, (Type, List[Type]))]] = parseLibraries()
         implicit val funcToLibMap = reverseLibToFuncMap(libToFuncMap)
-        implicit val newFuncs: List[Func] = List()
-        program.imports.foreach(addDependency)
-        val newProgram = Program(List(), newFuncs ++ program.functions, program.statements)(0,0)
-        val (errors, symbolTable, functionTable) = checkProgram(newProgram)
+        val (errors, symbolTable, functionTable) = checkProgram(program)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
-          val instructions = buildIR(newProgram, symbolTable)
+          val instructions = buildIR(program, symbolTable)
           val assembly = convertAssembly(peepholeOptimisation(instructions))
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)

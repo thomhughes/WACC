@@ -740,12 +740,25 @@ object Analyser {
     )
   }
 
+  def insertLibFuns(importRef: Import)(implicit libToFuncMap: Map[String, List[(String, (Type, List[Type]))]], errorList: List[Error]) = {
+    libToFuncMap.get(importRef.importName) match {
+      case Some(funs) =>
+        // i think the name of the parameters passed in here are irrelevant since the body is empty
+        funs.foreach(f => functionTable.insertFunction(Func(IdentBinding(f._2._1, Identifier(f._1)(0,0))(0,0), List(Parameter(StringType, Identifier("x")(0,0))(0,0)), List())(0,0), (convertSyntaxToTypeSys(f._2._1), f._2._2.map(convertSyntaxToTypeSys))))
+      case None => throw new Exception("Library not found")
+    }
+  }
+
   // Main function to run semantic analysis, return errors as state
   def checkProgram(
       program: Program
-  )(implicit funcMap: Map[String, String]): (List[Error], SymbolTable, FunctionTable) = {
+  )(implicit funcToLibMap: Map[String, String], libToFuncMap: Map[String, List[(String, (Type, List[Type]))]]): (List[Error], SymbolTable, FunctionTable) = {
     implicit val errorList: List[Error] = List()
     implicit val funcName: String = "0"
+
+    // add imported type signatures to function table
+    program.imports.foreach(insertLibFuns)
+
     symbolTable.insertFunction(funcName)
     symbolTable.enterScope()
     val errors =
