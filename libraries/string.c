@@ -1,9 +1,13 @@
 #include <string.h>
-
-#define WACC(name) \
-    wacc_##name
+#include <stdlib.h>
+#include "wacc.h"
 
 int WACC(strlen)(char *str)
 {
     return strlen(str);
+}
+
+int WACC(atoi)(char *str)
+{
+    return atoi(str);
 }

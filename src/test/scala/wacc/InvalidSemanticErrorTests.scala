@@ -15,4 +15,5 @@ class InvalidSemanticErrorTests extends IntegrationTest {
     runTestOnDirectory("invalid/semanticErr/while", true, runFrontendTest)
     runTestOnDirectory("invalid/semanticErr/IO", true, runFrontendTest)
     runTestOnDirectory("invalid/semanticErr/fullpairtypes", true, runFrontendTest)
+    runTestOnDirectory("invalid/semanticErr/stdlib", true, runFrontendTest)
 }
