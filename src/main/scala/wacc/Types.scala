@@ -28,6 +28,13 @@ object Types {
       "pair(" + fstType.toString() + ", " + sndType.toString() + ")"
   }
 
+  case class TypeSignature(val retType: SAType, val paramTypes: List[SAType]) {
+    override def toString() =
+      "(" + 
+      (if (paramTypes.isEmpty) "" else paramTypes.tail.foldLeft(paramTypes.head.toString())((acc, t) => acc + t.toString() + ", ")) +
+      ") => " + retType.toString()
+  }
+
   def equalsType(firstType: SAType, secondType: SAType): Boolean =
     firstType match {
       case SAArrayType(firstArrayType, firstArity) =>

@@ -92,6 +92,19 @@ object Errors {
        ))
   }
 
+  case class FunctionCallTypeError(pos: Position,
+                                   identifier: String,
+                                   allowedTypeSignatures: List[String],
+                                   actualTypeSignature: String)
+      extends Error {
+    override def getPos(): Position = pos
+    override def generateErrorSpecifics() =
+      ("Function call type error",
+       ("function call assumes that " + identifier + " has type signature " + actualTypeSignature ::
+        "but " + identifier + " can only have the following type signatures:" ::
+        allowedTypeSignatures)) 
+  }
+
   case class NewPairError(pos: Position, message: String) extends Error {
     override def getPos(): Position = pos
     override def generateErrorSpecifics() = ("New pair error", Seq(message))
@@ -124,15 +137,6 @@ object Errors {
         Seq(
           "variable " + variableName + " has not been declared in this scope" + "\n")
       )
-  }
-
-  case class FunctionCallError(pos: Position, args: Int, required: Int)
-      extends Error {
-    override def getPos(): Position = pos
-    override def generateErrorSpecifics() =
-      ("Wrong number of function parameters",
-       Seq(
-         "expected " + required + " arguments but got " + args + " arguments"))
   }
 
   case class RedeclaredVariableError(pos: Position, variableName: String)

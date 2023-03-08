@@ -1,16 +1,26 @@
 package wacc
 
-case class SymbolTable() {
-  import scala.collection.mutable.Map
+import scala.collection.mutable.Map
+
+case class SymbolTable private (private val map: Map[String, OuterBodySymbolTable]) {
   import wacc.OuterBodySymbolTable
   import wacc.Types._
   import wacc.AST.Identifier
   import wacc.Errors.Error
 
-  private val map = Map[String, OuterBodySymbolTable]()
-
   override def toString(): String = {
     map.toString()
+  }
+
+  def getOuterBodySymbolTable(funcName: String): Option[OuterBodySymbolTable] =
+    if (map.contains(funcName)) Some(map(funcName)) else None
+
+  def deepcopy(): SymbolTable = {
+    val newMap = Map[String, OuterBodySymbolTable]()
+    for ((k, v) <- map) {
+      newMap += k -> v.deepcopy()
+    }
+    SymbolTable(newMap)
   }
 
   // Used during SA; uses ErrorList
@@ -33,7 +43,7 @@ case class SymbolTable() {
   }
 
   def insertFunction(funcName: String): Unit =
-    map += funcName -> new OuterBodySymbolTable(new Scoper)
+    map += funcName -> OuterBodySymbolTable(new Scoper)
 
   def insertVar(identifier: Identifier, t: SAType)(
       implicit
@@ -72,4 +82,8 @@ case class SymbolTable() {
 
   def encountered(identifier: Identifier)(implicit funcName: String): Unit =
     map(funcName).encountered(identifier)
+}
+
+case object SymbolTable {
+  def apply(): SymbolTable = SymbolTable(Map[String, OuterBodySymbolTable]())
 }

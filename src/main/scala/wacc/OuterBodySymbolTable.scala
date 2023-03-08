@@ -1,22 +1,43 @@
 package wacc
 
-case class OuterBodySymbolTable(var scoper: Scoper) {
-  import scala.collection.mutable.Map
-  import scala.collection.mutable.Stack
-  import scala.collection.mutable.Set
-  import wacc.Types._
+import wacc.Types._
+import scala.collection.mutable.Map
+import scala.collection.mutable.Stack
+import scala.collection.mutable.Set
+
+object OuterBodySymbolTable {
+  def apply(scoper: Scoper): OuterBodySymbolTable = {
+    OuterBodySymbolTable(scoper, Map[(String, Int), (SAType, Int)](), 4, Stack[Int](), Set[(String, Int)](), true)
+  }
+}
+
+case class OuterBodySymbolTable private (
+  var scoper: Scoper,
+  private val map: Map[(String, Int), (SAType, Int)],
+  private var totalOffset: Int,
+  private val scopeSizes: Stack[Int],
+  private val seen_set: Set[(String, Int)],
+  private var mutable: Boolean) {
   import wacc.AST.Identifier
   import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
 
-  private val map = Map[(String, Int), (SAType, Int)]()
-
-  private var totalOffset = 4 // FP, LR backup is on stack
-  private val scopeSizes = Stack[Int]()
-  private val seen_set = Set[(String, Int)]()
-  private var mutable = true
-
   override def toString(): String = {
     map.toString()
+  }
+
+  def deepcopy(): OuterBodySymbolTable = {
+    val newMap = Map[(String, Int), (SAType, Int)]()
+    for ((k, v) <- map) {
+      newMap += k -> v
+    }
+    OuterBodySymbolTable(
+      new Scoper,
+      newMap,
+      totalOffset,
+      scopeSizes,
+      seen_set,
+      mutable
+    )
   }
 
   def enterScope() = {

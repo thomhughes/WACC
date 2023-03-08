@@ -1,6 +1,8 @@
 package wacc
 
 import wacc.SymbolTable
+import scala.collection.mutable.ListBuffer
+
 object Analyser {
   import wacc.AST._
   import wacc.Types._
@@ -263,17 +265,26 @@ object Analyser {
     }
   }
 
-  private def getPairElemType(index: PairIndex, pair: LValue)(
+  private def getLValueType(lvalue: LValue)(
       implicit
       errorList: List[Error],
       funcName: String): Either[SAType, List[Error]] = {
-    val typeName = pair match {
-      case id @ Identifier(_) => symbolTable.lookupVarType(id)
+    lvalue match {
+      case id @ Identifier(_) => {
+        symbolTable.lookupVarType(id)
+      }
       case PairElem(anotherIndex, anotherPair) =>
         getPairElemType(anotherIndex, anotherPair)
       case ArrayElem(id, indices) => getArrayElemType(id, indices)
       case _                      => throw new Exception("Exhaustive")
     }
+  }
+
+  private def getPairElemType(index: PairIndex, pair: LValue)(
+      implicit
+      errorList: List[Error],
+      funcName: String): Either[SAType, List[Error]] = {
+    val typeName = getLValueType(pair)
     typeName match {
       case Left(SAPairType(fstType, sndType)) =>
         index match {
@@ -304,7 +315,6 @@ object Analyser {
       case Right(errorList) => errorList
     }
 
-  // TODO: change AST node to include print type info with inferType
   private def checkReadStatement(
       lvalue: LValue
   )(implicit errorList: List[Error], funcName: String): List[Error] = {
@@ -327,14 +337,12 @@ object Analyser {
   )(implicit errorList: List[Error], funcName: String) =
     checkExpression(expression, SAIntType)
 
-  // TODO: change AST node to include print type info with inferType
   private def checkPrintStatement(
       expression: Expression
   )(implicit errorList: List[Error], funcName: String) = isValidExpression(
     expression
   )
 
-  // TODO: change AST node to include print type info with inferType
   private def checkPrintLnStatement(
       expression: Expression
   )(implicit errorList: List[Error], funcName: String) = isValidExpression(
@@ -511,6 +519,8 @@ object Analyser {
         )
       case rel @ Right(_) => rel
     }
+  
+  
 
   private def getUnOpType(op: UnaryOp, expression: Expression)(
       implicit
@@ -663,7 +673,7 @@ object Analyser {
   )(implicit errorList: List[Error]): List[Error] = {
     val retType = convertSyntaxToTypeSys(function.identBinding.typeName)
     val params = function.params.map(_.typeName).map(convertSyntaxToTypeSys)
-    functionTable.insertFunction(function, (retType, params))
+    functionTable.insertFunction(function, TypeSignature(retType, params))
   }
 
   private def checkFunctionCall(
@@ -671,27 +681,46 @@ object Analyser {
       args: List[Expression],
       typeName: SAType
   )(implicit errorList: List[Error], funcName: String): List[Error] = {
-    functionTable.getFunctionEntry(id) match {
-      case Left((_, expectedTypes)) if expectedTypes.length != args.length =>
-        errorList :+ FunctionCallError(
-          id.pos,
-          args.length,
-          expectedTypes.length
-        )
-      case Left((returnType, expectedTypes)) =>
-        collectErrors2(
-          args.zip(expectedTypes),
-          (x: Expression, y: SAType) => checkExpression(x, y)
-        ) :++ equalsTypeNoError(id.pos, typeName, returnType)
-      case Right(el) => el
+    val allowedTypeSignatures = functionTable.getAllowedTypeSignatures(id) match {
+      case Left(x) => x
+      case Right(x) => return x ++ errorList
+    }
+    val currentParameterTypes = ListBuffer[SAType]()
+
+    val paramErrorList = ListBuffer[Error]()
+    args.foreach((arg) => getExpressionType(arg) match {
+      case Left(x) => currentParameterTypes.append(x)
+      case Right(el) => paramErrorList ++= el
+    })
+    if (paramErrorList.nonEmpty) {
+      return paramErrorList.toList ++ errorList
+    }
+
+    val currentTypeSignature = TypeSignature(typeName, currentParameterTypes.toList)
+    if (allowedTypeSignatures.contains(currentTypeSignature)) {
+      errorList
+    } else {
+      errorList :+ FunctionCallTypeError(
+        id.pos,
+        id.name,
+        allowedTypeSignatures.map(_.toString()).toList,
+        currentTypeSignature.toString()
+      )
     }
   }
 
   private def checkFunction(
       func: Func
   )(implicit errorList: List[Error]): List[Error] = {
-    implicit val funcName = func.identBinding.identifier.name
-    symbolTable.insertFunction(func.identBinding.identifier.name)
+    implicit val funcName = renameFunctionName(
+      func.identBinding.identifier,
+      TypeSignature(
+        convertSyntaxToTypeSys(func.identBinding.typeName),
+        func.params.map(_.typeName).map(convertSyntaxToTypeSys)
+      ),
+      functionTable
+    ).name
+    symbolTable.insertFunction(funcName)
     def collectErrorsFunctionStatements(a: List[Statement], returnVal: SAType)(
         implicit errorList: List[Error]
     ): List[Error] = {
@@ -714,10 +743,7 @@ object Analyser {
       return paramErrors
     }
     symbolTable.enterScope()
-    val functionReturnType: SAType = functionTable.getFunctionRet(func) match {
-      case Left(t) => t
-      case _       => SAAnyType
-    }
+    val functionReturnType: SAType = convertSyntaxToTypeSys(func.identBinding.typeName)
     val funcErrors =
       collectErrorsFunctionStatements(func.body, functionReturnType)
     symbolTable.exitScope()
@@ -732,19 +758,82 @@ object Analyser {
     )
   }
 
+  def renameFunctionName(funcId: Identifier, typeSignature: TypeSignature, functionTable: FunctionTable): Identifier = {
+    def renameFunctionRule(name: String, funcNo: Int): String = {
+      name + "_" + funcNo
+    }
+    funcId match {
+      case Identifier(name) => Identifier(renameFunctionRule(name, functionTable.getFunctionNo(name, typeSignature)))((0, 0))
+    }
+  }
+
+  private def getExpressionTypes(args: List[Expression])(implicit errorList: List[Error], funcName: String): List[SAType] = {
+    args.map((x) => getExpressionType(x) match {
+      case Left(t) => t
+      case Right(el) => throw new Exception("Function Overloading Error")
+    })
+  }
+
+  def renameOverloadedFunctionCalls(statements: List[Statement], functionTable: FunctionTable)(implicit errorList: List[Error], funcName: String): List[Statement] = 
+    statements.map(s => s match {
+      case AssignmentStatement(lhs, FunctionCall(id, args)) =>
+        getLValueType(lhs) match {
+          case Left(t) => AssignmentStatement(
+            lhs,
+            FunctionCall(renameFunctionName(id, TypeSignature(t, getExpressionTypes(args)),
+            functionTable),
+            args)((0, 0))
+          )((0, 0))
+          case Right(el) => s // change to throw error
+        }
+      case DeclarationStatement(typeName, id, FunctionCall(funcId, args)) => {
+        symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName));
+        DeclarationStatement(
+          typeName,
+          id,
+          FunctionCall(renameFunctionName(funcId, TypeSignature(convertSyntaxToTypeSys(typeName), getExpressionTypes(args)),
+          functionTable),
+          args)((0, 0))
+        )((0, 0))
+      }
+      case DeclarationStatement(typeName, id, rvalue) => {
+        symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName)); s
+      }
+      case _ => s
+    })
+
+  def renameOverloadedFunctionDefinition(func: Func, functionTable: FunctionTable):  Func = 
+    func match {
+      case Func(IdentBinding(retType, funcId), params, body) => {
+        Func(IdentBinding(retType, renameFunctionName(funcId, TypeSignature(convertSyntaxToTypeSys(retType), params.map(p => p match {
+          case Parameter(paramType, _) => convertSyntaxToTypeSys(paramType)
+        })), functionTable))((0, 0)), params, body)((0, 0))
+      }
+    }
+
+  def renameOverloadedFunctions(program: Program, functionTable: FunctionTable)(implicit errorList: List[Error], funcName: String): Program = 
+    Program(program.functions.map(renameOverloadedFunctionDefinition(_, functionTable)), renameOverloadedFunctionCalls(program.statements, functionTable))((0, 0))
+
   // Main function to run semantic analysis, return errors as state
   def checkProgram(
       program: Program
-  ): (List[Error], SymbolTable, FunctionTable) = {
+  ): (List[Error], SymbolTable, FunctionTable, Program) = {
     implicit val errorList: List[Error] = List()
     implicit val funcName: String = "0"
     symbolTable.insertFunction(funcName)
+    val copySymbolTable = symbolTable.deepcopy()
     symbolTable.enterScope()
     val errors =
       collectErrors(program.statements, (x: Statement) => checkStatement(x))(
         checkFunctions(program)
       )
     symbolTable.exitScope()
-    (errors, symbolTable, functionTable)
+    if (errors.nonEmpty) {
+      return (errors, symbolTable, functionTable, program)
+    }
+    copySymbolTable.enterScope()
+    val updatedProgram = renameOverloadedFunctions(program, functionTable)
+    copySymbolTable.exitScope()
+    (errors, symbolTable, functionTable, updatedProgram)
   }
 }

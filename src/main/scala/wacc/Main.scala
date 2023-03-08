@@ -51,12 +51,12 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        val (errors, symbolTable, functionTable) = checkProgram(program)
+        val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(program)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)
           sys.exit(200)
         } else {
-          val (instructions, updatedSymbolTable) = buildIR(program, symbolTable)
+          val (instructions, updatedSymbolTable) = buildIR(updatedProgram, symbolTable)
           val assembly = convertAssembly(instructions, updatedSymbolTable)
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)
