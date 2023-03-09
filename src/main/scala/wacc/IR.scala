@@ -18,8 +18,31 @@ object IR {
   val lengthOfSmallFunction = 6
   val maxNoCallsOfFunction = 6
 
+  def countFunctionCalls(statement: Statement, function: Func): Int = {
+    statement match {
+      case AssignmentStatement(_, rvalue) => rvalue match {
+        case FunctionCall(id, _) => if (id.name == function.identBinding.identifier.name) 1 else 0
+        case default => 0
+      }
+      case DeclarationStatement(_, _, rvalue) => rvalue match {
+        case FunctionCall(id, _) => if (id.name == function.identBinding.identifier.name) 1 else 0
+        case default => 0
+      }
+      case IfStatement(_, thenBody, elseBody) => {
+        thenBody.map(countFunctionCalls(_, function)).sum + elseBody.map(countFunctionCalls(_, function)).sum
+      }
+      case WhileStatement(_, body) => {
+        body.map(countFunctionCalls(_, function)).sum
+      }
+      case BeginStatement(body) => {
+        body.map(countFunctionCalls(_, function)).sum
+      } 
+      case default => 0
+    }
+  }
+
   def getNoFunctionCalls(program: Program, function: Func): Int = {
-      program.functions.count(func => func.identBinding.identifier == function.identBinding.identifier)
+    program.statements.map(countFunctionCalls(_, function)).sum
   }
 
   def functionNotNested(statement: Statement, func: Func): Boolean = {
