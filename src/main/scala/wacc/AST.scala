@@ -8,8 +8,9 @@ object AST {
   import parsley.implicits.zipped._
   import parsley.errors.combinator.ErrorMethods
 
-  case class Program(val functions: List[Func], val statements: List[Statement])(
+  case class Program(val imports: List[Import], val functions: List[Func], val statements: List[Statement])(
       val pos: (Int, Int))
+  case class Import(val importName: String)(val pos: (Int, Int))
   case class Func(identBinding: IdentBinding,
                   params: List[Parameter],
                   body: List[Statement])(val pos: (Int, Int))
@@ -79,7 +80,7 @@ object AST {
       with PairElemType
   case class PairType(fstType: PairElemType, sndType: PairElemType)(
       val pos: (Int, Int))
-      extends Type
+      extends Type with PairElemType
 
   sealed trait UnaryOp
   case object Not extends UnaryOp
@@ -158,7 +159,8 @@ object AST {
   }
 
   // Bridges
-  object Program extends ParserBridgePos2[List[Func], List[Statement], Program]
+  object Program extends ParserBridgePos3[List[Import], List[Func], List[Statement], Program]
+  object Import extends ParserBridgePos1[String, Import]
   object Func
       extends ParserBridgePos3[IdentBinding,
                                List[Parameter],

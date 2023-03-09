@@ -1,14 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-// Array
-struct array
-{
-  void **data;
-  unsigned elemsize;
-  unsigned size;
-};
+#include "runtime.h"
 
 void array_literal_create_bytes(unsigned char *data, unsigned size,
                                 va_list elemlist)

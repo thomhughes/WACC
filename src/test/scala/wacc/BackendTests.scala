@@ -14,4 +14,6 @@ class BackendTests extends IntegrationTest {
   runTestOnDirectory("valid/IO", true, runBackendTest)
   runTestOnDirectory("valid/scope", true, runBackendTest)
   runTestOnDirectory("valid/overloading", true, runBackendTest)
+  runTestOnDirectory("valid/fullpairtypes", true, runBackendTest)
+  runTestOnDirectory("valid/stdlib", true, runBackendTest)
 }

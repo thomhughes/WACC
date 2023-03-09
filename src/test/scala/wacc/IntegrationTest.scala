@@ -35,6 +35,7 @@ class IntegrationTest extends AnyFlatSpec {
   }
 
   def runBackendTest(path: Path, run: Boolean): Unit = {
+    println(path.toString)
     if (!path.toString().endsWith(".wacc")) {
       return
     }
@@ -50,7 +51,7 @@ class IntegrationTest extends AnyFlatSpec {
       val executablePath = Paths.get(inputFileName.replaceFirst(".wacc$", ""))
       val assemblyPath = Paths.get(inputFileName.replaceFirst(".wacc$", ".s"))
       val assemblerExitCode =
-        ("arm-linux-gnueabi-gcc -o " + executablePath.toString + " -mcpu=arm1176jzf-s -mtune=arm1176jzf-s secret.o " + assemblyPath.toString).!
+        ("arm-linux-gnueabi-gcc -o " + executablePath.toString + " -mcpu=arm1176jzf-s -mtune=arm1176jzf-s string.o math.o array.o secret.o " + assemblyPath.toString + " -lm").!
       if (assemblerExitCode != 0) {
         fail(
           "Assembling " + path.toString() + " led to an error"

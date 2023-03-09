@@ -5,6 +5,7 @@ import wacc.Types.SAType
 
 import wacc.SymbolTable
 
+// Container for IR related objects, passed around implicitly in IR.scala
 case class IRProgram(
     val instructions: ListBuffer[IRType],
     var stringLiteralCounter: Int,
@@ -15,6 +16,7 @@ case class IRProgram(
 sealed trait IRType
 
 case class Label(name: String) extends IRType
+
 class Instr private (
     val opcode: Opcode,
     val op1: Option[Operand] = None,
@@ -23,24 +25,39 @@ class Instr private (
     val cond: Condition = AL
 ) extends IRType {
   override def toString(): String = {
-    val op1Str = op1 match {
-      case Some(op) => op.toString
+    val sb = new StringBuilder()
+    sb ++= "Instr("
+    sb ++= (opcode.toString)
+    sb ++= (op1 match {
+      case Some(op) => "," + op.toString
       case None     => ""
-    }
-    val op2Str = op2 match {
-      case Some(op) => op.toString
+    })
+    sb ++= (op2 match {
+      case Some(op) => "," + op.toString
       case None     => ""
-    }
-    val op3Str = op3 match {
-      case Some(op) => op.toString
+    })
+    sb ++= (op3 match {
+      case Some(op) => "," + op.toString
       case None     => ""
-    }
-    val condStr = cond match {
+    })
+    sb ++= (cond match {
       case AL => ""
-      case _  => cond.toString
-    }
-    condStr + " " + opcode.toString + " " + op1Str + " " + op2Str + " " + op3Str
+      case _  => "," + cond.toString
+    })
+    sb ++= ")"
+    sb.toString()
   }
+
+  override def equals(other: Any): Boolean =
+    other match {
+      case other: Instr =>
+        this.opcode == other.opcode &&
+          this.op1 == other.op1 &&
+          this.op2 == other.op2 &&
+          this.op3 == other.op3 &&
+          this.cond == other.cond
+      case _ => false
+    }
 }
 
 // Overloaded to enforce correctness of no arguments and type of arguments
@@ -107,10 +124,8 @@ case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
 case class JoinedRegister(lo: Register, hi: Register)
     extends Operand
-    with Register
 case class ShiftedRegister(reg: Register, shift: Shift)
     extends Operand
-    with Register
 case class RegisterList(registers: List[Register]) extends Operand
 case class BranchLabel(name: String) extends Operand
 

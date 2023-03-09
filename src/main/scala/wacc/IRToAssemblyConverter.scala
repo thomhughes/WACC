@@ -1,13 +1,12 @@
 package wacc
 
-import wacc.SymbolTable
 object IRToAssemblyConverter {
   import scala.collection.mutable.ListBuffer
   import wacc.Types._
 
+  // Main function called externally. Passes a strinbuilder around implicitly
   def convertAssembly(
-      instructions: ListBuffer[IRType],
-      symbolTable: SymbolTable
+      instructions: ListBuffer[IRType]
   ): String = {
     implicit val sb = new StringBuilder()
     sb.append(".text\n")
@@ -15,6 +14,7 @@ object IRToAssemblyConverter {
     sb.toString()
   }
 
+  // Generic function to convert Instrs and other IRTypes
   private def convertInstructionToAssembly(
       instruction: IRType
   )(implicit instrSb: StringBuilder) = {
@@ -73,6 +73,7 @@ object IRToAssemblyConverter {
     }
   }
 
+  // To select appropriate read (informs no of bytes)
   private def getReadLabelOfTypeName(typeName: SAType): String = {
     typeName match {
       case SAIntType  => "_readi"
@@ -135,6 +136,7 @@ object IRToAssemblyConverter {
   }
 
   private def convertOperandToAssembly(operand: Operand): String = {
+    // Helper for assembly conversion
     val convertShiftToAssembly: Shift => String = _ match {
       case Shift(ASR, shiftAmount) => f"asr #$shiftAmount"
       case Shift(LSL, shiftAmount) => f"lsl #$shiftAmount"

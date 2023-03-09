@@ -103,6 +103,16 @@ object Errors {
        ("function call assumes that " + identifier + " has type signature " + actualTypeSignature ::
         "but " + identifier + " can only have the following type signatures:" ::
         allowedTypeSignatures)) 
+  
+      }
+  case class PossibleMissingImportError(libName: String, pos: Position, identifier: String)
+      extends Error {
+    override def getPos(): Position = pos
+    override def generateErrorSpecifics() =
+      ("Possible missing import error",
+       Seq(
+         "function " + identifier + " has not been defined. Did you mean to import " + libName + "?"
+       ))
   }
 
   case class NewPairError(pos: Position, message: String) extends Error {
