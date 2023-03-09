@@ -12,10 +12,6 @@ object Main {
   import wacc.Peephole.peepholeOptimisation
   import scala.collection.mutable.Map
   import wacc.AST._
-  import scala.collection.mutable.Set
-
-  val lengthOfSmallFunction = 6
-  val maxNoCallsOfFunction = 6
 
   def printErrors(ers: Seq[Error], fileName: String) =
     ers.foreach(error => {
@@ -86,55 +82,6 @@ object Main {
     funcToLibMap
   }
 
-  def getNoFunctionCalls(program: Program, function: Func): Int = {
-      program.functions.count(func => func.identBinding.identifier == function.identBinding.identifier)
-  }
-
-  def recursionNotPresent(statement: Statement, func: Func): Boolean = {
-    statement match {
-      case AssignmentStatement(_,rvalue) => rvalue match {
-        case FunctionCall(_,_) => false
-        case default => true
-      }
-      case DeclarationStatement(_,_,rvalue) => rvalue match {
-        case FunctionCall(_,_) => false
-        case default => true
-      }
-      case IfStatement(_, thenBody, elseBody) => {
-        thenBody.forall(recursionNotPresent(_, func)) && elseBody.forall(recursionNotPresent(_, func))
-      }
-      case WhileStatement(_, body) => {
-        body.forall(recursionNotPresent(_, func))
-      }
-      case BeginStatement(body) => {
-        body.forall(recursionNotPresent(_, func))
-      }
-      case default => true
-  }
-  }
-
-  def shouldInlineFunction(program: Program, function: Func): Boolean = {
-    (function.body.length < lengthOfSmallFunction || getNoFunctionCalls(program, function) < maxNoCallsOfFunction) && (
-      (function.body.forall(
-        recursionNotPresent(_, function)
-      ))
-    )
-  }
-
-  def getInlinedFunctions(program: Program): (Set[String], Map[String, (Int, List[Parameter], List[Statement])]) = {
-    val functionsToBeInlined: Set[String] = Set()
-    val inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])] = Map()
-    program.functions.foreach(
-      func => {
-        if (shouldInlineFunction(program, func)) {
-          functionsToBeInlined += func.identBinding.identifier.name
-          inlinedFunctionsAndBodies += ((func.identBinding.identifier.name, (0, func.params, func.body)))
-        }
-      }
-    )
-    (functionsToBeInlined, inlinedFunctionsAndBodies)
-  }
-
   def main(args: Array[String]): Unit = {
     val fileName = args.head
     assertInputFilenameIsValid(fileName)
@@ -145,7 +92,6 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        implicit val (inlinedFunctions, inlinedFunctionsAndBodies) = getInlinedFunctions(program)
         implicit val libToFuncMap: Map[String, List[(String, (Type, List[Type]))]] = parseLibraries()
         implicit val funcToLibMap = reverseLibToFuncMap(libToFuncMap)
         val (errors, symbolTable, functionTable) = checkProgram(program)

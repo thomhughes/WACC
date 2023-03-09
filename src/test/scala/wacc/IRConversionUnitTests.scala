@@ -11,9 +11,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import scala.collection.mutable.Map
 import wacc.AST.Type
-import scala.collection.mutable.Set
-import wacc.AST.Statement
-import wacc.AST.Parameter
 
 class IRConversionUnitTests extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterAll {
   
@@ -31,8 +28,6 @@ class IRConversionUnitTests extends AnyFlatSpec with BeforeAndAfterEach with Bef
     implicit val funcToLibMap: Map [String, String] = Map()
     implicit val libToFuncMap: Map[String, List[(String, (Type, List[Type]))]] = Map()
     val (_, symbolTable, _) = checkProgram(program)
-    implicit val inlinedFunctions: Set[String] = Set()
-    implicit val inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])] = Map()
     val instructions = buildIR(program, symbolTable)
     instructions
   }
