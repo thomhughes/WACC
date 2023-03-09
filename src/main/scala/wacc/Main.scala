@@ -13,6 +13,10 @@ object Main {
   import scala.collection.mutable.Map
   import wacc.AST._
 
+  val successExitCode = 0
+  val syntaxErrorExitCode = 100
+  val semanticErrorExitCode = 200
+
   def printErrors(ers: Seq[Error], fileName: String) =
     ers.foreach(error => {
       println(error.generateError(fileName))
@@ -93,7 +97,7 @@ object Main {
     parseOutput match {
       case Left(syntaxError) => {
         println(syntaxError.generateError(fileName))
-        sys.exit(100)
+        sys.exit(syntaxErrorExitCode)
       }
       case Right(program) => {
         implicit val libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]] = parseLibraries()
@@ -101,13 +105,13 @@ object Main {
         val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(program)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)
-          sys.exit(200)
+          sys.exit(semanticErrorExitCode)
         } else {
           val instructions = buildIR(updatedProgram, symbolTable)
           val assembly = convertAssembly(peepholeOptimisation(instructions))
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)
-          sys.exit(0)
+          sys.exit(successExitCode)
         }
       }
     }

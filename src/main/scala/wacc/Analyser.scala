@@ -803,7 +803,7 @@ object Analyser {
             functionTable),
             args)((0, 0))
           )((0, 0))
-          case Right(el) => s // change to throw error
+          case Right(el) => throw new Exception("Function Overloading Error")
         }
       case DeclarationStatement(typeName, id, FunctionCall(funcId, args)) => {
         symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName));
