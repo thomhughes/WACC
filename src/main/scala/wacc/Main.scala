@@ -90,28 +90,45 @@ object Main {
       program.functions.count(func => func.identBinding.identifier == function.identBinding.identifier)
   }
 
-  def getInlinedFunctions(program: Program): (Set[String], Map[String, (List[Parameter], List[Statement])]) = {
+  def recursionNotPresent(statement: Statement, func: Func): Boolean = {
+    statement match {
+      case AssignmentStatement(_,rvalue) => rvalue match {
+        case FunctionCall(_,_) => false
+        case default => true
+      }
+      case DeclarationStatement(_,_,rvalue) => rvalue match {
+        case FunctionCall(_,_) => false
+        case default => true
+      }
+      case IfStatement(_, thenBody, elseBody) => {
+        thenBody.forall(recursionNotPresent(_, func)) && elseBody.forall(recursionNotPresent(_, func))
+      }
+      case WhileStatement(_, body) => {
+        body.forall(recursionNotPresent(_, func))
+      }
+      case BeginStatement(body) => {
+        body.forall(recursionNotPresent(_, func))
+      }
+      case default => true
+  }
+  }
+
+  def shouldInlineFunction(program: Program, function: Func): Boolean = {
+    (function.body.length < lengthOfSmallFunction || getNoFunctionCalls(program, function) < maxNoCallsOfFunction) && (
+      (function.body.forall(
+        recursionNotPresent(_, function)
+      ))
+    )
+  }
+
+  def getInlinedFunctions(program: Program): (Set[String], Map[String, (Int, List[Parameter], List[Statement])]) = {
     val functionsToBeInlined: Set[String] = Set()
-    val inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])] = Map()
+    val inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])] = Map()
     program.functions.foreach(
       func => {
-        if ((func.body.length < lengthOfSmallFunction || getNoFunctionCalls(program, func) < maxNoCallsOfFunction) && !(
-          !(func.body.filter(
-            stmt => stmt match {
-                case AssignmentStatement(_,rvalue) => rvalue match {
-                    case FunctionCall(func.identBinding.identifier,_) => true
-                    case default => false
-                }
-                case DeclarationStatement(_,_,rvalue) => rvalue match {
-                    case FunctionCall(func.identBinding.identifier,_) => true
-                    case default => false
-                }
-                case default => false
-            }
-        ).isEmpty)
-        )) {
+        if (shouldInlineFunction(program, func)) {
           functionsToBeInlined += func.identBinding.identifier.name
-          inlinedFunctionsAndBodies += ((func.identBinding.identifier.name, (func.params, func.body)))
+          inlinedFunctionsAndBodies += ((func.identBinding.identifier.name, (0, func.params, func.body)))
         }
       }
     )

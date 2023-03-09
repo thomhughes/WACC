@@ -1,5 +1,7 @@
 package wacc
 
+case class IsLastStatement(last: Boolean)
+
 object IR {
   import scala.collection.mutable.ListBuffer
   import scala.language.implicitConversions
@@ -424,13 +426,17 @@ object IR {
     }
   }
 
+  def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
+    funcName + "__" + occurrence.toString
+  }
+
   private def buildFuncCall(id: Identifier, args: List[Expression])(
       implicit
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
       inlinedFunctions: Set[String],
-      inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]) = {
+      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     // build expressions in order, will be reversed on stack
     val paramRegs = List(R0, R1, R2, R3, R4)
     args.reverse.foreach(buildExpression(_))
@@ -447,14 +453,20 @@ object IR {
     if (inlinedFunctions.contains(id.name)) {
       implicit val funcName = id.name
       irProgram.symbolTable.resetScope()
-      inlinedFunctionsAndBodies.get(id.name) match {
+      (inlinedFunctionsAndBodies.get(id.name): @unchecked) match {
         case Some(value) => {
-          value._1.foreach((param: Parameter) =>
+          value._2.foreach((param: Parameter) =>
             irProgram.symbolTable.encountered(param.identifier))
           irProgram.symbolTable.enterScope()
-          buildInlinedFuncPrologue()
+          buildFuncPrologue()
           implicit val inlinedFunc = true
-          value._2.foreach(buildStatement(_))
+          val statementsOfInlineFunc = value._3
+          implicit var isLastStatement = IsLastStatement(false)
+          statementsOfInlineFunc.init.foreach(buildStatement(_))
+          isLastStatement = IsLastStatement(true)
+          buildStatement(statementsOfInlineFunc.last)
+          irProgram.instructions += Label(renameToJumpAtEndOfInlineFunc(id.name, value._1))
+          inlinedFunctionsAndBodies.put(id.name, (value._1 + 1, value._2, value._3))
         }
       }
       irProgram.symbolTable.exitScope()
@@ -513,7 +525,7 @@ object IR {
       funcName: String,
       funcToLibMap: Map[String, String],
       inlinedFunctions: Set[String],
-      inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]): Unit = {
+      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
@@ -542,7 +554,7 @@ object IR {
       funcName: String,
       funcToLibMap: Map[String, String],
       inlinedFunctions: Set[String],
-      inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]): Unit = {
+      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
     buildRValue(
       rvalue,
       getLValueType(lvalue)
@@ -554,7 +566,7 @@ object IR {
       condition: Expression,
       thenBody: List[Statement],
       elseBody: List[Statement]
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])], inlinedFunc: Boolean): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: Boolean, isLastStatement: IsLastStatement): Unit = {
     val elseLabel = s".L${irProgram.labelCount}"
     val ifEndLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
@@ -583,8 +595,9 @@ object IR {
       funcName: String,
       funcToLibMap: Map[String, String],
       inlinedFunctions: Set[String],
-      inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])],
-      inlinedFunc: Boolean): Unit = {
+      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])],
+      inlinedFunc: Boolean,
+      isLastStatement: IsLastStatement): Unit = {
     val conditionLabel = s".L${irProgram.labelCount}"
     val doneLabel = s".L${irProgram.labelCount + 1}"
     irProgram.labelCount += 2
@@ -666,14 +679,18 @@ object IR {
     }
   }
 
-  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram) = {
+  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram, isLastStatement: IsLastStatement, funcName: String, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
     irProgram.instructions += Instr(POP, RegisterList(List(FP)))
+    isLastStatement match {
+      case IsLastStatement(false) => irProgram.instructions += Instr(B, BranchLabel(renameToJumpAtEndOfInlineFunc(funcName, inlinedFunctionsAndBodies.get(funcName).get._1)))
+      case IsLastStatement(true) => ()
+    }
   }
 
   private def buildReturn(
       expression: Expression
-  )(implicit irProgram: IRProgram, funcName: String, inlinedFunc: Boolean): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, inlinedFunc: Boolean, isLastStatement: IsLastStatement, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
     buildExpression(expression)
     irProgram.instructions += Instr(POP, RegisterList(List(R0)))
     if (inlinedFunc) {
@@ -695,7 +712,7 @@ object IR {
 
   private def buildBegin(
       statements: List[Statement]
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])], inlinedFunc: Boolean): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: Boolean, isLastStatement: IsLastStatement): Unit = {
     irProgram.symbolTable.enterScope()
     statements.foreach(buildStatement(_))
     irProgram.symbolTable.exitScope()
@@ -714,14 +731,14 @@ object IR {
       funcName: String,
       funcToLibMap: Map[String, String],
       inlinedFunctions: Set[String],
-      inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]) = {
+      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     irProgram.symbolTable.encountered(id)
     buildAssignment(id, rvalue)
   }
 
   private def buildStatement(
       statement: Statement
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])], inlinedFunc: Boolean): Unit = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: Boolean, isLastStatement: IsLastStatement): Unit = {
     statement match {
       case ExitStatement(e) => buildExit(e)
       case AssignmentStatement(lvalue, rvalue) =>
@@ -765,9 +782,10 @@ object IR {
 
   private def buildFunc(
       func: Func
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]) = {
+  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     if (!inlinedFunctions.contains(funcName)) {
       implicit val inlinedFunc = false;
+      implicit val isLastStatement = IsLastStatement(false)
       irProgram.instructions += Label(
         renameFunc(func.identBinding.identifier.name)
       )
@@ -783,13 +801,13 @@ object IR {
 
   private def buildFuncs(
       functions: List[Func]
-  )(implicit irProgram: IRProgram, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]) = {
+  )(implicit irProgram: IRProgram, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     functions.foreach((func: Func) =>
       buildFunc(func)(irProgram, func.identBinding.identifier.name, funcToLibMap, inlinedFunctions, inlinedFunctionsAndBodies))
   }
 
   private def buildMain(statements: List[Statement])(implicit
-                                                     irProgram: IRProgram, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]) = {
+                                                     irProgram: IRProgram, funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     implicit val funcName = "0"
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
@@ -797,6 +815,7 @@ object IR {
     irProgram.symbolTable.enterScope()
     buildFuncPrologue()
     implicit val inlinedFunc = false;
+    implicit val isLastStatement = IsLastStatement(false)
     statements.foreach(buildStatement(_))
     irProgram.instructions += Instr(MOV, R0, Imm(0))
     buildFuncEpilogue()
@@ -806,7 +825,7 @@ object IR {
   def buildIR(
       ast: Program,
       symbolTable: SymbolTable
-  )(implicit funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (List[Parameter], List[Statement])]): ListBuffer[IRType] = {
+  )(implicit funcToLibMap: Map[String, String], inlinedFunctions: Set[String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): ListBuffer[IRType] = {
     implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
     buildFuncs(ast.functions)
     buildMain(ast.statements)
