@@ -105,7 +105,7 @@ object Main {
         val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(program)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)
-          sys.exit(syntaxErrorExitCode)
+          sys.exit(semanticErrorExitCode)
         } else {
           val instructions = buildIR(updatedProgram, symbolTable)
           val assembly = convertAssembly(peepholeOptimisation(instructions))
