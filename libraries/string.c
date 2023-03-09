@@ -2,17 +2,17 @@
 #include <stdlib.h>
 #include "wacc.h"
 
-int WACC(strlen)(char *str)
+int WACC(strlen, 0)(char *str)
 {
     return strlen(str);
 }
 
-int WACC(atoi)(char *str)
+int WACC(atoi, 0)(char *str)
 {
     return atoi(str);
 }
 
-char *WACC(strcat)(char* str1, char *str2) {
+char *WACC(strcat, 0)(char* str1, char *str2) {
     strcat(str1, str2);
     return str1;
 }

@@ -1,1 +1,1 @@
-#define WACC(name) wacc_##name##_0
+#define WACC(name, no) wacc_##name##_##no

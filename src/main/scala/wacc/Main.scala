@@ -58,7 +58,7 @@ object Main {
       ("reverse", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
       ("sum", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
       ("min", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
-      ("max", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("max", List((IntType, List(ArrayType(IntType, 1)(0,0))), (CharType, List(ArrayType(CharType, 1)(0, 0))))),
       ("qsort", List((IntType, List(ArrayType(IntType, 1)(0,0))))))),
     ("string", List(
       ("strcat", List((StringType, List(StringType, StringType)))),
