@@ -26,7 +26,7 @@ class IRConversionUnitTests extends AnyFlatSpec with BeforeAndAfterEach with Bef
   def buildInstructions(input: String) = {
     val program = parseAsProgram(input)
     implicit val funcToLibMap: Map [String, String] = Map()
-    implicit val libToFuncMap: Map[String, List[(String, (Type, List[Type]))]] = Map()
+    implicit val libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]] = Map()
     val (_, symbolTable, _, _) = checkProgram(program)
     val instructions = buildIR(program, symbolTable)
     instructions

@@ -765,10 +765,12 @@ object Analyser {
     )
   }
 
+  def renameFunctionRule(name: String, funcNo: Int): String = {
+    name + "_" + funcNo
+  }
+  
   def renameFunctionName(funcId: Identifier, typeSignature: TypeSignature, functionTable: FunctionTable): Identifier = {
-    def renameFunctionRule(name: String, funcNo: Int): String = {
-      name + "_" + funcNo
-    }
+
     funcId match {
       case Identifier(name) => Identifier(renameFunctionRule(name, functionTable.getFunctionNo(name, typeSignature)))((0, 0))
     }
@@ -852,12 +854,14 @@ object Analyser {
   def renameOverloadedFunctions(program: Program, functionTable: FunctionTable)(implicit errorList: List[Error], funcName: String): Program = 
     Program(program.imports, program.functions.map(renameOverloadedFunctionDefinition(_, functionTable)), renameOverloadedFunctionCalls(program.statements, functionTable))((0, 0))
 
-  def insertLibFuns(importRef: Import)(implicit libToFuncMap: Map[String, List[(String, (Type, List[Type]))]], errorList: List[Error]) = {
+  def insertLibFuns(importRef: Import)(implicit libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]], errorList: List[Error]) = {
     libToFuncMap.get(importRef.importName) match {
       case Some(funs) =>
-        funs.foreach(f => {
-          functionTable.insertFunction(Func(IdentBinding(f._2._1, Identifier(f._1)(0,0))(0,0), List(Parameter(StringType, Identifier("x")(0,0))(0,0)), List())(0,0), TypeSignature(convertSyntaxToTypeSys(f._2._1), f._2._2.map(convertSyntaxToTypeSys)))
-          symbolTable.insertFunction(renameFunctionName(Identifier(f._1)((0, 0)), TypeSignature(convertSyntaxToTypeSys(f._2._1), f._2._2.map(convertSyntaxToTypeSys)), functionTable).name)
+        funs.foreach(fs => {
+          fs._2.foreach(f => {
+            functionTable.insertFunction(Func(IdentBinding(f._1, Identifier(fs._1)(0,0))(0,0), List(Parameter(StringType, Identifier("x")(0,0))(0,0)), List())(0,0), TypeSignature(convertSyntaxToTypeSys(f._1), f._2.map(convertSyntaxToTypeSys)))
+            symbolTable.insertFunction(renameFunctionName(Identifier(fs._1)((0, 0)), TypeSignature(convertSyntaxToTypeSys(f._1), f._2.map(convertSyntaxToTypeSys)), functionTable).name)
+          })
         })
       case None => throw new Exception("Library not found")
     }
@@ -866,7 +870,7 @@ object Analyser {
   // Main function to run semantic analysis, return errors as state
   def checkProgram(
       program: Program
-  )(implicit funcToLibMap: Map[String, String], libToFuncMap: Map[String, List[(String, (Type, List[Type]))]]): (List[Error], SymbolTable, FunctionTable, Program) = {
+  )(implicit funcToLibMap: Map[String, String], libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]]): (List[Error], SymbolTable, FunctionTable, Program) = {
     implicit val errorList: List[Error] = List()
     implicit val funcName: String = "0"
 

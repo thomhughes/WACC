@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers._
 import scala.collection.mutable.Map
 
 class SemanticAnalysisUnitTests extends AnyFlatSpec {
-    implicit val libToFuncMap: Map[String, List[(String, (Type, List[Type]))]] = Map()
+    implicit val libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]] = Map()
     implicit val funcToLibMap: Map[String, String] = Map()
     "Semantic analyser" should "correctly work with nested pair types" in {
         checkProgram(Program(List(), List(), List(

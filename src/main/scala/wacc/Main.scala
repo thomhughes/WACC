@@ -6,7 +6,7 @@ object Main {
   import parsley.{Success, Failure}
   import wacc.Errors.SyntaxError
   import wacc.Parser.parse
-  import wacc.Analyser.checkProgram
+  import wacc.Analyser.{checkProgram, renameFunctionRule}
   import wacc.IR.buildIR
   import wacc.IRToAssemblyConverter.convertAssembly
   import wacc.Peephole.peepholeOptimisation
@@ -52,31 +52,35 @@ object Main {
     }
   }
 
-  def parseLibraries(): Map[String, List[(String, (Type, List[Type]))]] = {
+  def parseLibraries(): Map[String, List[(String, List[(Type, List[Type])])]] = {
     Map(("array", List(
-      ("contains", (BoolType, List(ArrayType(IntType, 1)(0,0), IntType))),
-      ("reverse", (IntType, List(ArrayType(IntType, 1)(0,0)))),
-      ("sum", (IntType, List(ArrayType(IntType, 1)(0,0)))),
-      ("min", (IntType, List(ArrayType(IntType, 1)(0,0)))),
-      ("max", (IntType, List(ArrayType(IntType, 1)(0,0)))),
-      ("qsort", (IntType, List(ArrayType(IntType, 1)(0,0)))))),
+      ("contains", List((BoolType, List(ArrayType(IntType, 1)(0,0), IntType)))),
+      ("reverse", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("sum", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("min", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("max", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("qsort", List((IntType, List(ArrayType(IntType, 1)(0,0))))))),
     ("string", List(
-      ("strcat", (StringType, List(StringType, StringType))),
-      ("strlen", (IntType, List(StringType))),
-      ("atoi", (IntType, (List(StringType)))))),
+      ("strcat", List((StringType, List(StringType, StringType)))),
+      ("strlen", List((IntType, List(StringType)))),
+      ("atoi", List((IntType, (List(StringType))))))),
     ("math", List(
-      ("abs", (IntType, List(IntType))),
-      ("pow", (IntType, List(IntType, IntType))),
-      ("rand", (IntType, List())),
-      ("srand", (IntType, (List(IntType))))))
+      ("abs", List((IntType, List(IntType)))),
+      ("pow", List((IntType, List(IntType, IntType)))),
+      ("rand", List((IntType, List()))),
+      ("srand", List((IntType, (List(IntType)))))))
     )
   }
 
-  def reverseLibToFuncMap(map: Map[String, List[(String, (Type, List[Type]))]]): Map[String, String] = {
+  def reverseLibToFuncMap(map: Map[String, List[(String, List[(Type, List[Type])])]]): Map[String, String] = {
     val funcToLibMap: Map[String, String] = Map()
-    map.foreach((x: (String, List[(String, (Type, List[Type]))])) => {
-      x._2.foreach((y: (String, (Type, List[Type]))) => {
-        funcToLibMap += ((y._1 + "_0", x._1))
+    map.foreach((x: (String, List[(String, List[(Type, List[Type])])])) => {
+      x._2.foreach((y: (String, List[(Type, List[Type])])) => {
+        var counter = 0
+        y._2.foreach((z: (Type, List[Type])) => {
+          funcToLibMap += (renameFunctionRule(y._1, counter) -> x._1)
+          counter += 1
+        })
       })
     })
     funcToLibMap
@@ -92,7 +96,7 @@ object Main {
         sys.exit(100)
       }
       case Right(program) => {
-        implicit val libToFuncMap: Map[String, List[(String, (Type, List[Type]))]] = parseLibraries()
+        implicit val libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]] = parseLibraries()
         implicit val funcToLibMap = reverseLibToFuncMap(libToFuncMap)
         val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(program)
         if (!errors.isEmpty) {
