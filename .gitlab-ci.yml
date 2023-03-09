@@ -52,6 +52,13 @@ backend-unit-test-job:
   stage: test
   script:
     - sbt "testOnly wacc.IRConversionUnitTests"
+
+extension-unit-test-job:
+  stage: test
+  script:
+    - sbt "testOnly wacc.InlineFunctionsUnitTests"
+    - sbt "testOnly wacc.PeepholeUnitTests"
+    - sbt "testOnly wacc.SemanticAnalysisUnitTests"
   
 backend-test-job:
   stage: test
