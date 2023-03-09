@@ -15,7 +15,7 @@ class SemanticAnalysisUnitTests extends AnyFlatSpec {
             DeclarationStatement(PairType(IntType, BoolType)(0, 0), Identifier("q")(0, 0), NewPair(IntLiteral(3)(0, 0), BoolLiteral(true)(0, 0))(0, 0))(0, 0),
             DeclarationStatement(PairType(PairType(IntType, BoolType)(0, 0), IntType)(0, 0), Identifier("x")(0, 0), NewPair(Identifier("q")(0, 0), IntLiteral(4)(0, 0))(0, 0))(0, 0)
         ))(0, 0)) should matchPattern {
-            case (List(), _, _) =>
+            case (List(), _, _, _) =>
         }
     }
 
@@ -24,7 +24,7 @@ class SemanticAnalysisUnitTests extends AnyFlatSpec {
             DeclarationStatement(PairType(IntType, IntType)(0, 0), Identifier("q")(0, 0), NewPair(IntLiteral(3)(0, 0), IntLiteral(5)(0, 0))(0, 0))(0, 0),
             DeclarationStatement(PairType(PairType(IntType, BoolType)(0, 0), IntType)(0, 0), Identifier("x")(0, 0), NewPair(Identifier("q")(0, 0), IntLiteral(4)(0, 0))(0, 0))(0, 0)
         ))(0, 0)) should matchPattern {
-            case (TypeError(_, _, _) :: Nil, _, _) =>
+            case (TypeError(_, _, _) :: Nil, _, _, _) =>
         }
     }
 }
