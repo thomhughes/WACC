@@ -5,7 +5,7 @@ import wacc.Types._
 
 class FunctionTable {
   import wacc.AST.{Func, Identifier}
-  import wacc.Analyser.convertSyntaxToTypeSys
+  import wacc.Analyser.{convertSyntaxToTypeSys, equalsTypeSignature}
   import scala.collection.Set
   import wacc.Errors.{Error, UndeclaredFunctionError, RedeclaredFunctionError, PossibleMissingImportError}
 
@@ -63,7 +63,7 @@ class FunctionTable {
   }
 
   def getFunctionNo(funcName: String, typeSignature: TypeSignature): Int = {
-    map.get(funcName).get._1.get(typeSignature).get // change this
+    map.get(funcName).get._1.toList.filter(ts => equalsTypeSignature(ts._1, typeSignature)).head._2
   }
 
   def containsFunction(funcName: String) = map.contains(funcName)
