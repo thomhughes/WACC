@@ -541,10 +541,7 @@ object IR {
           implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
 
-          implicit var isLastStatement = IsLastStatement(false)
-          statementsOfInlineFunc.init.foreach(buildStatement(_))
-          isLastStatement = IsLastStatement(true)
-          buildStatement(statementsOfInlineFunc.last)
+          buildInlineFunctionStatements(statementsOfInlineFunc)
 
           irProgram.instructions += Label(renameToJumpAtEndOfInlineFunc(id.name, value._1))
           inlinedFunctionsAndBodies.put(id.name, (value._1 + 1, value._2, value._3))
@@ -555,6 +552,25 @@ object IR {
       irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     }
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
+  }
+
+  private def buildInlineFunctionStatements(
+      statements: List[Statement])(
+      implicit
+      irProgram: IRProgram,
+      funcName: String,
+      funcToLibMap: Map[String, String],
+      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])],
+      inlinedFunc: IsFunctionInlined) = {
+    implicit var isLastStatement = IsLastStatement(false)
+    statements.init.foreach(buildStatement(_))
+    statements.last match {
+      case ReturnStatement(expr) => {
+        isLastStatement = IsLastStatement(true)
+      }
+      case _ => ()
+    }
+    buildStatement(statements.last)
   }
 
   private def buildArrayAccess(id: Identifier, indices: List[Expression])(

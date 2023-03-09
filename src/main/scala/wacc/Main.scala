@@ -12,6 +12,7 @@ object Main {
   import wacc.Peephole.peepholeOptimisation
   import scala.collection.mutable.Map
   import wacc.AST._
+  import wacc.ControlFlowOptimization._
 
   val successExitCode = 0
   val syntaxErrorExitCode = 100
@@ -103,11 +104,12 @@ object Main {
         implicit val libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]] = parseLibraries()
         implicit val funcToLibMap = reverseLibToFuncMap(libToFuncMap)
         val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(program)
+        val controlFlowOptimizedProgram = optimizeControlFlow(updatedProgram)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)
           sys.exit(semanticErrorExitCode)
         } else {
-          val instructions = buildIR(updatedProgram, symbolTable)
+          val instructions = buildIR(controlFlowOptimizedProgram, symbolTable)
           val assembly = convertAssembly(peepholeOptimisation(instructions))
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)
