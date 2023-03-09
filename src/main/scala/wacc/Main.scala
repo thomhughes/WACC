@@ -58,12 +58,12 @@ object Main {
 
   def parseLibraries(): Map[String, List[(String, List[(Type, List[Type])])]] = {
     Map(("array", List(
-      ("contains", List((BoolType, List(ArrayType(IntType, 1)(0,0), IntType)))),
-      ("reverse", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("contains", List((BoolType, List(ArrayType(IntType, 1)(0,0), IntType)), (BoolType, List(ArrayType(CharType, 1)(0,0), CharType)))),
+      ("reverse", List((IntType, List(ArrayType(IntType, 1)(0,0))), (IntType, List(ArrayType(CharType, 1)(0,0))))),
       ("sum", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
-      ("min", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
+      ("min", List((IntType, List(ArrayType(IntType, 1)(0,0))), (CharType, List(ArrayType(CharType, 1)(0,0))))),
       ("max", List((IntType, List(ArrayType(IntType, 1)(0,0))), (CharType, List(ArrayType(CharType, 1)(0, 0))))),
-      ("qsort", List((IntType, List(ArrayType(IntType, 1)(0,0))))))),
+      ("qsort", List((IntType, List(ArrayType(IntType, 1)(0,0))), (IntType, List(ArrayType(CharType, 1)(0,0))))))),
     ("string", List(
       ("strcat", List((StringType, List(StringType, StringType)))),
       ("strlen", List((IntType, List(StringType)))),
