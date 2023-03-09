@@ -702,9 +702,8 @@ object Analyser {
     if (paramErrorList.nonEmpty) {
       return paramErrorList.toList ++ errorList
     }
-
     val currentTypeSignature = TypeSignature(typeName, currentParameterTypes.toList)
-    if (allowedTypeSignatures.contains(currentTypeSignature)) {
+    if (allowedTypeSignatures.exists(equalsTypeSignature(_, currentTypeSignature))) {
       errorList
     } else {
       errorList :+ FunctionCallTypeError(
@@ -714,6 +713,16 @@ object Analyser {
         currentTypeSignature.toString()
       )
     }
+  }
+
+  def equalsTypeSignature(a: TypeSignature, b: TypeSignature): Boolean = {
+      if (!equalsType(a.retType, b.retType)) {
+        return false
+      }
+      if (a.paramTypes.length != b.paramTypes.length) {
+        return false
+      }
+      a.paramTypes.zip(b.paramTypes).forall((x) => equalsType(x._1, x._2))
   }
 
   private def checkFunction(
@@ -770,9 +779,10 @@ object Analyser {
   }
   
   def renameFunctionName(funcId: Identifier, typeSignature: TypeSignature, functionTable: FunctionTable): Identifier = {
-
     funcId match {
-      case Identifier(name) => Identifier(renameFunctionRule(name, functionTable.getFunctionNo(name, typeSignature)))((0, 0))
+      case Identifier(name) => {
+        Identifier(renameFunctionRule(name, functionTable.getFunctionNo(name, typeSignature)))((0, 0))
+      }
     }
   }
 
