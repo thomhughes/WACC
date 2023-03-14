@@ -64,12 +64,9 @@ uint64_t root_hash(const void *item, uint64_t seed0, uint64_t seed1)
 
 void *heap_create(int size, enum HeapType type) {
   // TODO: create when sweeping?
-  struct HeapNode *new_node = (struct HeapNode*)calloc(1, sizeof(struct HeapNode *));
   void *address = calloc(size, 1);
-  new_node->address = address;
-  new_node->marked = !mark;
-  new_node->type = type;
-  hashmap_set(heap, new_node);
+  hashmap_set(heap, &(struct HeapNode) { .address = address, .marked = !mark, .type = type });
+  printf("Allocated: %p\n", address);
   return address;
 }
 
@@ -101,12 +98,7 @@ extern void root_assignment(int scope, char *name, void *address) {
   if (root) {
     root->reference_address = address;
   } else {
-    root = (struct RootNode *)calloc(1, sizeof(struct RootNode *));
-    printf("Allocated: %p\n", root);
-    root->scope = scope;
-    root->name = name;
-    root->reference_address = address;
-    hashmap_set(callinfo_get()->roots, root);
+    hashmap_set(callinfo_get()->roots, &(struct RootNode){ .scope = scope, .name = name, .reference_address = address });
   }
 }
 
@@ -119,14 +111,11 @@ extern void func_call();
 extern void gc_init();
 
 void enter_scope(unsigned new) {
-  // printf("Entering scope: %d -> %d\n", *get_scope(), new);
   *get_scope() = new;
 }
 
 extern void exit_scope(unsigned new) {
   unsigned *current_scope = get_scope();
-  // printf("exiting scope: %d\n", *current_scope);
-  // printf("Exiting scope: %d -> %d\n", new, *current_scope);
 
   // Currently we iterate through whole dictionary to do scoping cleanup 
   // We could sacrifice some space to store a list for each scope
@@ -134,7 +123,6 @@ extern void exit_scope(unsigned new) {
   struct RootNode *node = NULL;
   while (hashmap_iter(callinfo_get()->roots, &i, (void**)&node)) {
     if (node->scope == *current_scope) {
-      // printf("removing node: %p\n", node);
       hashmap_delete(callinfo_get()->roots, node);
       i = 0;
     }
@@ -143,10 +131,6 @@ extern void exit_scope(unsigned new) {
   *current_scope = new;
 }
 
-void root_free(void *address) {
-  printf("Freeing: %p\n", address);
-  free(address);
-}
 extern void func_call() {
   if (list_peek(&call_stack) == NULL) {
     gc_init();
@@ -154,7 +138,7 @@ extern void func_call() {
 
   struct CallInfo *new_frame = (struct CallInfo*)calloc(1, sizeof(struct CallInfo));
   new_frame->scope = 0;
-  new_frame->roots = hashmap_new(sizeof(struct RootNode), 0, 0, 0, root_hash, root_compare, root_free, NULL);
+  new_frame->roots = hashmap_new(sizeof(struct RootNode), 0, 0, 0, root_hash, root_compare, NULL, NULL);
   list_push(&call_stack, new_frame);
 }
 
@@ -163,18 +147,7 @@ void gc_mark();
 void gc_sweep();
 
 extern void func_return() {
-  // exit_scope(0);
-  // struct CallInfo *current_frame = list_peek(&call_stack)->data;
-  // assert(current_frame);
-  // hashmap_free(current_frame->roots);
-  // list_pop(&call_stack);
-  // exit_scope(11000);
-  // size_t i = 0;
-  // struct RootNode *node = NULL;
-  // while (hashmap_iter(callinfo_get()->roots, &i, (void**)&node)) {
-  //   hashmap_delete(callinfo_get()->roots, node);
-  //   i = 0;
-  // }
+  assert(callinfo_get());
   hashmap_free(callinfo_get()->roots);
   list_pop(&call_stack);
 
@@ -208,15 +181,21 @@ void gc_sweep() {
     if (node->marked != mark) {
       free(node->address);
       hashmap_delete(heap, node);
-      // printf("Freeing: %p\n", node->address);
+      printf("Freeing: %p\n", node->address);
       i = 0;
     }
   }
   mark = !mark;
 }
 
+void heapnode_free(void *node_) {
+  struct HeapNode *node = (struct HeapNode *)node_;
+  printf("Late freeing: %p\n", node->address);
+  free(node->address);
+}
+
 extern void gc_init() {
-  heap = hashmap_new(sizeof(struct HeapNode), 0, 0, 0, heap_hash, heap_compare, free, NULL);
+  heap = hashmap_new(sizeof(struct HeapNode), 0, 0, 0, heap_hash, heap_compare, heapnode_free, NULL);
   assert(heap);
 }
 
