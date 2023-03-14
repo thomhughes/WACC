@@ -90,6 +90,18 @@ object IR {
     inlinedFunctionsAndBodies
   }
 
+  def enterScope()(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.symbolTable.enterScope()
+    irProgram.instructions += Instr(MOV, paramRegs(0), Imm(irProgram.symbolTable.getScope()))
+    irProgram.instructions += Instr(BL, BranchLabel("enter_scope"))
+  }
+
+  def exitScope()(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.symbolTable.exitScope()
+    irProgram.instructions += Instr(MOV, paramRegs(0), Imm(irProgram.symbolTable.getScope()))
+    irProgram.instructions += Instr(BL, BranchLabel("exit_scope"))
+  }
+
   private def getLoadDataOperand(t: SAType): MemAccess =
     if (getNoBytes(t) == 1) LDRB else LDR
 
@@ -519,6 +531,7 @@ object IR {
       inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
+    buildGCFuncCall()
     funcToLibMap.get(id.name) match {
       case Some(_) => {
         var counter = 0
@@ -536,7 +549,7 @@ object IR {
         case Some(value) => {
           value._2.foreach((param: Parameter) =>
             irProgram.symbolTable.encountered(param.identifier))
-          irProgram.symbolTable.enterScope()
+          enterScope()
           buildFuncPrologue()
           implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
@@ -547,7 +560,7 @@ object IR {
           inlinedFunctionsAndBodies.put(id.name, (value._1 + 1, value._2, value._3))
         }
       }
-      irProgram.symbolTable.exitScope()
+      exitScope()
     } else {
       irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     }
@@ -673,14 +686,14 @@ object IR {
       BranchLabel(elseLabel),
       NE
     )
-    irProgram.symbolTable.enterScope()
+    enterScope()
     thenBody.foreach(buildStatement(_))
-    irProgram.symbolTable.exitScope()
+    exitScope()
     irProgram.instructions += Instr(B, BranchLabel(ifEndLabel))
     irProgram.instructions += Label(elseLabel)
-    irProgram.symbolTable.enterScope()
+    enterScope()
     elseBody.foreach(buildStatement(_))
-    irProgram.symbolTable.exitScope()
+    exitScope()
     irProgram.instructions += Label(ifEndLabel)
   }
 
@@ -704,9 +717,9 @@ object IR {
       BranchLabel(doneLabel),
       NE
     )
-    irProgram.symbolTable.enterScope()
+    enterScope()
     body.foreach(buildStatement(_))
-    irProgram.symbolTable.exitScope()
+    exitScope()
     irProgram.instructions += Instr(
       B,
       BranchLabel(conditionLabel)
@@ -791,6 +804,7 @@ object IR {
       case IsFunctionInlined(true) => buildInlinedFuncEpilogue()
       case IsFunctionInlined(false) => buildFuncEpilogue()
     }
+    buildGCFuncReturn()
   }
 
   private def buildRead(
@@ -806,9 +820,9 @@ object IR {
   private def buildBegin(
       statements: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement): Unit = {
-    irProgram.symbolTable.enterScope()
+    enterScope()
     statements.foreach(buildStatement(_))
-    irProgram.symbolTable.exitScope()
+    exitScope()
   }
 
   private def buildPrintln(
@@ -852,6 +866,11 @@ object IR {
 
   private def renameFunc(functionName: String) = "wacc_" + functionName
 
+  // calls the runtime function func_return
+  private def buildGCFuncCall()(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.instructions += Instr(BL, BranchLabel("func_call"))
+  }
+  
   def buildFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(LR)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
@@ -861,6 +880,11 @@ object IR {
     if (irProgram.symbolTable.getFrameSize() > 0) {
       loadRegConstant(SP, SP, -frameSize)
     }
+  }
+
+  // calls the runtime function func_return
+  private def buildGCFuncReturn()(implicit irProgram: IRProgram, funcName: String) = {
+    irProgram.instructions += Instr(BL, BranchLabel("func_return"))
   }
 
   // Inserted after function returns (all functions must return to be correct)
@@ -884,10 +908,10 @@ object IR {
       irProgram.symbolTable.resetScope()
       func.params.foreach((param: Parameter) =>
         irProgram.symbolTable.encountered(param.identifier))
-      irProgram.symbolTable.enterScope()
+      enterScope()
       buildFuncPrologue()
       func.body.foreach(buildStatement(_))
-      irProgram.symbolTable.exitScope()
+      exitScope()
     }
   }
 
@@ -904,14 +928,14 @@ object IR {
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
     irProgram.symbolTable.resetScope()
-    irProgram.symbolTable.enterScope()
+    enterScope()
     buildFuncPrologue()
     implicit val inlinedFunc = IsFunctionInlined(false);
     implicit val isLastStatement = IsLastStatement(false)
     statements.foreach(buildStatement(_))
     irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
     buildFuncEpilogue()
-    irProgram.symbolTable.exitScope()
+    exitScope()
   }
 
   def buildIR(
