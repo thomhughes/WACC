@@ -14,8 +14,9 @@ library: runtime $(LIBRARY_OBJECTS)
 all:
 	sbt compile assembly
 
+ARMASSEMBLY = $(shell find . -type f -name \*.s)
 clean:
-	rm $(RUNTIME_OBJECTS) $(LIBRARY_OBJECTS)
+	-rm -f $(RUNTIME_OBJECTS) $(LIBRARY_OBJECTS) $(ARMASSEMBLY) $(ARMASSEMBLY:%.s=%)
 	sbt clean && rm -rf wacc-42-compiler.jar
 
 .PHONY: all clean runtime library
