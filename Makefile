@@ -1,5 +1,5 @@
 CC = arm-linux-gnueabi-gcc
-CFLAGS = -mcpu=arm1176jzf-s -mtune=arm1176jzf-s
+CFLAGS = -fPIC -mcpu=arm1176jzf-s -mtune=arm1176jzf-s
 
 RUNTIME_SOURCES = waccyruntime/array.c waccyruntime/gc.o waccyruntime/hashmap.o waccyruntime/linkedlist.c waccyruntime/runtime.c
 RUNTIME_OBJECTS = $(RUNTIME_SOURCES:%.c=%.o)
@@ -10,6 +10,9 @@ LIBRARY_OBJECTS = $(LIBRARY_SOURCES:%.c=%.o)
 runtime: $(RUNTIME_OBJECTS)
 
 library: runtime $(LIBRARY_OBJECTS)
+
+runtime.so: runtime library
+	$(CC) $(RUNTIME_OBJECTS) $(LIBRARY_OBJECTS) -shared -o runtime.so
 
 all:
 	sbt compile assembly
