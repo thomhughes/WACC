@@ -1,7 +1,18 @@
+#include "gc.h"
+
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "runtime.h"
+
+// Array
+struct array
+{
+  void **data;
+  unsigned elemsize;
+  unsigned size;
+  int dimensions;
+};
 
 void array_literal_create_bytes(unsigned char *data, unsigned size,
                                 va_list elemlist)
@@ -20,12 +31,12 @@ void array_literal_create_longs(long *data, unsigned size, va_list elemlist)
   }
 }
 
-extern struct array *array_literal_create(unsigned elemsize, unsigned size, void *_R2, void *_R3, ...)
+extern struct array *array_literal_create(unsigned elemsize, unsigned size, int dimensions, void *_R3, ...)
 {
   va_list args;
   va_start(args, _R3);
   struct array *out;
-  out = (struct array *)calloc(1, sizeof(struct array) + elemsize * size);
+  out = (struct array *)heap_create(sizeof(struct array) + elemsize * size, Array);
   out->elemsize = elemsize;
   out->size = size;
   out->data = (void **)&out->size + 1;
@@ -35,7 +46,7 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, void
   }
   else if (elemsize == 4)
   {
-    array_literal_create_longs((long *)out->data, size, args);
+    array_literal_create_longs((long*)out->data, size, args);
   }
   else
   {
@@ -54,7 +65,7 @@ extern void array_free(struct array *in)
     fprintf(stdout, "Runtime error: attempting to free NULL array.\n");
     exit(-1);
   }
-  free(in);
+  heap_destroy(in);
   in = NULL;
 }
 
@@ -87,11 +98,22 @@ extern void *array_access(struct array *in, unsigned index)
   return &in->data[index];
 }
 
+void array_mark(void *array_) {
+  struct array *array = (struct array *)array_;
+  if (array->dimensions > 1) {
+    for (int i = 0; i < array->size; ++i) {
+     heap_mark(*(void**)array_access(array, i));
+    }
+  }
+}
+
 // Pair
 struct pair
 {
   void *fst;
   void *snd;
+  bool fst_ref;
+  bool snd_ref;
 };
 
 void check_pair(struct pair *in)
@@ -103,13 +125,14 @@ void check_pair(struct pair *in)
   }
 }
 
-extern struct pair *pair_create(void *_R0, void *_R1, void *_R2, void *_R3, void *fst, void *snd)
+extern struct pair *pair_create(bool fst_ref, bool snd_ref, void *_R2, void *_R3, void *fst, void *snd)
 {
   struct pair *out;
-  out = (struct pair *)calloc(1, sizeof(struct pair));
-  // printf("(%p) fst: %p, snd: %p\n", out, fst, snd);
+  out = (struct pair *)heap_create(sizeof(struct pair), Pair); 
   out->fst = fst;
   out->snd = snd;
+  out->fst_ref = fst_ref;
+  out->snd_ref = snd_ref;
   return out;
 }
 
@@ -120,7 +143,7 @@ extern void pair_free(struct pair *in)
     fprintf(stdout, "Runtime error: attempting to free NULL pair.\n");
     exit(-1);
   }
-  free(in);
+  heap_destroy(in);
   in = NULL;
 }
 
@@ -134,6 +157,16 @@ extern void *pair_snd(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R
 {
   check_pair(in);
   return &in->snd;
+}
+
+void pair_mark(void *pair_) {
+  struct pair *pair = (struct pair *)pair_;
+  if (pair->fst_ref) {
+    heap_mark(pair->fst);
+  }
+  if (pair->snd_ref) {
+    heap_mark(pair->snd);
+  }
 }
 
 // Print functions
@@ -168,7 +201,7 @@ extern void _println(void)
 }
 
 // Read functions?
-void read(void *out, int length)
+extern void read(void *out, int length)
 {
   if (out == NULL)
   {
@@ -199,3 +232,4 @@ extern int __aeabi_idiv0(void)
   fprintf(stdout, "Runtime error: division by zero\n");
   exit(-1);
 }
+

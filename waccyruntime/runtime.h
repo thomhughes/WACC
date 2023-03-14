@@ -1,8 +1,7 @@
-struct array
-{
-  void **data;
-  unsigned elemsize;
-  unsigned size;
-};
+#ifndef _RUNTIME_H
+#define _RUNTIME_H
 
-unsigned array_size(struct array *in);
+void array_mark(void *array);
+void pair_mark(void *pair);
+
+#endif
