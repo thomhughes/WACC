@@ -6,7 +6,7 @@
 ./compile $@
 STATUS=$?
 if [ $STATUS -eq 0 ]; then
-  arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -L. $(basename $@ .wacc).s -o $(basename $@ .wacc) -lm -lruntime
+  arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -L. $(basename $@ .wacc).s -o $(basename $@ .wacc) -lruntime -lm 
   qemu-arm -L /usr/arm-linux-gnueabi/ $(basename $@ .wacc)
 fi
 exit $STATUS

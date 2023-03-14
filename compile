@@ -3,7 +3,7 @@
 # You are free to change the language used for this script,
 # but do *not* change its name.
 
-make
+# make
 java -jar wacc-42-compiler.jar $@
 STATUS=$?
 exit $STATUS

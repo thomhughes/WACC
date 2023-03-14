@@ -66,7 +66,7 @@ void *heap_create(int size, enum HeapType type) {
   // TODO: create when sweeping?
   void *address = calloc(size, 1);
   hashmap_set(heap, &(struct HeapNode) { .address = address, .marked = !mark, .type = type });
-  printf("Allocated: %p\n", address);
+  //printf("Allocated: %p\n", address);
   return address;
 }
 
@@ -94,7 +94,7 @@ struct HeapNode *heap_lookup(void *address) {
 
 extern void root_assignment(int scope, char *name, void *address) {
   struct RootNode *root = (struct RootNode *)hashmap_get(callinfo_get()->roots, &(struct RootNode){ .scope = scope, .name = name });
-  // printf("Root assignment: (%d, %s) -> %p\n", scope, name, address);
+  // //printf("Root assignment: (%d, %s) -> %p\n", scope, name, address);
   if (root) {
     root->reference_address = address;
   } else {
@@ -152,15 +152,15 @@ extern void func_return() {
   list_pop(&call_stack);
 
   // // TODO: Maybe move elsewhere :3
-  // printf("Returning and collecting:\n");
+  // //printf("Returning and collecting:\n");
   gc_mark();
   gc_sweep();
-  // printf("sweeeep!\n");
+  // //printf("sweeeep!\n");
 }
 
 bool root_mark(const void *root_, void *udata) {
   const struct RootNode *root = root;
-  // printf("Root mark: %p\n", root->reference_address);
+  // //printf("Root mark: %p\n", root->reference_address);
   heap_mark(root->reference_address);
   return true;
 }
@@ -181,7 +181,7 @@ void gc_sweep() {
     if (node->marked != mark) {
       free(node->address);
       hashmap_delete(heap, node);
-      printf("Freeing: %p\n", node->address);
+      // printf("Freeing: %p\n", node->address);
       i = 0;
     }
   }
@@ -190,7 +190,7 @@ void gc_sweep() {
 
 void heapnode_free(void *node_) {
   struct HeapNode *node = (struct HeapNode *)node_;
-  printf("Late freeing: %p\n", node->address);
+  fprintf(stderr, "[!] Late freeing: %p\n", node->address);
   free(node->address);
 }
 

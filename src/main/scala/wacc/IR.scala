@@ -954,10 +954,7 @@ object IR {
         irProgram.symbolTable.encountered(param.identifier))
       buildFuncPrologue()
       enterScope()
-      func.body.foreach(x => {
-        println(x)
-        buildStatement(x)
-      })
+      func.body.foreach(buildStatement(_))
       exitScope()
     }
   }

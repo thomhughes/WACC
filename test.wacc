@@ -1,20 +1,20 @@
 begin
-    int f(int x) is
-        println x ;
-        if x == 1 then
-            int[] endarr = [1,2,3,4,5,6];
-            return 1
-            # return endarr[0]
-        else
-            int[] startarr = [1,2,3,5,8];
-            int fx = call f(x - 1) ;
-            return fx
-        fi
+    int arrayfunc() is
+        int[] a = [3, 2, 5, 2];
+        int[] b = [1, 2, 5, 2];
+        int[][] c = [a, b, b, a];
+        b = a;
+        return c[2][1]
     end
-    int val = call f(100) ;
-    println "helo" ;
-    println val
-    # int[] d1 = [1,2,3] ;
+    int f(int x) is
+        int i = 0 ;
+        while i < 100000 do
+            i = i + 1 ;
+            int j = call arrayfunc()
+        done ;
+        return 2
+    end
+    int j = call f (5)
     # d1[2] = 4 ;
     # int[][] d2 = [d1] ;
     # int n = 0;
