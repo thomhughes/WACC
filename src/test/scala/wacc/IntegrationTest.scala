@@ -51,7 +51,7 @@ class IntegrationTest extends AnyFlatSpec {
       val executablePath = Paths.get(inputFileName.replaceFirst(".wacc$", ""))
       val assemblyPath = Paths.get(inputFileName.replaceFirst(".wacc$", ".s"))
       val assemblerExitCode =
-        ("arm-linux-gnueabi-gcc -o " + executablePath.toString + "-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -L. " + assemblyPath.toString + " -lruntime -lm").!
+        ("arm-linux-gnueabi-gcc -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -L. " + assemblyPath.toString + " -o  " + executablePath.toString + " -lruntime -lm").!
       if (assemblerExitCode != 0) {
         fail(
           "Assembling " + path.toString() + " led to an error"
