@@ -27,6 +27,7 @@ void array_literal_create_longs(long *data, unsigned size, va_list elemlist)
 
 struct array *array_literal_create(unsigned elemsize, unsigned size, int dimensions, void *_R3, ...)
 {
+  printf("Creating array literal!\n");
   va_list args;
   va_start(args, _R3);
   struct array *out;
@@ -34,6 +35,7 @@ struct array *array_literal_create(unsigned elemsize, unsigned size, int dimensi
   out->elemsize = elemsize;
   out->size = size;
   out->data = (void **)&out->size + 1;
+  out->dimensions = dimensions;
   if (elemsize == 1)
   {
     array_literal_create_bytes((unsigned char *)out->data, size, args);

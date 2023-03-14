@@ -35,6 +35,13 @@ case class SymbolTable private (private val map: Map[String, OuterBodySymbolTabl
   }
 
   // Used after SA; does not use ErrorList
+  def lookupScope(identifier: Identifier)(implicit funcName: String): Int = {
+    if (map.contains(funcName)) {
+      return map(funcName).lookupScope(identifier)
+    }
+    throw new Exception(map.toString() + "," + funcName + ": can't be found.")
+  }
+
   def lookupType(identifier: Identifier)(implicit funcName: String): SAType = {
     if (map.contains(funcName)) {
       return map(funcName).lookupType(identifier)

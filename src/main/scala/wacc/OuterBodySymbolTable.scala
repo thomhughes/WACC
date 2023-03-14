@@ -81,6 +81,18 @@ case class OuterBodySymbolTable private (
     }
   }
 
+  def lookupScope(identifier: Identifier): Int = {
+    val iter = scoper.getIterator()
+    while (iter.hasNext) {
+      val curr = iter.next()
+      val key = (identifier.name, curr)
+      if (mutable && map.contains(key) || !mutable && seen_set.contains(key)) {
+        return key._2
+      }
+    }
+    throw new Exception("variable " + identifier + "cannot be found")
+  }
+
   def lookupType(identifier: Identifier): SAType = {
     lookupVarType(identifier)(Nil) match {
       case Left(x) => x

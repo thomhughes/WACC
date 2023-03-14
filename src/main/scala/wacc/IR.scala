@@ -92,13 +92,13 @@ object IR {
 
   def enterScope()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.symbolTable.enterScope()
-    irProgram.instructions += Instr(MOV, paramRegs(0), Imm(irProgram.symbolTable.getScope()))
+    loadMovConstant(paramRegs(0), irProgram.symbolTable.getScope())
     irProgram.instructions += Instr(BL, BranchLabel("enter_scope"))
   }
 
   def exitScope()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.symbolTable.exitScope()
-    irProgram.instructions += Instr(MOV, paramRegs(0), Imm(irProgram.symbolTable.getScope()))
+    loadMovConstant(paramRegs(0), irProgram.symbolTable.getScope())
     irProgram.instructions += Instr(BL, BranchLabel("exit_scope"))
   }
 
@@ -426,6 +426,13 @@ object IR {
   private def getTemporaryLabelNameForStringLiterals(labelCount: Int): String =
     s".L.str${labelCount}"
 
+  private def buildStackString(string: String)(implicit irProgram: IRProgram) = {
+    val label = LabelRef(getTemporaryLabelNameForStringLiterals(irProgram.stringLiteralCounter))
+    irProgram.instructions += Data(label, string)
+    irProgram.stringLiteralCounter += 1
+    irProgram.instructions += Instr(LDR, scratchRegs(0), label)
+    irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+  }
   /* Evaluates expression and places result on top of the stack */
   private def buildExpression(
       expr: Expression
@@ -444,13 +451,7 @@ object IR {
         irProgram.instructions += Instr(MOV, scratchRegs(0), Imm(bool.toInt))
         irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
       }
-      case StringLiteral(string) => {
-        val label = LabelRef(getTemporaryLabelNameForStringLiterals(irProgram.stringLiteralCounter))
-        irProgram.instructions += Data(label, string)
-        irProgram.stringLiteralCounter += 1
-        irProgram.instructions += Instr(LDR, scratchRegs(0), label)
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
-      }
+      case StringLiteral(string) => buildStackString(string)
       case PairLiteral => {
         irProgram.instructions += Instr(MOV, scratchRegs(0), Imm(0))
         irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
@@ -502,8 +503,15 @@ object IR {
       case SAArrayType(_, _)         => 4
       case _                         => throw new Exception("Unexpected LValue type")
     }
-    irProgram.instructions += Instr(MOV, paramRegs(0), Imm(elementSize))
-    irProgram.instructions += Instr(MOV, paramRegs(1), Imm(args.size))
+
+    val dimensions = argType match {
+      case SAArrayType(_, n) => n
+      case _                         => throw new Exception("Unexpected LValue type")
+    }
+
+    loadMovConstant(paramRegs(0), elementSize)
+    loadMovConstant(paramRegs(1), args.size)
+    loadMovConstant(paramRegs(2), dimensions)
     args.reverse.foreach(buildExpression(_))
     irProgram.instructions += Instr(BL, BranchLabel("array_literal_create"))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
@@ -549,8 +557,8 @@ object IR {
         case Some(value) => {
           value._2.foreach((param: Parameter) =>
             irProgram.symbolTable.encountered(param.identifier))
+            buildFuncPrologue()
           enterScope()
-          buildFuncPrologue()
           implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
 
@@ -618,12 +626,26 @@ object IR {
     buildArrLoadHelper(indices)
   }
 
+  private def isPairRef(argType: SAType): Boolean = argType match {
+    case SAPairRefType => true
+    case default => false
+  }
+
+  implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
   private def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(
       implicit
       irProgram: IRProgram,
       funcName: String) = {
     buildExpression(e2)
     buildExpression(e1)
+    (argType: @unchecked) match {
+      case SAPairType(fstType, sndType) => {
+        val fstIsRef = isPairRef(fstType)
+        val sndIsRef = isPairRef(sndType)
+        irProgram.instructions += Instr(MOV, paramRegs(0), Imm(fstIsRef.toInt))
+        irProgram.instructions += Instr(MOV, paramRegs(1), Imm(sndIsRef.toInt))
+      }
+    }
     irProgram.instructions += Instr(BL, BranchLabel("pair_create"))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
@@ -663,10 +685,28 @@ object IR {
       funcName: String,
       funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
+    val lvalueType = getLValueType(lvalue)
     buildRValue(
       rvalue,
-      getLValueType(lvalue)
+      lvalueType
     )
+    lvalue match {
+      case id @ Identifier(name) => {
+        val isReference = lvalueType match {
+          case SAArrayType(_, _) | SAPairType(_, _) => true
+          case default => false
+        }
+        if (isReference) {
+          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(2)))) 
+          irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(2)))) 
+          buildStackString(name)
+          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(1)))) 
+          loadMovConstant(paramRegs(0), irProgram.symbolTable.lookupScope(id))
+          irProgram.instructions += Instr(BL, BranchLabel("root_assignment"));
+        }
+      }
+      case default => ()
+    }
     buildLValue(lvalue)
   }
 
@@ -800,11 +840,15 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String, inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
     buildExpression(expression)
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
+    irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
+    // loadMovConstant(paramRegs(0), 0) // Hacky, we can fix but whatever. Its an edge case.
+    // irProgram.instructions += Instr(BL, BranchLabel("exit_scope"))
+    buildGCFuncReturn()
     inlinedFunc match {
       case IsFunctionInlined(true) => buildInlinedFuncEpilogue()
       case IsFunctionInlined(false) => buildFuncEpilogue()
     }
-    buildGCFuncReturn()
   }
 
   private def buildRead(
@@ -908,9 +952,12 @@ object IR {
       irProgram.symbolTable.resetScope()
       func.params.foreach((param: Parameter) =>
         irProgram.symbolTable.encountered(param.identifier))
-      enterScope()
       buildFuncPrologue()
-      func.body.foreach(buildStatement(_))
+      enterScope()
+      func.body.foreach(x => {
+        println(x)
+        buildStatement(x)
+      })
       exitScope()
     }
   }
