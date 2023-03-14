@@ -928,14 +928,16 @@ object IR {
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
     irProgram.symbolTable.resetScope()
-    enterScope()
     buildFuncPrologue()
+    buildGCFuncCall()
+    enterScope()
     implicit val inlinedFunc = IsFunctionInlined(false);
     implicit val isLastStatement = IsLastStatement(false)
     statements.foreach(buildStatement(_))
+    exitScope()
+    buildGCFuncReturn()
     irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
     buildFuncEpilogue()
-    exitScope()
   }
 
   def buildIR(

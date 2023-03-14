@@ -7,15 +7,17 @@ RUNTIME_OBJECTS = $(RUNTIME_SOURCES:%.c=%.o)
 LIBRARY_SOURCES = libraries/string.c libraries/math.c libraries/array.c
 LIBRARY_OBJECTS = $(LIBRARY_SOURCES:%.c=%.o)
 
+all: runtime library libruntime.a
+	sbt compile assembly
+
 runtime: $(RUNTIME_SOURCES) $(RUNTIME_OBJECTS)
 
 library: runtime $(LIBRARY_SOURCES) $(LIBRARY_OBJECTS)
 
-runtime.a: $(RUNTIME_OBJECTS) $(LIBRARY_OBJECTS)
-	ar rcs $@ $^
 
-all:
-	sbt compile assembly
+libruntime.a: $(RUNTIME_OBJECTS) $(LIBRARY_OBJECTS)
+	arm-linux-gnueabi-ar -rc $@ $^
+
 
 ARMASSEMBLY = $(shell find . -type f -name \*.s)
 clean:

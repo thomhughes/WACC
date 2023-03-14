@@ -5,6 +5,6 @@
 
 java -jar wacc-42-compiler.jar $@
 STATUS=$?
-make runtime && make library
+make
 exit $STATUS
 

@@ -1,3 +1,4 @@
+#include "runtime.h"
 #include "gc.h"
 
 #include <stdarg.h>
@@ -6,13 +7,6 @@
 #include <stdlib.h>
 
 // Array
-struct array
-{
-  void **data;
-  unsigned elemsize;
-  unsigned size;
-  int dimensions;
-};
 
 void array_literal_create_bytes(unsigned char *data, unsigned size,
                                 va_list elemlist)
@@ -31,7 +25,7 @@ void array_literal_create_longs(long *data, unsigned size, va_list elemlist)
   }
 }
 
-extern struct array *array_literal_create(unsigned elemsize, unsigned size, int dimensions, void *_R3, ...)
+struct array *array_literal_create(unsigned elemsize, unsigned size, int dimensions, void *_R3, ...)
 {
   va_list args;
   va_start(args, _R3);
@@ -58,7 +52,7 @@ extern struct array *array_literal_create(unsigned elemsize, unsigned size, int 
   return out;
 }
 
-extern void array_free(struct array *in)
+void array_free(struct array *in)
 {
   if (in == NULL)
   {
@@ -87,7 +81,7 @@ void check_array_access(struct array *in, unsigned index)
 
 unsigned array_size(struct array *in) { return in->size; }
 
-extern void *array_access(struct array *in, unsigned index)
+void *array_access(struct array *in, unsigned index)
 {
   check_array_access(in, index);
   if (in->elemsize == 1)
@@ -95,7 +89,8 @@ extern void *array_access(struct array *in, unsigned index)
     return &((unsigned char *)in->data)[index];
   }
 
-  return &in->data[index];
+  void *ptr = &in->data[index];
+  return ptr;
 }
 
 void array_mark(void *array_) {
@@ -125,7 +120,7 @@ void check_pair(struct pair *in)
   }
 }
 
-extern struct pair *pair_create(bool fst_ref, bool snd_ref, void *_R2, void *_R3, void *fst, void *snd)
+struct pair *pair_create(bool fst_ref, bool snd_ref, void *_R2, void *_R3, void *fst, void *snd)
 {
   struct pair *out;
   out = (struct pair *)heap_create(sizeof(struct pair), Pair); 
@@ -136,7 +131,7 @@ extern struct pair *pair_create(bool fst_ref, bool snd_ref, void *_R2, void *_R3
   return out;
 }
 
-extern void pair_free(struct pair *in)
+void pair_free(struct pair *in)
 {
   if (in == NULL)
   {
@@ -147,13 +142,13 @@ extern void pair_free(struct pair *in)
   in = NULL;
 }
 
-extern void *pair_fst(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R4)
+void *pair_fst(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R4)
 {
   check_pair(in);
   return &in->fst;
 }
 
-extern void *pair_snd(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R4)
+void *pair_snd(struct pair *in, void *_R1, void *_R2, void *_R3, void *_R4)
 {
   check_pair(in);
   return &in->snd;
@@ -170,38 +165,38 @@ void pair_mark(void *pair_) {
 }
 
 // Print functions
-extern void _printi(int i)
+void _printi(int i)
 {
   printf("%d", i);
 }
 
-extern void _prints(char *string)
+void _prints(char *string)
 {
   printf("%s", string);
 }
 
-extern void _printb(char b)
+void _printb(char b)
 {
   printf("%s", b ? "true" : "false");
 }
 
-extern void _printc(char c)
+void _printc(char c)
 {
   printf("%c", c);
 }
 
-extern void _printp(void *p)
+void _printp(void *p)
 {
   printf("%p", p);
 }
 
-extern void _println(void)
+void _println(void)
 {
   putchar('\n');
 }
 
 // Read functions?
-extern void read(void *out, int length)
+void read(void *out, int length)
 {
   if (out == NULL)
   {
@@ -220,14 +215,14 @@ extern void read(void *out, int length)
 }
 
 // Arithmetic runtime errors
-extern void error_arithmetic_overflow()
+void error_arithmetic_overflow()
 {
   fprintf(stdout, "Runtime error: arithmetic overflow\n");
   exit(-1);
 }
 
 // https://developer.arm.com/documentation/dui0773/e/Coding-Considerations/Integer-division-by-zero-errors-in-C-code?lang=en
-extern int __aeabi_idiv0(void)
+int __aeabi_idiv0(void)
 {
   fprintf(stdout, "Runtime error: division by zero\n");
   exit(-1);

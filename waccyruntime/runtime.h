@@ -6,6 +6,7 @@ struct array
   void **data;
   unsigned elemsize;
   unsigned size;
+  int dimensions;
 };
 
 void array_mark(void *array);
