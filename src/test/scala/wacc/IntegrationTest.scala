@@ -8,6 +8,7 @@ class IntegrationTest extends AnyFlatSpec {
   import scala.io.Source
   import scala.jdk.CollectionConverters._
   import org.scalatest.matchers.should.Matchers._
+  import scala.collection.parallel.CollectionConverters._
   import scala.sys.process._
 
   def runFrontendTest(path: Path, run: Boolean): Unit = {
@@ -115,11 +116,14 @@ class IntegrationTest extends AnyFlatSpec {
       path: String,
       run: Boolean,
       test: (Path, Boolean) => Unit
-  ): Unit =
+  ): Unit = {
     Files
       .walk(Paths.get("wacc_examples/" + path))
       .iterator()
       .asScala
+      //.toList
+     // .par
       .filter(Files.isRegularFile(_))
       .foreach((x) => test(x, run))
+  }
 }

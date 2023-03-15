@@ -90,16 +90,13 @@ object IR {
     inlinedFunctionsAndBodies
   }
 
-  def enterScope()(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.symbolTable.enterScope()
+  def changeScope(enter: Boolean)(implicit irProgram: IRProgram, funcName: String) = {
+    if (enter) irProgram.symbolTable.enterScope() else irProgram.symbolTable.exitScope()
+    irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
     loadMovConstant(paramRegs(0), irProgram.symbolTable.getScope())
-    irProgram.instructions += Instr(BL, BranchLabel("enter_scope"))
-  }
-
-  def exitScope()(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.symbolTable.exitScope()
-    loadMovConstant(paramRegs(0), irProgram.symbolTable.getScope())
-    irProgram.instructions += Instr(BL, BranchLabel("exit_scope"))
+    val changeFunction = if (enter) BranchLabel("enter_scope") else BranchLabel("exit_scope")
+    irProgram.instructions += Instr(BL, changeFunction)
+    irProgram.instructions += Instr(POP, RegisterList(List(R0)))
   }
 
   private def getLoadDataOperand(t: SAType): MemAccess =
@@ -558,7 +555,7 @@ object IR {
           value._2.foreach((param: Parameter) =>
             irProgram.symbolTable.encountered(param.identifier))
             buildFuncPrologue()
-          enterScope()
+          changeScope(true)
           implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
 
@@ -568,7 +565,7 @@ object IR {
           inlinedFunctionsAndBodies.put(id.name, (value._1 + 1, value._2, value._3))
         }
       }
-      exitScope()
+      changeScope(false)
     } else {
       irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     }
@@ -679,6 +676,12 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("exit"))
   }
 
+  def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram, funcName: String) = 
+  getLValueType(lvalue) match {
+    case SAArrayType(_, _) | SAPairType(_, _) => true
+    case default => false
+  }
+
   private def buildAssignment(lvalue: LValue, rvalue: RValue)(
       implicit
       irProgram: IRProgram,
@@ -692,11 +695,7 @@ object IR {
     )
     lvalue match {
       case id @ Identifier(name) => {
-        val isReference = lvalueType match {
-          case SAArrayType(_, _) | SAPairType(_, _) => true
-          case default => false
-        }
-        if (isReference) {
+        if (isLValueReference(lvalue)) {
           irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(2)))) 
           irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(2)))) 
           buildStackString(name)
@@ -726,14 +725,14 @@ object IR {
       BranchLabel(elseLabel),
       NE
     )
-    enterScope()
+    changeScope(true)
     thenBody.foreach(buildStatement(_))
-    exitScope()
+    changeScope(false)
     irProgram.instructions += Instr(B, BranchLabel(ifEndLabel))
     irProgram.instructions += Label(elseLabel)
-    enterScope()
+    changeScope(true)
     elseBody.foreach(buildStatement(_))
-    exitScope()
+    changeScope(false)
     irProgram.instructions += Label(ifEndLabel)
   }
 
@@ -757,9 +756,9 @@ object IR {
       BranchLabel(doneLabel),
       NE
     )
-    enterScope()
+    changeScope(true)
     body.foreach(buildStatement(_))
-    exitScope()
+    changeScope(false)
     irProgram.instructions += Instr(
       B,
       BranchLabel(conditionLabel)
@@ -839,12 +838,18 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram, funcName: String, inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
     buildExpression(expression)
+    val passReference = expression match {
+      case id @ Identifier(_) => isLValueReference(id)
+      case ae @ ArrayElem(_, _) => isLValueReference(ae)
+      case default => false
+    }
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
-    irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
-    // loadMovConstant(paramRegs(0), 0) // Hacky, we can fix but whatever. Its an edge case.
-    // irProgram.instructions += Instr(BL, BranchLabel("exit_scope"))
+    if (!passReference) {
+      irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
+    }
     buildGCFuncReturn()
+    irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     inlinedFunc match {
       case IsFunctionInlined(true) => buildInlinedFuncEpilogue()
       case IsFunctionInlined(false) => buildFuncEpilogue()
@@ -864,9 +869,9 @@ object IR {
   private def buildBegin(
       statements: List[Statement]
   )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement): Unit = {
-    enterScope()
+    changeScope(true)
     statements.foreach(buildStatement(_))
-    exitScope()
+    changeScope(false)
   }
 
   private def buildPrintln(
@@ -922,7 +927,7 @@ object IR {
     irProgram.instructions += Instr(ADD, FP, SP, Imm(4))
     val frameSize = irProgram.symbolTable.getFrameSize()
     if (irProgram.symbolTable.getFrameSize() > 0) {
-      loadRegConstant(SP, SP, -frameSize)
+      loadRegConstant(SP, SP, -(frameSize + (frameSize % 4)))
     }
   }
 
@@ -953,9 +958,9 @@ object IR {
       func.params.foreach((param: Parameter) =>
         irProgram.symbolTable.encountered(param.identifier))
       buildFuncPrologue()
-      enterScope()
+      changeScope(true)
       func.body.foreach(buildStatement(_))
-      exitScope()
+      changeScope(false)
     }
   }
 
@@ -974,11 +979,11 @@ object IR {
     irProgram.symbolTable.resetScope()
     buildFuncPrologue()
     buildGCFuncCall()
-    enterScope()
+    changeScope(true)
     implicit val inlinedFunc = IsFunctionInlined(false);
     implicit val isLastStatement = IsLastStatement(false)
     statements.foreach(buildStatement(_))
-    exitScope()
+    changeScope(false)
     buildGCFuncReturn()
     irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
     buildFuncEpilogue()

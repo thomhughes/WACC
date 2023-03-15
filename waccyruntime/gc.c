@@ -51,15 +51,19 @@ int root_compare(const void *a_, const void *b_, void *udata) {
   const struct RootNode *a = a_;
   const struct RootNode *b = b_;
   int cmp = a->scope - b->scope;
-  return !cmp ? strcmp(a->name, b->name) : cmp;
+  cmp = !cmp ? strcmp(a->name, b->name) : cmp;
+  // printf("Compare %d %s, %d %s\n", a->scope, a->name, b->scope, b->name);
+  return cmp;
 }
 
 uint64_t root_hash(const void *item, uint64_t seed0, uint64_t seed1)
 {
   const struct RootNode *root_node = item;
-  return hashmap_sip(&root_node->scope, sizeof(root_node->scope), seed0,
+  const uint64_t hash = hashmap_sip(&root_node->scope, sizeof(root_node->scope), seed0,
                      seed1) ^
          hashmap_sip(&root_node->name, strlen(root_node->name), seed0, seed1);
+  // printf("Root hash: %s %d -> %lld\n", root_node->name, root_node->scope, hash);
+  return hash;
 }
 
 void *heap_create(int size, enum HeapType type) {
@@ -115,6 +119,7 @@ void enter_scope(unsigned new) {
 }
 
 extern void exit_scope(unsigned new) {
+  printf("Exting scope: %d\n", new);
   unsigned *current_scope = get_scope();
 
   // Currently we iterate through whole dictionary to do scoping cleanup 
@@ -124,11 +129,17 @@ extern void exit_scope(unsigned new) {
   while (hashmap_iter(callinfo_get()->roots, &i, (void**)&node)) {
     if (node->scope == *current_scope) {
       hashmap_delete(callinfo_get()->roots, node);
+      // if (!hashmap_delete(callinfo_get()->roots, node)) {
+      //   printf("Deleting: %d %p %d %d %s %p\n", hashmap_count(callinfo_get()->roots), hashmap_get(callinfo_get()->roots, node), *current_scope, node->scope, node->name, node->reference_address);
+      //   break;
+      // }
       i = 0;
     }
+    // node = NULL;
   }
 
   *current_scope = new;
+  printf("Exited scope: %d\n", new);
 }
 
 extern void func_call() {
@@ -146,15 +157,20 @@ extern void func_call() {
 void gc_mark();
 void gc_sweep();
 
-extern void func_return() {
+extern void func_return(void *returnvalue) {
+  printf("Func return: %p\n", returnvalue);
   assert(callinfo_get());
   hashmap_free(callinfo_get()->roots);
   list_pop(&call_stack);
 
   // // TODO: Maybe move elsewhere :3
   // //printf("Returning and collecting:\n");
+  if (returnvalue) {
+    heap_mark(returnvalue);
+  }
   gc_mark();
   gc_sweep();
+  printf("----Func return: %p\n", returnvalue);
   // //printf("sweeeep!\n");
 }
 
