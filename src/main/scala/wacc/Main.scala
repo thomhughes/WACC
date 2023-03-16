@@ -6,7 +6,8 @@ object Main {
   import parsley.{Success, Failure}
   import wacc.Errors.SyntaxError
   import wacc.Parser.parse
-  import wacc.Analyser.{checkProgram, renameFunctionRule}
+  import wacc.Analyser.checkProgram
+  import wacc.Analyser.FunctionOverloader.renameFunctionRule
   import wacc.IR.buildIR
   import wacc.IRToAssemblyConverter.convertAssembly
   import wacc.Peephole.peepholeOptimisation

@@ -7,6 +7,7 @@ object Analyser {
   import wacc.AST._
   import wacc.Types._
   import wacc.Errors._
+  import FunctionOverloader.{renameOverloadedFunctions, renameFunctionName}
   import scala.collection.mutable.Map
 
   val functionTable = new FunctionTable()
@@ -784,23 +785,6 @@ object Analyser {
     )
   }
 
-  def renameFunctionRule(name: String, funcNo: Int): String = {
-    name + "_" + funcNo
-  }
-
-  def renameFunctionName(funcId: Identifier,
-                         typeSignature: TypeSignature,
-                         functionTable: FunctionTable): Identifier = {
-    funcId match {
-      case Identifier(name) => {
-        Identifier(
-          renameFunctionRule(name,
-                             functionTable.getFunctionNo(name, typeSignature)))(
-          (0, 0))
-      }
-    }
-  }
-
   private def getExpressionTypes(args: List[Expression])(
       implicit errorList: List[Error],
       funcName: String): List[SAType] = {
@@ -810,108 +794,6 @@ object Analyser {
         case Right(el) => throw new Exception("Function Overloading Error")
     })
   }
-
-  def renameOverloadedFunctionCalls(statements: List[Statement],
-                                    functionTable: FunctionTable)(
-      implicit errorList: List[Error],
-      funcName: String): List[Statement] =
-    statements.map(s =>
-      s match {
-        case AssignmentStatement(lhs, FunctionCall(id, args)) =>
-          getLValueType(lhs) match {
-            case Left(t) =>
-              AssignmentStatement(
-                lhs,
-                FunctionCall(
-                  renameFunctionName(id,
-                                     TypeSignature(t, getExpressionTypes(args)),
-                                     functionTable),
-                  args)((0, 0))
-              )((0, 0))
-            case Right(el) => throw new Exception("Function Overloading Error")
-          }
-        case DeclarationStatement(typeName, id, FunctionCall(funcId, args)) => {
-          symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName));
-          DeclarationStatement(
-            typeName,
-            id,
-            FunctionCall(
-              renameFunctionName(funcId,
-                                 TypeSignature(convertSyntaxToTypeSys(typeName),
-                                               getExpressionTypes(args)),
-                                 functionTable),
-              args)((0, 0))
-          )((0, 0))
-        }
-        case DeclarationStatement(typeName, id, rvalue) => {
-          symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName)); s
-        }
-        case IfStatement(cond, thenBlock, elseBlock) => {
-          symbolTable.enterScope()
-          val updatedThenBlock =
-            renameOverloadedFunctionCalls(thenBlock, functionTable)
-          symbolTable.exitScope()
-          symbolTable.enterScope()
-          val updatedElseBlock =
-            renameOverloadedFunctionCalls(elseBlock, functionTable)
-          symbolTable.exitScope()
-          IfStatement(
-            cond,
-            updatedThenBlock,
-            updatedElseBlock
-          )((0, 0))
-        }
-        case BeginStatement(statements) => {
-          symbolTable.enterScope()
-          val updatedStatements =
-            renameOverloadedFunctionCalls(statements, functionTable)
-          symbolTable.exitScope()
-          BeginStatement(updatedStatements)((0, 0))
-        }
-        case WhileStatement(cond, body) => {
-          symbolTable.enterScope()
-          val updatedBody = renameOverloadedFunctionCalls(body, functionTable)
-          symbolTable.exitScope()
-          WhileStatement(cond, updatedBody)((0, 0))
-        }
-        case _ => s
-    })
-
-  def renameOverloadedFunctionDefinition(
-      func: Func,
-      functionTable: FunctionTable)(implicit errorList: List[Error]): Func =
-    func match {
-      case Func(IdentBinding(retType, funcId), params, body) => {
-        val newFunctionName = renameFunctionName(
-          funcId,
-          TypeSignature(convertSyntaxToTypeSys(retType),
-                        params.map(p =>
-                          p match {
-                            case Parameter(paramType, _) =>
-                              convertSyntaxToTypeSys(paramType)
-                        })),
-          functionTable
-        )
-        implicit val funcName = newFunctionName.name
-        symbolTable.enterScope()
-        val updatedFunctionBody =
-          renameOverloadedFunctionCalls(body, functionTable)
-        symbolTable.exitScope()
-        Func(IdentBinding(retType, newFunctionName)((0, 0)),
-             params,
-             updatedFunctionBody)((0, 0))
-      }
-    }
-
-  def renameOverloadedFunctions(program: Program, functionTable: FunctionTable)(
-      implicit errorList: List[Error],
-      funcName: String): Program =
-    Program(
-      program.imports,
-      program.functions.map(
-        renameOverloadedFunctionDefinition(_, functionTable)),
-      renameOverloadedFunctionCalls(program.statements, functionTable)
-    )((0, 0))
 
   def insertLibFuns(importRef: Import)(
       implicit libToFuncMap: Map[String,
@@ -954,18 +836,151 @@ object Analyser {
 
     symbolTable.insertFunction(funcName)
     val copySymbolTable = symbolTable.deepcopy()
+
+    // collect all semantic errors in the program
     symbolTable.enterScope()
     val errors =
       collectErrors(program.statements, (x: Statement) => checkStatement(x))(
         checkFunctions(program)
       )
     symbolTable.exitScope()
+
     if (errors.nonEmpty) {
       return (errors, symbolTable, functionTable, program)
     }
+
+    // rename overloaded functions
     copySymbolTable.enterScope()
     val updatedProgram = renameOverloadedFunctions(program, functionTable)
     copySymbolTable.exitScope()
+    
     (errors, symbolTable, functionTable, updatedProgram)
+  }
+
+  object FunctionOverloader {
+    def renameOverloadedFunctions(program: Program,
+                                  functionTable: FunctionTable)(
+        implicit errorList: List[Error],
+        funcName: String): Program =
+      Program(
+        program.imports,
+        program.functions.map(
+          renameOverloadedFunctionDefinition(_, functionTable)),
+        renameOverloadedFunctionCalls(program.statements, functionTable)
+      )((0, 0))
+
+    private def renameOverloadedFunctionDefinition(
+        func: Func,
+        functionTable: FunctionTable)(implicit errorList: List[Error]): Func =
+      func match {
+        case Func(IdentBinding(retType, funcId), params, body) => {
+          val newFunctionName = renameFunctionName(
+            funcId,
+            TypeSignature(convertSyntaxToTypeSys(retType),
+                          params.map(p =>
+                            p match {
+                              case Parameter(paramType, _) =>
+                                convertSyntaxToTypeSys(paramType)
+                          })),
+            functionTable
+          )
+          implicit val funcName = newFunctionName.name
+          symbolTable.enterScope()
+          val updatedFunctionBody =
+            renameOverloadedFunctionCalls(body, functionTable)
+          symbolTable.exitScope()
+          Func(IdentBinding(retType, newFunctionName)((0, 0)),
+               params,
+               updatedFunctionBody)((0, 0))
+        }
+      }
+
+    private def renameOverloadedFunctionCalls(statements: List[Statement],
+                                              functionTable: FunctionTable)(
+        implicit errorList: List[Error],
+        funcName: String): List[Statement] =
+      statements.map(
+        s =>
+          s match {
+            case AssignmentStatement(lhs, FunctionCall(id, args)) =>
+              getLValueType(lhs) match {
+                case Left(t) =>
+                  AssignmentStatement(
+                    lhs,
+                    FunctionCall(renameFunctionName(
+                                   id,
+                                   TypeSignature(t, getExpressionTypes(args)),
+                                   functionTable),
+                                 args)((0, 0))
+                  )((0, 0))
+                case Right(el) =>
+                  throw new Exception("Function Overloading Error")
+              }
+            case DeclarationStatement(typeName,
+                                      id,
+                                      FunctionCall(funcId, args)) => {
+              symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName));
+              DeclarationStatement(
+                typeName,
+                id,
+                FunctionCall(renameFunctionName(
+                               funcId,
+                               TypeSignature(convertSyntaxToTypeSys(typeName),
+                                             getExpressionTypes(args)),
+                               functionTable),
+                             args)((0, 0))
+              )((0, 0))
+            }
+            case DeclarationStatement(typeName, id, rvalue) => {
+              symbolTable.insertVar(id, convertSyntaxToTypeSys(typeName)); s
+            }
+            case IfStatement(cond, thenBlock, elseBlock) => {
+              symbolTable.enterScope()
+              val updatedThenBlock =
+                renameOverloadedFunctionCalls(thenBlock, functionTable)
+              symbolTable.exitScope()
+              symbolTable.enterScope()
+              val updatedElseBlock =
+                renameOverloadedFunctionCalls(elseBlock, functionTable)
+              symbolTable.exitScope()
+              IfStatement(
+                cond,
+                updatedThenBlock,
+                updatedElseBlock
+              )((0, 0))
+            }
+            case BeginStatement(statements) => {
+              symbolTable.enterScope()
+              val updatedStatements =
+                renameOverloadedFunctionCalls(statements, functionTable)
+              symbolTable.exitScope()
+              BeginStatement(updatedStatements)((0, 0))
+            }
+            case WhileStatement(cond, body) => {
+              symbolTable.enterScope()
+              val updatedBody =
+                renameOverloadedFunctionCalls(body, functionTable)
+              symbolTable.exitScope()
+              WhileStatement(cond, updatedBody)((0, 0))
+            }
+            case _ => s
+        })
+
+    def renameFunctionRule(name: String, funcNo: Int): String = {
+      name + "_" + funcNo
+    }
+
+    def renameFunctionName(funcId: Identifier,
+                           typeSignature: TypeSignature,
+                           functionTable: FunctionTable): Identifier = {
+      funcId match {
+        case Identifier(name) => {
+          Identifier(
+            renameFunctionRule(
+              name,
+              functionTable.getFunctionNo(name, typeSignature)))((0, 0))
+        }
+      }
+    }
   }
 }
