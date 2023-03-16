@@ -8,7 +8,6 @@ class IntegrationTest extends AnyFlatSpec {
   import scala.io.Source
   import scala.jdk.CollectionConverters._
   import org.scalatest.matchers.should.Matchers._
-  import scala.collection.parallel.CollectionConverters._
   import scala.sys.process._
 
   def runFrontendTest(path: Path, run: Boolean): Unit = {

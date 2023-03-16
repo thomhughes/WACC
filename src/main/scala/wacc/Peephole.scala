@@ -41,6 +41,10 @@ object Peephole {
                                            fstRegOp.asInstanceOf[Register],
                                            fstMemOp)
             true
+          case (Instr(PUSH, Some(RegisterList(List(fstReg))), None, None, _),
+                Instr(POP, Some(RegisterList(List(sndReg))), None, None, _)) =>
+            optimisedInstructions += Instr(MOV, sndReg, fstReg)
+            true
           case default =>
             optimisedInstructions += fi
             false
