@@ -553,7 +553,7 @@ object IR {
         case Some(value) => {
           value._2.foreach((param: Parameter) =>
             irProgram.symbolTable.encountered(param.identifier))
-            buildFuncPrologue()
+            buildFuncPrologue(true)
           changeScope(true)
           implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
@@ -827,6 +827,7 @@ object IR {
   def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram, isLastStatement: IsLastStatement, funcName: String, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
     irProgram.instructions += Instr(POP, RegisterList(List(FP)))
+    irProgram.instructions += Instr(POP, RegisterList(List(R10)))
     isLastStatement match {
       case IsLastStatement(false) => irProgram.instructions += Instr(B, BranchLabel(renameToJumpAtEndOfInlineFunc(funcName, inlinedFunctionsAndBodies.get(funcName).get._1)))
       case IsLastStatement(true) => ()
@@ -919,7 +920,7 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("func_call"))
   }
   
-  def buildFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
+  def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(LR)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
     buildGCFuncCall()
@@ -957,7 +958,7 @@ object IR {
       irProgram.symbolTable.resetScope()
       func.params.foreach((param: Parameter) =>
         irProgram.symbolTable.encountered(param.identifier))
-      buildFuncPrologue()
+      buildFuncPrologue(false)
       changeScope(true)
       func.body.foreach(buildStatement(_))
       changeScope(false)
@@ -977,7 +978,7 @@ object IR {
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
     irProgram.symbolTable.resetScope()
-    buildFuncPrologue()
+    buildFuncPrologue(false)
     changeScope(true)
     implicit val inlinedFunc = IsFunctionInlined(false);
     implicit val isLastStatement = IsLastStatement(false)

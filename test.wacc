@@ -1,27 +1,20 @@
 begin
     int arrayfunc() is
-        int[] a = [3, 2, 5, 2];
-        int[] b = [1, 2, 5, 2];
-        int[][] c = [a, b, b, a];
-        b = a;
-        return c[2][1]
+#				int[] a = [3, 2, 5, 2];
+#				int[] b = [1, 2, 5, 2];
+#				int[][] c = [a, b, b, a];
+#        b = a;
+#        return c[2][1]
+        return 3
     end
     int f(int x) is
         int i = 0 ;
-        while i < 5 do
+        while i < 2147483647 do
             i = i + 1 ;
+            println i ;
             int j = call arrayfunc()
         done ;
         return 2
     end
     int j = call f (5)
-    # d1[2] = 4 ;
-    # int[][] d2 = [d1] ;
-    # int n = 0;
-    # while n < 10 do
-    #     int[] dnutz = [5,6,7] ;
-    #     n = n + 1
-    # done ;
-    # d2[0][1 + 0] = 3 ; 
-    # println d2[0][1]
 end
