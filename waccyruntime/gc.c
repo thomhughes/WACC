@@ -12,7 +12,7 @@
 struct LinkedList __thread call_stack;
 struct hashmap __thread *heap;
 
-bool __thread mark;
+bool __thread mark = true;
 
 struct CallInfo {
   unsigned scope;
@@ -77,6 +77,7 @@ void heap_destroy(void *address) {
 }
 
 void heap_mark(void *address) {
+  printf("Marking: %p\n", address);
   struct HeapNode *node = (struct HeapNode *)hashmap_get(heap, &(struct HeapNode){ .address=address });
   if (!node || node->marked == mark) return;
   node->marked = mark;
@@ -93,6 +94,7 @@ struct HeapNode *heap_lookup(void *address) {
 
 extern void root_assignment(int scope, char *name, void *address) {
   struct RootNode *root = (struct RootNode *)hashmap_get(callinfo_get()->roots, &(struct RootNode){ .scope = scope, .name = name });
+  printf("Root assignment: %d %s %p\n", scope, name, address);
   if (root) {
     root->reference_address = address;
   } else {
@@ -120,7 +122,9 @@ extern void exit_scope(unsigned new) {
   size_t i = 0;
   struct RootNode *node = NULL;
   while (hashmap_iter(callinfo_get()->roots, &i, (void**)&node)) {
+    printf("Considering: %d %s %p\n", node->scope, node->name, node->reference_address);
     if (node->scope == *current_scope) {
+      printf("Considered: %d %s %p\n", node->scope, node->name, node->reference_address);
       hashmap_delete(callinfo_get()->roots, node);
       i = 0;
     }
@@ -149,6 +153,9 @@ extern void func_return(void *returnvalue) {
   hashmap_free(callinfo_get()->roots);
   list_pop(&call_stack);
 
+
+  printf("Func returning!\n");
+
   // // TODO: Maybe move elsewhere :3
   if (returnvalue) {
     heap_mark(returnvalue);
@@ -159,6 +166,7 @@ extern void func_return(void *returnvalue) {
 
 bool root_mark(const void *root_, void *udata) {
   const struct RootNode *root = root_;
+  printf("Marking root: %d %s %p\n", root->scope, root->name, root->reference_address);
   heap_mark(root->reference_address);
   return true;
 }

@@ -536,7 +536,6 @@ object IR {
       inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
-    buildGCFuncCall()
     funcToLibMap.get(id.name) match {
       case Some(_) => {
         var counter = 0
@@ -923,6 +922,7 @@ object IR {
   def buildFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(LR)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
+    buildGCFuncCall()
     // Store frame pointer as pointer to frame pointer on stack
     irProgram.instructions += Instr(ADD, FP, SP, Imm(4))
     val frameSize = irProgram.symbolTable.getFrameSize()
@@ -978,13 +978,14 @@ object IR {
     irProgram.instructions += Label("main")
     irProgram.symbolTable.resetScope()
     buildFuncPrologue()
-    buildGCFuncCall()
     changeScope(true)
     implicit val inlinedFunc = IsFunctionInlined(false);
     implicit val isLastStatement = IsLastStatement(false)
     statements.foreach(buildStatement(_))
     changeScope(false)
+    irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
     buildGCFuncReturn()
+    irProgram.instructions += Instr(BL, BranchLabel("gc_free"))
     irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
     buildFuncEpilogue()
   }
