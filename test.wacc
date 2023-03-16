@@ -8,7 +8,7 @@ begin
     end
     int f(int x) is
         int i = 0 ;
-        while i < 100000 do
+        while i < 5 do
             i = i + 1 ;
             int j = call arrayfunc()
         done ;
