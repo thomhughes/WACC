@@ -516,11 +516,12 @@ object IR {
 
   def buildInlinedFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
+    buildGCFuncCall()
     // Store frame pointer as pointer to frame pointer on stack
     irProgram.instructions += Instr(ADD, FP, SP, Imm(4))
     val frameSize = irProgram.symbolTable.getFrameSize()
     if (irProgram.symbolTable.getFrameSize() > 0) {
-      loadRegConstant(SP, SP, -frameSize)
+      loadRegConstant(SP, SP, -(frameSize + (frameSize % 4)))
     }
   }
 
@@ -553,7 +554,7 @@ object IR {
         case Some(value) => {
           value._2.foreach((param: Parameter) =>
             irProgram.symbolTable.encountered(param.identifier))
-            buildFuncPrologue(true)
+          buildFuncPrologue(true)
           changeScope(true)
           implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
@@ -827,7 +828,7 @@ object IR {
   def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram, isLastStatement: IsLastStatement, funcName: String, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
     irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
     irProgram.instructions += Instr(POP, RegisterList(List(FP)))
-    irProgram.instructions += Instr(POP, RegisterList(List(R10)))
+    irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
     isLastStatement match {
       case IsLastStatement(false) => irProgram.instructions += Instr(B, BranchLabel(renameToJumpAtEndOfInlineFunc(funcName, inlinedFunctionsAndBodies.get(funcName).get._1)))
       case IsLastStatement(true) => ()
@@ -921,7 +922,7 @@ object IR {
   }
   
   def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += Instr(PUSH, RegisterList(List(LR)))
+    irProgram.instructions += Instr(PUSH, RegisterList(List(if (inlined) scratchRegs(0) else LR)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
     buildGCFuncCall()
     // Store frame pointer as pointer to frame pointer on stack
