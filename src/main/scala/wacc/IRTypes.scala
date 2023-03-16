@@ -1,6 +1,7 @@
 package wacc
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.Map
 import wacc.Types.SAType
 
 import wacc.SymbolTable
@@ -10,7 +11,8 @@ case class IRProgram(
     val instructions: ListBuffer[IRType],
     var stringLiteralCounter: Int,
     var labelCount: Int,
-    val symbolTable: SymbolTable
+    val symbolTable: SymbolTable,
+    val funcToLibMap: Map[String, String]
 )
 
 sealed trait IRType

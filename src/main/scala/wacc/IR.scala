@@ -571,13 +571,12 @@ object IR {
       implicit
       irProgram: IRProgram,
       funcName: String,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[
         String,
         (Int, List[Parameter], List[Statement])]) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
-    funcToLibMap.get(id.name) match {
+    irProgram.funcToLibMap.get(id.name) match {
       case Some(_) => {
         var counter = 0
         args.foreach({ exp =>
@@ -620,7 +619,6 @@ object IR {
       implicit
       irProgram: IRProgram,
       funcName: String,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])],
       inlinedFunc: IsFunctionInlined) = {
@@ -696,7 +694,6 @@ object IR {
       implicit
       irProgram: IRProgram,
       funcName: String,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])])
     : Unit = {
@@ -733,7 +730,6 @@ object IR {
       implicit
       irProgram: IRProgram,
       funcName: String,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])])
     : Unit = {
@@ -765,7 +761,6 @@ object IR {
       elseBody: List[Statement]
   )(implicit irProgram: IRProgram,
     funcName: String,
-    funcToLibMap: Map[String, String],
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
     inlinedFunc: IsFunctionInlined,
@@ -796,7 +791,6 @@ object IR {
       implicit
       irProgram: IRProgram,
       funcName: String,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])],
       inlinedFunc: IsFunctionInlined,
@@ -945,7 +939,6 @@ object IR {
       statements: List[Statement]
   )(implicit irProgram: IRProgram,
     funcName: String,
-    funcToLibMap: Map[String, String],
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
     inlinedFunc: IsFunctionInlined,
@@ -966,7 +959,6 @@ object IR {
       implicit
       irProgram: IRProgram,
       funcName: String,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[
         String,
         (Int, List[Parameter], List[Statement])]) = {
@@ -978,7 +970,6 @@ object IR {
       statement: Statement
   )(implicit irProgram: IRProgram,
     funcName: String,
-    funcToLibMap: Map[String, String],
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
     inlinedFunc: IsFunctionInlined,
@@ -1044,7 +1035,6 @@ object IR {
       func: Func
   )(implicit irProgram: IRProgram,
     funcName: String,
-    funcToLibMap: Map[String, String],
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])]) = {
     if (!inlinedFunctionsAndBodies.keySet.contains(funcName)) {
@@ -1066,21 +1056,18 @@ object IR {
   private def buildFuncs(
       functions: List[Func]
   )(implicit irProgram: IRProgram,
-    funcToLibMap: Map[String, String],
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])]) = {
     functions.foreach(
       (func: Func) =>
         buildFunc(func)(irProgram,
                         func.identBinding.identifier.name,
-                        funcToLibMap,
                         inlinedFunctionsAndBodies))
   }
 
   private def buildMain(statements: List[Statement])(
       implicit
       irProgram: IRProgram,
-      funcToLibMap: Map[String, String],
       inlinedFunctionsAndBodies: Map[
         String,
         (Int, List[Parameter], List[Statement])]) = {
@@ -1103,10 +1090,10 @@ object IR {
 
   def buildIR(
       ast: Program,
-      symbolTable: SymbolTable
-  )(implicit funcToLibMap: Map[String, String]): ListBuffer[IRType] = {
+      symbolTable: SymbolTable,
+      funcToLibMap: Map[String, String]): ListBuffer[IRType] = {
     implicit val inlinedFunctionsAndBodies = getInlinedFunctions(ast)
-    implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable)
+    implicit val irProgram = IRProgram(ListBuffer(), 0, 0, symbolTable, funcToLibMap)
     buildFuncs(ast.functions)
     buildMain(ast.statements)
     irProgram.instructions
