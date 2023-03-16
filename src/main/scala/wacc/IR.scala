@@ -7,9 +7,9 @@ object IR {
   import scala.collection.mutable.ListBuffer
   import scala.language.implicitConversions
   import scala.collection.mutable.Map
-  
+
   import wacc.SymbolTable
-  
+
   // map from scope no to no of bytes
   import AST._
   import Types._
@@ -20,23 +20,29 @@ object IR {
 
   def countFunctionCalls(statement: Statement, function: Func): Int = {
     statement match {
-      case AssignmentStatement(_, rvalue) => rvalue match {
-        case FunctionCall(id, _) => if (id.name == function.identBinding.identifier.name) 1 else 0
-        case default => 0
-      }
-      case DeclarationStatement(_, _, rvalue) => rvalue match {
-        case FunctionCall(id, _) => if (id.name == function.identBinding.identifier.name) 1 else 0
-        case default => 0
-      }
+      case AssignmentStatement(_, rvalue) =>
+        rvalue match {
+          case FunctionCall(id, _) =>
+            if (id.name == function.identBinding.identifier.name) 1 else 0
+          case default => 0
+        }
+      case DeclarationStatement(_, _, rvalue) =>
+        rvalue match {
+          case FunctionCall(id, _) =>
+            if (id.name == function.identBinding.identifier.name) 1 else 0
+          case default => 0
+        }
       case IfStatement(_, thenBody, elseBody) => {
-        thenBody.map(countFunctionCalls(_, function)).sum + elseBody.map(countFunctionCalls(_, function)).sum
+        thenBody.map(countFunctionCalls(_, function)).sum + elseBody
+          .map(countFunctionCalls(_, function))
+          .sum
       }
       case WhileStatement(_, body) => {
         body.map(countFunctionCalls(_, function)).sum
       }
       case BeginStatement(body) => {
         body.map(countFunctionCalls(_, function)).sum
-      } 
+      }
       case default => 0
     }
   }
@@ -49,16 +55,19 @@ object IR {
 
   def functionNotNested(statement: Statement, func: Func): Boolean = {
     statement match {
-      case AssignmentStatement(_,rvalue) => rvalue match {
-        case FunctionCall(_,_) => false
-        case default => true
-      }
-      case DeclarationStatement(_,_,rvalue) => rvalue match {
-        case FunctionCall(_,_) => false
-        case default => true
-      }
+      case AssignmentStatement(_, rvalue) =>
+        rvalue match {
+          case FunctionCall(_, _) => false
+          case default            => true
+        }
+      case DeclarationStatement(_, _, rvalue) =>
+        rvalue match {
+          case FunctionCall(_, _) => false
+          case default            => true
+        }
       case IfStatement(_, thenBody, elseBody) => {
-        thenBody.forall(functionNotNested(_, func)) && elseBody.forall(functionNotNested(_, func))
+        thenBody.forall(functionNotNested(_, func)) && elseBody.forall(
+          functionNotNested(_, func))
       }
       case WhileStatement(_, body) => {
         body.forall(functionNotNested(_, func))
@@ -67,34 +76,43 @@ object IR {
         body.forall(functionNotNested(_, func))
       }
       case default => true
-  }
+    }
   }
 
   def shouldInlineFunction(program: Program, function: Func): Boolean = {
-    (function.body.length < lengthOfSmallFunction || getNoFunctionCalls(program, function) < maxNoCallsOfFunction) && (
-      (function.body.forall(
-        functionNotNested(_, function)
-      ))
+    (function.body.length < lengthOfSmallFunction || getNoFunctionCalls(
+      program,
+      function) < maxNoCallsOfFunction) && (
+      (
+        function.body.forall(
+          functionNotNested(_, function)
+        ))
     )
   }
 
-  def getInlinedFunctions(program: Program): Map[String, (Int, List[Parameter], List[Statement])] = {
-    val inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])] = Map()
+  def getInlinedFunctions(program: Program)
+    : Map[String, (Int, List[Parameter], List[Statement])] = {
+    val inlinedFunctionsAndBodies
+      : Map[String, (Int, List[Parameter], List[Statement])] = Map()
     program.functions.foreach(
       func => {
         if (shouldInlineFunction(program, func)) {
-          inlinedFunctionsAndBodies += ((func.identBinding.identifier.name, (0, func.params, func.body)))
+          inlinedFunctionsAndBodies += ((func.identBinding.identifier.name,
+                                         (0, func.params, func.body)))
         }
       }
     )
     inlinedFunctionsAndBodies
   }
 
-  def changeScope(enter: Boolean)(implicit irProgram: IRProgram, funcName: String) = {
-    if (enter) irProgram.symbolTable.enterScope() else irProgram.symbolTable.exitScope()
+  def changeScope(enter: Boolean)(implicit irProgram: IRProgram,
+                                  funcName: String) = {
+    if (enter) irProgram.symbolTable.enterScope()
+    else irProgram.symbolTable.exitScope()
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
     loadMovConstant(paramRegs(0), irProgram.symbolTable.getScope())
-    val changeFunction = if (enter) BranchLabel("enter_scope") else BranchLabel("exit_scope")
+    val changeFunction =
+      if (enter) BranchLabel("enter_scope") else BranchLabel("exit_scope")
     irProgram.instructions += Instr(BL, changeFunction)
     irProgram.instructions += Instr(POP, RegisterList(List(R0)))
   }
@@ -166,7 +184,9 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     lvalue match {
       case id @ Identifier(_) => {
-        loadRegConstant(paramRegs(0), FP, irProgram.symbolTable.lookupAddress(id))
+        loadRegConstant(paramRegs(0),
+                        FP,
+                        irProgram.symbolTable.lookupAddress(id))
         irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
       }
       case ArrayElem(id, indices) => buildArrayLoadReference(id, indices)
@@ -259,7 +279,10 @@ object IR {
       implicit irProgram: IRProgram): Unit =
     (op: @unchecked) match {
       case Plus => {
-        irProgram.instructions += Instr(ADDS, scratchRegs(0), scratchRegs(0), scratchRegs(1))
+        irProgram.instructions += Instr(ADDS,
+                                        scratchRegs(0),
+                                        scratchRegs(0),
+                                        scratchRegs(1))
         irProgram.instructions += Instr(
           BL,
           BranchLabel("error_arithmetic_overflow"),
@@ -267,7 +290,10 @@ object IR {
         )
       }
       case Minus => {
-        irProgram.instructions += Instr(SUBS, scratchRegs(0), scratchRegs(0), scratchRegs(1))
+        irProgram.instructions += Instr(SUBS,
+                                        scratchRegs(0),
+                                        scratchRegs(0),
+                                        scratchRegs(1))
         irProgram.instructions += Instr(
           BL,
           BranchLabel("error_arithmetic_overflow"),
@@ -407,7 +433,10 @@ object IR {
         )
       }
       case Negation => {
-        irProgram.instructions += Instr(RSBS, paramRegs(0), paramRegs(0), Imm(0))
+        irProgram.instructions += Instr(RSBS,
+                                        paramRegs(0),
+                                        paramRegs(0),
+                                        Imm(0))
         irProgram.instructions += Instr(
           BL,
           BranchLabel("error_arithmetic_overflow"),
@@ -423,8 +452,10 @@ object IR {
   private def getTemporaryLabelNameForStringLiterals(labelCount: Int): String =
     s".L.str${labelCount}"
 
-  private def buildStackString(string: String)(implicit irProgram: IRProgram) = {
-    val label = LabelRef(getTemporaryLabelNameForStringLiterals(irProgram.stringLiteralCounter))
+  private def buildStackString(string: String)(
+      implicit irProgram: IRProgram) = {
+    val label = LabelRef(
+      getTemporaryLabelNameForStringLiterals(irProgram.stringLiteralCounter))
     irProgram.instructions += Data(label, string)
     irProgram.stringLiteralCounter += 1
     irProgram.instructions += Instr(LDR, scratchRegs(0), label)
@@ -438,20 +469,24 @@ object IR {
     expr match {
       case IntLiteral(value) => {
         loadMovConstant(scratchRegs(0), value)
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+        irProgram.instructions += Instr(PUSH,
+                                        RegisterList(List(scratchRegs(0))))
       }
       case CharLiteral(char) => {
         irProgram.instructions += Instr(MOV, scratchRegs(0), Imm(char.toInt))
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+        irProgram.instructions += Instr(PUSH,
+                                        RegisterList(List(scratchRegs(0))))
       }
       case BoolLiteral(bool) => {
         irProgram.instructions += Instr(MOV, scratchRegs(0), Imm(bool.toInt))
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+        irProgram.instructions += Instr(PUSH,
+                                        RegisterList(List(scratchRegs(0))))
       }
       case StringLiteral(string) => buildStackString(string)
       case PairLiteral => {
         irProgram.instructions += Instr(MOV, scratchRegs(0), Imm(0))
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+        irProgram.instructions += Instr(PUSH,
+                                        RegisterList(List(scratchRegs(0))))
       }
       case id @ Identifier(_) => {
         irProgram.instructions += Instr(
@@ -459,7 +494,8 @@ object IR {
           scratchRegs(0),
           AddrReg(FP, irProgram.symbolTable.lookupAddress(id))
         )
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+        irProgram.instructions += Instr(PUSH,
+                                        RegisterList(List(scratchRegs(0))))
       }
       case BinaryOpApp(op, lexpr, rexpr) => {
         buildExpression(lexpr)
@@ -471,7 +507,8 @@ object IR {
           case And | Or                       => logicalCompareInstruction(op)
           case default                        => compareInstruction(op)
         }
-        irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
+        irProgram.instructions += Instr(PUSH,
+                                        RegisterList(List(scratchRegs(0))))
       }
       case UnaryOpApp(op, expr) => {
         buildExpression(expr)
@@ -503,7 +540,7 @@ object IR {
 
     val dimensions = argType match {
       case SAArrayType(_, n) => n
-      case _                         => throw new Exception("Unexpected LValue type")
+      case _                 => throw new Exception("Unexpected LValue type")
     }
 
     loadMovConstant(paramRegs(0), elementSize)
@@ -514,7 +551,8 @@ object IR {
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
 
-  def buildInlinedFuncPrologue()(implicit irProgram: IRProgram, funcName: String) = {
+  def buildInlinedFuncPrologue()(implicit irProgram: IRProgram,
+                                 funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
     buildGCFuncCall()
     // Store frame pointer as pointer to frame pointer on stack
@@ -534,18 +572,22 @@ object IR {
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
-      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
+      inlinedFunctionsAndBodies: Map[
+        String,
+        (Int, List[Parameter], List[Statement])]) = {
     // build expressions in order, will be reversed on stack
     args.reverse.foreach(buildExpression(_))
     funcToLibMap.get(id.name) match {
       case Some(_) => {
         var counter = 0
-        args.foreach({exp =>
-          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(counter))))
+        args.foreach({ exp =>
+          irProgram.instructions += Instr(
+            POP,
+            RegisterList(List(paramRegs(counter))))
           counter += 1
         })
       }
-      case None => 
+      case None =>
     }
     if (inlinedFunctionsAndBodies.keySet.contains(id.name)) {
       implicit val funcName = id.name
@@ -561,8 +603,10 @@ object IR {
 
           buildInlineFunctionStatements(statementsOfInlineFunc)
 
-          irProgram.instructions += Label(renameToJumpAtEndOfInlineFunc(id.name, value._1))
-          inlinedFunctionsAndBodies.put(id.name, (value._1 + 1, value._2, value._3))
+          irProgram.instructions += Label(
+            renameToJumpAtEndOfInlineFunc(id.name, value._1))
+          inlinedFunctionsAndBodies.put(id.name,
+                                        (value._1 + 1, value._2, value._3))
         }
       }
       changeScope(false)
@@ -572,13 +616,13 @@ object IR {
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
 
-  private def buildInlineFunctionStatements(
-      statements: List[Statement])(
+  private def buildInlineFunctionStatements(statements: List[Statement])(
       implicit
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
-      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])],
+      inlinedFunctionsAndBodies: Map[String,
+                                     (Int, List[Parameter], List[Statement])],
       inlinedFunc: IsFunctionInlined) = {
     implicit var isLastStatement = IsLastStatement(false)
     statements.init.foreach(buildStatement(_))
@@ -625,7 +669,7 @@ object IR {
 
   private def isPairRef(argType: SAType): Boolean = argType match {
     case SAPairRefType => true
-    case default => false
+    case default       => false
   }
 
   implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
@@ -653,7 +697,9 @@ object IR {
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
-      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
+      inlinedFunctionsAndBodies: Map[String,
+                                     (Int, List[Parameter], List[Statement])])
+    : Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
@@ -676,18 +722,21 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("exit"))
   }
 
-  def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram, funcName: String) = 
-  getLValueType(lvalue) match {
-    case SAArrayType(_, _) | SAPairType(_, _) => true
-    case default => false
-  }
+  def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
+                                        funcName: String) =
+    getLValueType(lvalue) match {
+      case SAArrayType(_, _) | SAPairType(_, _) => true
+      case default                              => false
+    }
 
   private def buildAssignment(lvalue: LValue, rvalue: RValue)(
       implicit
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
-      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
+      inlinedFunctionsAndBodies: Map[String,
+                                     (Int, List[Parameter], List[Statement])])
+    : Unit = {
     val lvalueType = getLValueType(lvalue)
     buildRValue(
       rvalue,
@@ -696,10 +745,11 @@ object IR {
     lvalue match {
       case id @ Identifier(name) => {
         if (isLValueReference(lvalue)) {
-          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(2)))) 
-          irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(2)))) 
+          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(2))))
+          irProgram.instructions += Instr(PUSH,
+                                          RegisterList(List(paramRegs(2))))
           buildStackString(name)
-          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(1)))) 
+          irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(1))))
           loadMovConstant(paramRegs(0), irProgram.symbolTable.lookupScope(id))
           irProgram.instructions += Instr(BL, BranchLabel("root_assignment"));
         }
@@ -713,7 +763,13 @@ object IR {
       condition: Expression,
       thenBody: List[Statement],
       elseBody: List[Statement]
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement): Unit = {
+  )(implicit irProgram: IRProgram,
+    funcName: String,
+    funcToLibMap: Map[String, String],
+    inlinedFunctionsAndBodies: Map[String,
+                                   (Int, List[Parameter], List[Statement])],
+    inlinedFunc: IsFunctionInlined,
+    isLastStatement: IsLastStatement): Unit = {
     val elseLabel = getTemporaryLabelName(irProgram.labelCount)
     val ifEndLabel = getTemporaryLabelName(irProgram.labelCount + 1)
     irProgram.labelCount += 2
@@ -741,7 +797,8 @@ object IR {
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
-      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])],
+      inlinedFunctionsAndBodies: Map[String,
+                                     (Int, List[Parameter], List[Statement])],
       inlinedFunc: IsFunctionInlined,
       isLastStatement: IsLastStatement): Unit = {
     val conditionLabel = getTemporaryLabelName(irProgram.labelCount)
@@ -825,24 +882,41 @@ object IR {
     }
   }
 
-  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram, isLastStatement: IsLastStatement, funcName: String, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
+  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram,
+                                 isLastStatement: IsLastStatement,
+                                 funcName: String,
+                                 inlinedFunctionsAndBodies: Map[
+                                   String,
+                                   (Int, List[Parameter], List[Statement])]) = {
     irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
     irProgram.instructions += Instr(POP, RegisterList(List(FP)))
     irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
     isLastStatement match {
-      case IsLastStatement(false) => irProgram.instructions += Instr(B, BranchLabel(renameToJumpAtEndOfInlineFunc(funcName, inlinedFunctionsAndBodies.get(funcName).get._1)))
+      case IsLastStatement(false) =>
+        irProgram.instructions += Instr(
+          B,
+          BranchLabel(
+            renameToJumpAtEndOfInlineFunc(
+              funcName,
+              inlinedFunctionsAndBodies.get(funcName).get._1)))
       case IsLastStatement(true) => ()
     }
   }
 
   private def buildReturn(
       expression: Expression
-  )(implicit irProgram: IRProgram, funcName: String, inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement, inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]): Unit = {
+  )(implicit irProgram: IRProgram,
+    funcName: String,
+    inlinedFunc: IsFunctionInlined,
+    isLastStatement: IsLastStatement,
+    inlinedFunctionsAndBodies: Map[String,
+                                   (Int, List[Parameter], List[Statement])])
+    : Unit = {
     buildExpression(expression)
     val passReference = expression match {
-      case id @ Identifier(_) => isLValueReference(id)
+      case id @ Identifier(_)   => isLValueReference(id)
       case ae @ ArrayElem(_, _) => isLValueReference(ae)
-      case default => false
+      case default              => false
     }
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
@@ -852,7 +926,7 @@ object IR {
     buildGCFuncReturn()
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     inlinedFunc match {
-      case IsFunctionInlined(true) => buildInlinedFuncEpilogue()
+      case IsFunctionInlined(true)  => buildInlinedFuncEpilogue()
       case IsFunctionInlined(false) => buildFuncEpilogue()
     }
   }
@@ -869,7 +943,13 @@ object IR {
 
   private def buildBegin(
       statements: List[Statement]
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement): Unit = {
+  )(implicit irProgram: IRProgram,
+    funcName: String,
+    funcToLibMap: Map[String, String],
+    inlinedFunctionsAndBodies: Map[String,
+                                   (Int, List[Parameter], List[Statement])],
+    inlinedFunc: IsFunctionInlined,
+    isLastStatement: IsLastStatement): Unit = {
     changeScope(true)
     statements.foreach(buildStatement(_))
     changeScope(false)
@@ -887,14 +967,22 @@ object IR {
       irProgram: IRProgram,
       funcName: String,
       funcToLibMap: Map[String, String],
-      inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
+      inlinedFunctionsAndBodies: Map[
+        String,
+        (Int, List[Parameter], List[Statement])]) = {
     irProgram.symbolTable.encountered(id)
     buildAssignment(id, rvalue)
   }
 
   private def buildStatement(
       statement: Statement
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])], inlinedFunc: IsFunctionInlined, isLastStatement: IsLastStatement): Unit = {
+  )(implicit irProgram: IRProgram,
+    funcName: String,
+    funcToLibMap: Map[String, String],
+    inlinedFunctionsAndBodies: Map[String,
+                                   (Int, List[Parameter], List[Statement])],
+    inlinedFunc: IsFunctionInlined,
+    isLastStatement: IsLastStatement): Unit = {
     statement match {
       case ExitStatement(e) => buildExit(e)
       case AssignmentStatement(lvalue, rvalue) =>
@@ -917,12 +1005,16 @@ object IR {
   private def renameFunc(functionName: String) = "wacc_" + functionName
 
   // calls the runtime function func_return
-  private def buildGCFuncCall()(implicit irProgram: IRProgram, funcName: String) = {
+  private def buildGCFuncCall()(implicit irProgram: IRProgram,
+                                funcName: String) = {
     irProgram.instructions += Instr(BL, BranchLabel("func_call"))
   }
-  
-  def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram, funcName: String) = {
-    irProgram.instructions += Instr(PUSH, RegisterList(List(if (inlined) scratchRegs(0) else LR)))
+
+  def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram,
+                                          funcName: String) = {
+    irProgram.instructions += Instr(
+      PUSH,
+      RegisterList(List(if (inlined) scratchRegs(0) else LR)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
     buildGCFuncCall()
     // Store frame pointer as pointer to frame pointer on stack
@@ -934,7 +1026,8 @@ object IR {
   }
 
   // calls the runtime function func_return
-  private def buildGCFuncReturn()(implicit irProgram: IRProgram, funcName: String) = {
+  private def buildGCFuncReturn()(implicit irProgram: IRProgram,
+                                  funcName: String) = {
     irProgram.instructions += Instr(BL, BranchLabel("func_return"))
   }
 
@@ -949,7 +1042,11 @@ object IR {
 
   private def buildFunc(
       func: Func
-  )(implicit irProgram: IRProgram, funcName: String, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
+  )(implicit irProgram: IRProgram,
+    funcName: String,
+    funcToLibMap: Map[String, String],
+    inlinedFunctionsAndBodies: Map[String,
+                                   (Int, List[Parameter], List[Statement])]) = {
     if (!inlinedFunctionsAndBodies.keySet.contains(funcName)) {
       implicit val inlinedFunc = IsFunctionInlined(false);
       implicit val isLastStatement = IsLastStatement(false)
@@ -968,13 +1065,25 @@ object IR {
 
   private def buildFuncs(
       functions: List[Func]
-  )(implicit irProgram: IRProgram, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
-    functions.foreach((func: Func) =>
-      buildFunc(func)(irProgram, func.identBinding.identifier.name, funcToLibMap, inlinedFunctionsAndBodies))
+  )(implicit irProgram: IRProgram,
+    funcToLibMap: Map[String, String],
+    inlinedFunctionsAndBodies: Map[String,
+                                   (Int, List[Parameter], List[Statement])]) = {
+    functions.foreach(
+      (func: Func) =>
+        buildFunc(func)(irProgram,
+                        func.identBinding.identifier.name,
+                        funcToLibMap,
+                        inlinedFunctionsAndBodies))
   }
 
-  private def buildMain(statements: List[Statement])(implicit
-                                                     irProgram: IRProgram, funcToLibMap: Map[String, String], inlinedFunctionsAndBodies: Map[String, (Int, List[Parameter], List[Statement])]) = {
+  private def buildMain(statements: List[Statement])(
+      implicit
+      irProgram: IRProgram,
+      funcToLibMap: Map[String, String],
+      inlinedFunctionsAndBodies: Map[
+        String,
+        (Int, List[Parameter], List[Statement])]) = {
     implicit val funcName = "0"
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")

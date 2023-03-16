@@ -7,17 +7,22 @@ import scala.collection.mutable.Set
 
 object OuterBodySymbolTable {
   def apply(scoper: Scoper): OuterBodySymbolTable = {
-    OuterBodySymbolTable(scoper, Map[(String, Int), (SAType, Int)](), 4, Stack[Int](), Set[(String, Int)](), true)
+    OuterBodySymbolTable(scoper,
+                         Map[(String, Int), (SAType, Int)](),
+                         4,
+                         Stack[Int](),
+                         Set[(String, Int)](),
+                         true)
   }
 }
 
 case class OuterBodySymbolTable private (
-  var scoper: Scoper,
-  private val map: Map[(String, Int), (SAType, Int)],
-  private var totalOffset: Int,
-  private val scopeSizes: Stack[Int],
-  private val seen_set: Set[(String, Int)],
-  private var mutable: Boolean) {
+    var scoper: Scoper,
+    private val map: Map[(String, Int), (SAType, Int)],
+    private var totalOffset: Int,
+    private val scopeSizes: Stack[Int],
+    private val seen_set: Set[(String, Int)],
+    private var mutable: Boolean) {
   import wacc.AST.Identifier
   import wacc.Errors.{Error, UndeclaredVariableError, RedeclaredVariableError}
 

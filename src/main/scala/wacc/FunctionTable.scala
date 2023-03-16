@@ -7,7 +7,12 @@ class FunctionTable {
   import wacc.AST.{Func, Identifier}
   import wacc.Analyser.{convertSyntaxToTypeSys, equalsTypeSignature}
   import scala.collection.Set
-  import wacc.Errors.{Error, UndeclaredFunctionError, RedeclaredFunctionError, PossibleMissingImportError}
+  import wacc.Errors.{
+    Error,
+    UndeclaredFunctionError,
+    RedeclaredFunctionError,
+    PossibleMissingImportError
+  }
 
   val map = Map[String, (Map[TypeSignature, Int], Int)]()
 
@@ -24,9 +29,7 @@ class FunctionTable {
       implicit errorList: List[Error]): List[Error] = {
     val funcName = function.identBinding.identifier.name
     if (checkDuplicate(function, typeSignature))
-      errorList :+ RedeclaredFunctionError(
-        function.pos,
-        funcName)
+      errorList :+ RedeclaredFunctionError(function.pos, funcName)
     else {
       if (!map.contains(funcName)) {
         map += (funcName -> (Map(typeSignature -> 0), 1))
@@ -50,20 +53,34 @@ class FunctionTable {
         function.identBinding.identifier.name))
   }
 
-  def getAllowedTypeSignatures(identifier: Identifier)(implicit errorList: List[Error], funcMap: Map[String, String])
-    : Either[Set[TypeSignature], List[Error]] = {
+  def getAllowedTypeSignatures(identifier: Identifier)(
+      implicit errorList: List[Error],
+      funcMap: Map[String, String]): Either[Set[TypeSignature], List[Error]] = {
     if (map.contains(identifier.name)) {
       return Left(map(identifier.name)._1.keySet)
     }
     val libName = funcMap.get(identifier.name)
     libName match {
-      case Some(value) => Right(errorList :+ PossibleMissingImportError(value, identifier.pos, identifier.name))
-      case None => Right(errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
+      case Some(value) =>
+        Right(
+          errorList :+ PossibleMissingImportError(value,
+                                                  identifier.pos,
+                                                  identifier.name))
+      case None =>
+        Right(
+          errorList :+ UndeclaredFunctionError(identifier.pos, identifier.name))
     }
   }
 
   def getFunctionNo(funcName: String, typeSignature: TypeSignature): Int = {
-    map.get(funcName).get._1.toList.filter(ts => equalsTypeSignature(ts._1, typeSignature)).head._2
+    map
+      .get(funcName)
+      .get
+      ._1
+      .toList
+      .filter(ts => equalsTypeSignature(ts._1, typeSignature))
+      .head
+      ._2
   }
 
   def containsFunction(funcName: String) = map.contains(funcName)

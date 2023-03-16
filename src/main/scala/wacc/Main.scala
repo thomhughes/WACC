@@ -49,7 +49,8 @@ object Main {
     try { p.println(fileContents) } finally { p.close() }
   }
 
-  def parseAndAddToMap(file: String)(implicit libFuncMap: Map[String, List[Func]]) = {
+  def parseAndAddToMap(file: String)(
+      implicit libFuncMap: Map[String, List[Func]]) = {
     (syntaxCheck(new File(file)): @unchecked) match {
       case Right(value) => {
         libFuncMap += ((file, value.functions))
@@ -57,27 +58,45 @@ object Main {
     }
   }
 
-  def parseLibraries(): Map[String, List[(String, List[(Type, List[Type])])]] = {
-    Map(("array", List(
-      ("contains", List((BoolType, List(ArrayType(IntType, 1)(0,0), IntType)), (BoolType, List(ArrayType(CharType, 1)(0,0), CharType)))),
-      ("reverse", List((IntType, List(ArrayType(IntType, 1)(0,0))), (IntType, List(ArrayType(CharType, 1)(0,0))))),
-      ("sum", List((IntType, List(ArrayType(IntType, 1)(0,0))))),
-      ("min", List((IntType, List(ArrayType(IntType, 1)(0,0))), (CharType, List(ArrayType(CharType, 1)(0,0))))),
-      ("max", List((IntType, List(ArrayType(IntType, 1)(0,0))), (CharType, List(ArrayType(CharType, 1)(0, 0))))),
-      ("qsort", List((IntType, List(ArrayType(IntType, 1)(0,0))), (IntType, List(ArrayType(CharType, 1)(0,0))))))),
-    ("string", List(
-      ("strcat", List((StringType, List(StringType, StringType)))),
-      ("strlen", List((IntType, List(StringType)))),
-      ("atoi", List((IntType, (List(StringType))))))),
-    ("math", List(
-      ("abs", List((IntType, List(IntType)))),
-      ("pow", List((IntType, List(IntType, IntType)))),
-      ("rand", List((IntType, List()))),
-      ("srand", List((IntType, (List(IntType)))))))
+  def parseLibraries()
+    : Map[String, List[(String, List[(Type, List[Type])])]] = {
+    Map(
+      ("array",
+       List(
+         ("contains",
+          List((BoolType, List(ArrayType(IntType, 1)(0, 0), IntType)),
+               (BoolType, List(ArrayType(CharType, 1)(0, 0), CharType)))),
+         ("reverse",
+          List((IntType, List(ArrayType(IntType, 1)(0, 0))),
+               (IntType, List(ArrayType(CharType, 1)(0, 0))))),
+         ("sum", List((IntType, List(ArrayType(IntType, 1)(0, 0))))),
+         ("min",
+          List((IntType, List(ArrayType(IntType, 1)(0, 0))),
+               (CharType, List(ArrayType(CharType, 1)(0, 0))))),
+         ("max",
+          List((IntType, List(ArrayType(IntType, 1)(0, 0))),
+               (CharType, List(ArrayType(CharType, 1)(0, 0))))),
+         ("qsort",
+          List((IntType, List(ArrayType(IntType, 1)(0, 0))),
+               (IntType, List(ArrayType(CharType, 1)(0, 0)))))
+       )),
+      ("string",
+       List(("strcat", List((StringType, List(StringType, StringType)))),
+            ("strlen", List((IntType, List(StringType)))),
+            ("atoi", List((IntType, (List(StringType))))))),
+      ("math",
+       List(
+         ("abs", List((IntType, List(IntType)))),
+         ("pow", List((IntType, List(IntType, IntType)))),
+         ("rand", List((IntType, List()))),
+         ("srand", List((IntType, (List(IntType)))))
+       ))
     )
   }
 
-  def reverseLibToFuncMap(map: Map[String, List[(String, List[(Type, List[Type])])]]): Map[String, String] = {
+  def reverseLibToFuncMap(
+      map: Map[String, List[(String, List[(Type, List[Type])])]])
+    : Map[String, String] = {
     val funcToLibMap: Map[String, String] = Map()
     map.foreach((x: (String, List[(String, List[(Type, List[Type])])])) => {
       x._2.foreach((y: (String, List[(Type, List[Type])])) => {
@@ -101,9 +120,12 @@ object Main {
         sys.exit(syntaxErrorExitCode)
       }
       case Right(program) => {
-        implicit val libToFuncMap: Map[String, List[(String, List[(Type, List[Type])])]] = parseLibraries()
+        implicit val libToFuncMap
+          : Map[String, List[(String, List[(Type, List[Type])])]] =
+          parseLibraries()
         implicit val funcToLibMap = reverseLibToFuncMap(libToFuncMap)
-        val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(program)
+        val (errors, symbolTable, functionTable, updatedProgram) = checkProgram(
+          program)
         val controlFlowOptimizedProgram = optimizeControlFlow(updatedProgram)
         if (!errors.isEmpty) {
           printErrors(errors, fileName)

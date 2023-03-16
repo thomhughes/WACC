@@ -2,7 +2,8 @@ package wacc
 
 import scala.collection.mutable.Map
 
-case class SymbolTable private (private val map: Map[String, OuterBodySymbolTable]) {
+case class SymbolTable private (
+    private val map: Map[String, OuterBodySymbolTable]) {
   import wacc.OuterBodySymbolTable
   import wacc.Types._
   import wacc.AST.Identifier

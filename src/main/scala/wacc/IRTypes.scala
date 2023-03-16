@@ -122,10 +122,8 @@ case class Shift(shiftType: ShiftType, shiftAmount: Int)
 sealed trait Operand
 case class Imm(int: Int) extends Operand
 case class LabelRef(name: String) extends Operand
-case class JoinedRegister(lo: Register, hi: Register)
-    extends Operand
-case class ShiftedRegister(reg: Register, shift: Shift)
-    extends Operand
+case class JoinedRegister(lo: Register, hi: Register) extends Operand
+case class ShiftedRegister(reg: Register, shift: Shift) extends Operand
 case class RegisterList(registers: List[Register]) extends Operand
 case class BranchLabel(name: String) extends Operand
 

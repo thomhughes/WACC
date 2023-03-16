@@ -26,7 +26,9 @@ object Parser {
   import java.io.File
 
   lazy val `<program>` =
-    Program(many("import" *> `<import>`), "begin" *> many(`<func>`), `<statements>` <* "end")
+    Program(many("import" *> `<import>`),
+            "begin" *> many(`<func>`),
+            `<statements>` <* "end")
   lazy val `<import>` = Import(`<string>`)
   lazy val `<func>` = Func(attempt(
                              IdentBinding(`<type>` <|> pure(NoneType),
@@ -116,11 +118,12 @@ object Parser {
   lazy val `<type>` = chain
     .postfix((`<base-type>` <|> `<pair-type>`), `<array-type>`)
     .label("type")
-  lazy val `<pair-type>`: Parsley[PairType] = "pair" *> (enclosing
+  lazy val `<pair-type>` : Parsley[PairType] = "pair" *> (enclosing
     .parens(PairType(`<pair-elem-type>` <* ",", `<pair-elem-type>`)))
     .label("pair type")
   lazy val `<pair-elem-type>` = (chain
-    .postfix(`<base-type>`, `<array-type>`)) <|> attempt(`<pair-type>`) <|> (PairRefType <# "pair").label("pair element type")
+    .postfix(`<base-type>`, `<array-type>`)) <|> attempt(`<pair-type>`) <|> (PairRefType <# "pair")
+    .label("pair element type")
   lazy val `<base-type>` = (IntType <# "int") <|> (BoolType <# "bool") <|> (CharType <# "char") <|> (StringType <# "string")
 
   lazy val `<lvalue>` : Parsley[LValue] = {

@@ -101,11 +101,13 @@ object Errors {
     override def generateErrorSpecifics() =
       ("Function call type error",
        ("function call assumes that " + identifier + " has type signature " + actualTypeSignature ::
-        "but " + identifier + " can only have the following type signatures:" ::
-        allowedTypeSignatures)) 
-  
-      }
-  case class PossibleMissingImportError(libName: String, pos: Position, identifier: String)
+         "but " + identifier + " can only have the following type signatures:" ::
+         allowedTypeSignatures))
+
+  }
+  case class PossibleMissingImportError(libName: String,
+                                        pos: Position,
+                                        identifier: String)
       extends Error {
     override def getPos(): Position = pos
     override def generateErrorSpecifics() =

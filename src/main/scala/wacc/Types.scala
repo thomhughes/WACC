@@ -29,7 +29,8 @@ object Types {
   }
 
   case class TypeSignature(val retType: SAType, val paramTypes: List[SAType]) {
-    override def toString() = "(" + paramTypes.mkString(", ") + ") => " + retType.toString()
+    override def toString() =
+      "(" + paramTypes.mkString(", ") + ") => " + retType.toString()
   }
 
   def equalsType(firstType: SAType, secondType: SAType): Boolean =
