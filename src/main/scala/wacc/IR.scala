@@ -1,7 +1,5 @@
 package wacc
 
-case class IsLastStatement(last: Boolean)
-
 object IR {
   import scala.collection.mutable.ListBuffer
   import scala.language.implicitConversions
@@ -619,11 +617,11 @@ object IR {
       funcName: String,
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])]) = {
-    implicit var isLastStatement = IsLastStatement(false)
+    implicit var isLastStatement = false
     statements.init.foreach(buildStatement(_))
     statements.last match {
       case ReturnStatement(expr) => {
-        isLastStatement = IsLastStatement(true)
+        isLastStatement = true
       }
       case _ => ()
     }
@@ -760,7 +758,7 @@ object IR {
     funcName: String,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
-    isLastStatement: IsLastStatement): Unit = {
+    isLastStatement: Boolean): Unit = {
     val elseLabel = getTemporaryLabelName(irProgram.labelCount)
     val ifEndLabel = getTemporaryLabelName(irProgram.labelCount + 1)
     irProgram.labelCount += 2
@@ -789,7 +787,7 @@ object IR {
       funcName: String,
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])],
-      isLastStatement: IsLastStatement): Unit = {
+      isLastStatement: Boolean): Unit = {
     val conditionLabel = getTemporaryLabelName(irProgram.labelCount)
     val doneLabel = getTemporaryLabelName(irProgram.labelCount + 1)
     irProgram.labelCount += 2
@@ -875,7 +873,7 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram,
     funcName: String,
-    isLastStatement: IsLastStatement,
+    isLastStatement: Boolean,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])])
     : Unit = {
@@ -914,7 +912,7 @@ object IR {
     funcName: String,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
-    isLastStatement: IsLastStatement): Unit = {
+    isLastStatement: Boolean): Unit = {
     changeScope(true)
     statements.foreach(buildStatement(_))
     changeScope(false)
@@ -944,7 +942,7 @@ object IR {
     funcName: String,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
-    isLastStatement: IsLastStatement): Unit = {
+    isLastStatement: Boolean): Unit = {
     statement match {
       case ExitStatement(e) => buildExit(e)
       case AssignmentStatement(lvalue, rvalue) =>
@@ -995,7 +993,7 @@ object IR {
 
   def buildFuncEpilogue(isInlined: Boolean)(
       implicit irProgram: IRProgram,
-      isLastStatement: IsLastStatement,
+      isLastStatement: Boolean,
       funcName: String,
       inlinedFunctionsAndBodies: Map[
         String,
@@ -1005,14 +1003,14 @@ object IR {
     if (isInlined) {
       irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
       isLastStatement match {
-        case IsLastStatement(false) =>
+        case false =>
           irProgram.instructions += Instr(
             B,
             BranchLabel(
               renameToJumpAtEndOfInlineFunc(
                 funcName,
                 inlinedFunctionsAndBodies.get(funcName).get._1)))
-        case IsLastStatement(true) => ()
+        case true => ()
       }
     } else {
       irProgram.instructions += Instr(POP, RegisterList(List(PC)))
@@ -1027,7 +1025,7 @@ object IR {
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])]) = {
     if (!inlinedFunctionsAndBodies.keySet.contains(funcName)) {
-      implicit val isLastStatement = IsLastStatement(false)
+      implicit val isLastStatement = false
       irProgram.instructions += Label(
         renameFunc(func.identBinding.identifier.name)
       )
@@ -1065,7 +1063,7 @@ object IR {
     irProgram.symbolTable.resetScope()
     buildFuncPrologue(false)
     changeScope(true)
-    implicit val isLastStatement = IsLastStatement(false)
+    implicit val isLastStatement = false
     statements.foreach(buildStatement(_))
     changeScope(false)
     irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
