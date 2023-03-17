@@ -899,8 +899,8 @@ object IR {
     buildGCFuncReturn()
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     inlinedFunc match {
-      case IsFunctionInlined(true)  => buildInlinedFuncEpilogue()
-      case IsFunctionInlined(false) => buildFuncEpilogue()
+      case IsFunctionInlined(true)  => buildFuncEpilogue(true)
+      case IsFunctionInlined(false) => buildFuncEpilogue(false)
     }
   }
 
@@ -1001,34 +1001,31 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("func_return"))
   }
 
-  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram,
-                                 isLastStatement: IsLastStatement,
-                                 funcName: String,
-                                 inlinedFunctionsAndBodies: Map[
-                                   String,
-                                   (Int, List[Parameter], List[Statement])]) = {
+  def buildFuncEpilogue(isInlined: Boolean)(
+      implicit irProgram: IRProgram,
+      isLastStatement: IsLastStatement,
+      funcName: String,
+      inlinedFunctionsAndBodies: Map[
+        String,
+        (Int, List[Parameter], List[Statement])]) = {
     irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
     irProgram.instructions += Instr(POP, RegisterList(List(FP)))
-    irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
-    isLastStatement match {
-      case IsLastStatement(false) =>
-        irProgram.instructions += Instr(
-          B,
-          BranchLabel(
-            renameToJumpAtEndOfInlineFunc(
-              funcName,
-              inlinedFunctionsAndBodies.get(funcName).get._1)))
-      case IsLastStatement(true) => ()
+    if (isInlined) {
+      irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
+      isLastStatement match {
+        case IsLastStatement(false) =>
+          irProgram.instructions += Instr(
+            B,
+            BranchLabel(
+              renameToJumpAtEndOfInlineFunc(
+                funcName,
+                inlinedFunctionsAndBodies.get(funcName).get._1)))
+        case IsLastStatement(true) => ()
+      }
+    } else {
+      irProgram.instructions += Instr(POP, RegisterList(List(PC)))
+      irProgram.instructions += Ltorg
     }
-  }
-
-  // Inserted after function returns (all functions must return to be correct)
-  private def buildFuncEpilogue()(implicit irProgram: IRProgram,
-                                  funcName: String) = {
-    irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
-    irProgram.instructions += Instr(POP, RegisterList(List(FP)))
-    irProgram.instructions += Instr(POP, RegisterList(List(PC)))
-    irProgram.instructions += Ltorg
   }
 
   private def buildFunc(
@@ -1085,7 +1082,7 @@ object IR {
     buildGCFuncReturn()
     irProgram.instructions += Instr(BL, BranchLabel("gc_free"))
     irProgram.instructions += Instr(MOV, paramRegs(0), Imm(0))
-    buildFuncEpilogue()
+    buildFuncEpilogue(false)
   }
 
   def buildIR(ast: Program,
