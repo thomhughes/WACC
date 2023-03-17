@@ -551,27 +551,6 @@ object IR {
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
 
-  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram,
-                                 isLastStatement: IsLastStatement,
-                                 funcName: String,
-                                 inlinedFunctionsAndBodies: Map[
-                                   String,
-                                   (Int, List[Parameter], List[Statement])]) = {
-    irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
-    irProgram.instructions += Instr(POP, RegisterList(List(FP)))
-    irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
-    isLastStatement match {
-      case IsLastStatement(false) =>
-        irProgram.instructions += Instr(
-          B,
-          BranchLabel(
-            renameToJumpAtEndOfInlineFunc(
-              funcName,
-              inlinedFunctionsAndBodies.get(funcName).get._1)))
-      case IsLastStatement(true) => ()
-    }
-  }
-
   def buildInlinedFuncPrologue()(implicit irProgram: IRProgram,
                                  funcName: String) = {
     irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
@@ -1020,6 +999,27 @@ object IR {
   private def buildGCFuncReturn()(implicit irProgram: IRProgram,
                                   funcName: String) = {
     irProgram.instructions += Instr(BL, BranchLabel("func_return"))
+  }
+
+  def buildInlinedFuncEpilogue()(implicit irProgram: IRProgram,
+                                 isLastStatement: IsLastStatement,
+                                 funcName: String,
+                                 inlinedFunctionsAndBodies: Map[
+                                   String,
+                                   (Int, List[Parameter], List[Statement])]) = {
+    irProgram.instructions += Instr(SUB, SP, FP, Imm(4))
+    irProgram.instructions += Instr(POP, RegisterList(List(FP)))
+    irProgram.instructions += Instr(POP, RegisterList(List(scratchRegs(0))))
+    isLastStatement match {
+      case IsLastStatement(false) =>
+        irProgram.instructions += Instr(
+          B,
+          BranchLabel(
+            renameToJumpAtEndOfInlineFunc(
+              funcName,
+              inlinedFunctionsAndBodies.get(funcName).get._1)))
+      case IsLastStatement(true) => ()
+    }
   }
 
   // Inserted after function returns (all functions must return to be correct)
