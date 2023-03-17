@@ -9,7 +9,8 @@ import wacc.AST.{Parameter, Statement}
 
 class InlineFunctionsUnitTests extends AnyFlatSpec with PrivateMethodTester {
 
-  val transform = PrivateMethod[Map[String, (Int, List[Parameter], List[Statement])]]('getInlinedFunctions)
+  // supressed warning as compiler dislikes the PrivateMethodTester syntax
+  @annotation.nowarn val transform = PrivateMethod[Map[String, (Int, List[Parameter], List[Statement])]]('getInlinedFunctions)
   
   "getInlinedFunctions" should "inline small functions" in {
     val program = parseAsProgram("begin int foo() is return 1 end int bar() is return 2 end int x = call foo() ; int y = call bar() end")
