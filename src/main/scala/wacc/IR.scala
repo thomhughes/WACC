@@ -15,6 +15,9 @@ object IR {
   val lengthOfSmallFunction = 6
   val maxNoCallsOfFunction = 6
 
+  private val paramRegs = List(R0, R1, R2, R3, R4)
+  private val scratchRegs = List(R8, R9)
+
   def countFunctionCalls(statement: Statement, function: Func): Int = {
     statement match {
       case AssignmentStatement(_, rvalue) =>
@@ -40,11 +43,9 @@ object IR {
       case BeginStatement(body) => {
         body.map(countFunctionCalls(_, function)).sum
       }
-      case default => 0
+      case _ => 0
     }
   }
-  private val paramRegs = List(R0, R1, R2, R3, R4)
-  private val scratchRegs = List(R8, R9)
 
   def getNoFunctionCalls(program: Program, function: Func): Int = {
     program.statements.map(countFunctionCalls(_, function)).sum
@@ -443,6 +444,7 @@ object IR {
     irProgram.instructions += Instr(LDR, scratchRegs(0), label)
     irProgram.instructions += Instr(PUSH, RegisterList(List(scratchRegs(0))))
   }
+
   /* Evaluates expression and places result on top of the stack */
   private def buildExpression(
       expr: Expression
@@ -549,14 +551,9 @@ object IR {
     funcName + "__" + occurrence.toString
   }
 
-  private def buildFuncCall(id: Identifier, args: List[Expression])(
+  private def loadStdLibArgs(args: List[Expression])(
       implicit
-      irProgram: IRProgram,
-      funcName: String) = {
-    // build expressions in order, will be reversed on stack
-    args.reverse.foreach(buildExpression(_))
-    irProgram.funcToLibMap.get(id.name) match {
-      case Some(_) => {
+      irProgram: IRProgram) = {
         var counter = 0
         args.foreach({ exp =>
           irProgram.instructions += Instr(
@@ -565,10 +562,10 @@ object IR {
           counter += 1
         })
       }
-      case None =>
-    }
-    if (irProgram.inlinedFunctionsAndBodies.keySet.contains(id.name)) {
-      implicit val funcName = id.name
+
+  private def buildInlinedFuncCall(id: Identifier)(
+      implicit irProgram: IRProgram) = {
+    implicit val funcName = id.name
       irProgram.symbolTable.resetScope()
       (irProgram.inlinedFunctionsAndBodies.get(id.name): @unchecked) match {
         case Some(value) => {
@@ -587,9 +584,21 @@ object IR {
         }
       }
       changeScope(false)
-    } else {
-      irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     }
+
+  private def buildFuncCall(id: Identifier, args: List[Expression])(
+      implicit
+      irProgram: IRProgram,
+      funcName: String) = {
+    // build expressions in order, will be reversed on stack
+    args.reverse.foreach(buildExpression(_))
+    // if in standard library, load args for lib funs
+    irProgram.funcToLibMap.get(id.name) match {
+      case Some(_) => loadStdLibArgs(args) 
+      case None => {}
+    }
+    if (irProgram.inlinedFunctionsAndBodies.keySet.contains(id.name)) buildInlinedFuncCall(id)
+    else irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
 
