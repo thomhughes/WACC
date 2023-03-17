@@ -2,8 +2,8 @@
 
 #include "linkedlist.h"
 
-void list_push(struct LinkedList *list_top, void *data) {
-  struct LinkedList *new_node = calloc(1, sizeof(*list_top));
+void list_push(struct linked_list *list_top, void *data) {
+  struct linked_list *new_node = calloc(1, sizeof(*list_top));
   new_node->data = data;
   if (list_top->next != NULL) {
     list_top->next->prev = new_node;
@@ -13,8 +13,8 @@ void list_push(struct LinkedList *list_top, void *data) {
   new_node->prev = list_top;
 }
 
-void list_pop(struct LinkedList *list_top) {
-  struct LinkedList *new_node = list_top->next->next;
+void list_pop(struct linked_list *list_top) {
+  struct linked_list *new_node = list_top->next->next;
   if (new_node) {
     new_node->prev = list_top;
   }
@@ -22,7 +22,7 @@ void list_pop(struct LinkedList *list_top) {
   list_top->next = new_node;
 }
 
-struct LinkedList *list_peek(struct LinkedList *list_top) {
+struct linked_list *list_peek(struct linked_list *list_top) {
   return list_top->next;
 }
 
