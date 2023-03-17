@@ -16,14 +16,12 @@ class FunctionTable {
 
   val map = Map[String, (Map[TypeSignature, Int], Int)]()
 
-  def checkDuplicate(function: Func, typeSignature: TypeSignature) =
+  private def checkDuplicate(function: Func, typeSignature: TypeSignature) =
     map.get(function.identBinding.identifier.name) match {
       case Some((map, _)) =>
         map.contains(typeSignature)
       case None => false
     }
-
-  def getFunctionNames = map.keySet
 
   def insertFunction(function: Func, typeSignature: TypeSignature)(
       implicit errorList: List[Error]): List[Error] = {
@@ -82,8 +80,6 @@ class FunctionTable {
       .head
       ._2
   }
-
-  def containsFunction(funcName: String) = map.contains(funcName)
 
   override def toString(): String = map.toString()
 }

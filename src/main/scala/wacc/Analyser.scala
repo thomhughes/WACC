@@ -795,7 +795,7 @@ object Analyser {
     })
   }
 
-  def insertLibFuns(importRef: Import)(
+  private def insertLibFuns(importRef: Import)(
       implicit libToFuncMap: Map[String,
                                  List[(String, List[(Type, List[Type])])]],
       errorList: List[Error]) = {
@@ -853,7 +853,7 @@ object Analyser {
     copySymbolTable.enterScope()
     val updatedProgram = renameOverloadedFunctions(program, functionTable)
     copySymbolTable.exitScope()
-    
+
     (errors, symbolTable, functionTable, updatedProgram)
   }
 

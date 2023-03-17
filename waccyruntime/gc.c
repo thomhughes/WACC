@@ -146,6 +146,7 @@ void gc_sweep();
 extern void func_return(void *returnvalue) {
   assert(callinfo_get());
   hashmap_free(callinfo_get()->roots);
+  free(list_peek(&call_stack)->data);
   list_pop(&call_stack);
 
   if (returnvalue) {

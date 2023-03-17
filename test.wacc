@@ -1,17 +1,15 @@
 begin
     int arrayfunc() is
-#				int[] a = [3, 2, 5, 2];
-#				int[] b = [1, 2, 5, 2];
-#				int[][] c = [a, b, b, a];
-#        b = a;
-#        return c[2][1]
-        return 3
+				int[] a = [3, 2, 5, 2];
+				int[] b = [1, 2, 5, 2];
+				int[][] c = [a, b, b, a];
+        b = a;
+        return c[2][1]
     end
     int f(int x) is
         int i = 0 ;
         while i < 2147483647 do
             i = i + 1 ;
-            println i ;
             int j = call arrayfunc()
         done ;
         return 2

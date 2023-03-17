@@ -18,9 +18,9 @@ object IR {
   private val paramRegs = List(R0, R1, R2, R3, R4)
   private val scratchRegs = List(R8, R9)
 
-  implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0 
+  implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
 
-private def countFunctionCalls(statement: Statement, function: Func): Int = {
+  private def countFunctionCalls(statement: Statement, function: Func): Int = {
     statement match {
       case AssignmentStatement(_, rvalue) =>
         rvalue match {
@@ -49,11 +49,11 @@ private def countFunctionCalls(statement: Statement, function: Func): Int = {
     }
   }
 
-private def getNoFunctionCalls(program: Program, function: Func): Int = {
+  private def getNoFunctionCalls(program: Program, function: Func): Int = {
     program.statements.map(countFunctionCalls(_, function)).sum
   }
 
-private def functionNotNested(statement: Statement, func: Func): Boolean = {
+  private def functionNotNested(statement: Statement, func: Func): Boolean = {
     statement match {
       case AssignmentStatement(_, rvalue) =>
         rvalue match {
@@ -79,7 +79,8 @@ private def functionNotNested(statement: Statement, func: Func): Boolean = {
     }
   }
 
-private def shouldInlineFunction(program: Program, function: Func): Boolean = {
+  private def shouldInlineFunction(program: Program,
+                                   function: Func): Boolean = {
     (function.body.length < lengthOfSmallFunction || getNoFunctionCalls(
       program,
       function) < maxNoCallsOfFunction) && (
@@ -90,8 +91,8 @@ private def shouldInlineFunction(program: Program, function: Func): Boolean = {
     )
   }
 
-private def changeScope(enter: Boolean)(implicit irProgram: IRProgram,
-                                  funcName: String) = {
+  private def changeScope(enter: Boolean)(implicit irProgram: IRProgram,
+                                          funcName: String) = {
     if (enter) irProgram.symbolTable.enterScope()
     else irProgram.symbolTable.exitScope()
     irProgram.instructions += Instr(PUSH, RegisterList(List(R0)))
@@ -192,7 +193,8 @@ private def changeScope(enter: Boolean)(implicit irProgram: IRProgram,
   }
 
   // dereference value at top of stack *stack, clobbers paramRegs(0)
-private def buildStackDereference(t: SAType)(implicit irProgram: IRProgram): Unit = {
+  private def buildStackDereference(t: SAType)(
+      implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     irProgram.instructions += Instr(
       getLoadDataOperand(t),
@@ -399,7 +401,8 @@ private def buildStackDereference(t: SAType)(implicit irProgram: IRProgram): Uni
     )
   }
 
-private def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
+  private def modifyingUnaryOp(op: UnaryOp)(
+      implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     (op: @unchecked) match {
       case Not => {
@@ -537,44 +540,43 @@ private def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit =
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
 
-private def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
+  private def renameToJumpAtEndOfInlineFunc(funcName: String,
+                                            occurrence: Int) = {
     funcName + "__" + occurrence.toString
   }
 
-  private def loadStdLibArgs(args: List[Expression])(
-      implicit
-      irProgram: IRProgram) = {
-        var counter = 0
-        args.foreach({ exp =>
-          irProgram.instructions += Instr(
-            POP,
-            RegisterList(List(paramRegs(counter))))
-          counter += 1
-        })
-      }
+  private def loadStdLibArgs(args: List[Expression])(implicit
+                                                     irProgram: IRProgram) = {
+    var counter = 0
+    args.foreach({ exp =>
+      irProgram.instructions += Instr(POP,
+                                      RegisterList(List(paramRegs(counter))))
+      counter += 1
+    })
+  }
 
   private def buildInlinedFuncCall(id: Identifier)(
       implicit irProgram: IRProgram) = {
     implicit val funcName = id.name
-      irProgram.symbolTable.resetScope()
-      (irProgram.inlinedFunctionsAndBodies.get(id.name): @unchecked) match {
-        case Some(value) => {
-          value._2.foreach((param: Parameter) =>
-            irProgram.symbolTable.encountered(param.identifier))
-          buildFuncPrologue(true)
-          changeScope(true)
-          val statementsOfInlineFunc = value._3
+    irProgram.symbolTable.resetScope()
+    (irProgram.inlinedFunctionsAndBodies.get(id.name): @unchecked) match {
+      case Some(value) => {
+        value._2.foreach((param: Parameter) =>
+          irProgram.symbolTable.encountered(param.identifier))
+        buildFuncPrologue(true)
+        changeScope(true)
+        val statementsOfInlineFunc = value._3
 
-          buildInlineFunctionStatements(statementsOfInlineFunc)
+        buildInlineFunctionStatements(statementsOfInlineFunc)
 
-          irProgram.instructions += Label(
-            renameToJumpAtEndOfInlineFunc(id.name, value._1))
-          irProgram.inlinedFunctionsAndBodies.put(id.name,
-                                        (value._1 + 1, value._2, value._3))
-        }
+        irProgram.instructions += Label(
+          renameToJumpAtEndOfInlineFunc(id.name, value._1))
+        irProgram.inlinedFunctionsAndBodies
+          .put(id.name, (value._1 + 1, value._2, value._3))
       }
-      changeScope(false)
     }
+    changeScope(false)
+  }
 
   private def buildFuncCall(id: Identifier, args: List[Expression])(
       implicit
@@ -584,10 +586,11 @@ private def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
     args.reverse.foreach(buildExpression(_))
     // if in standard library, load args for lib funs
     irProgram.funcToLibMap.get(id.name) match {
-      case Some(_) => loadStdLibArgs(args) 
-      case None => {}
+      case Some(_) => loadStdLibArgs(args)
+      case None    => {}
     }
-   if (irProgram.inlinedFunctionsAndBodies.keySet.contains(id.name)) buildInlinedFuncCall(id)
+    if (irProgram.inlinedFunctionsAndBodies.keySet.contains(id.name))
+      buildInlinedFuncCall(id)
     else irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
@@ -623,7 +626,7 @@ private def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
       funcName: String
   ): Unit = {
     buildLValueReference(id)
-  def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
+    def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
       case Nil => {}
       case head :: next => {
         buildExpression(head)
@@ -666,8 +669,7 @@ private def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
   private def buildRValue(rvalue: RValue, argType: SAType)(
       implicit
       irProgram: IRProgram,
-      funcName: String)
-    : Unit = {
+      funcName: String): Unit = {
     rvalue match {
       case e: Expression          => buildExpression(e)
       case ArrayLiteral(args)     => buildArrayLiteral(args, argType)
@@ -690,8 +692,8 @@ private def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
     irProgram.instructions += Instr(BL, BranchLabel("exit"))
   }
 
-private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
-                                        funcName: String) =
+  private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
+                                                funcName: String) =
     getLValueType(lvalue) match {
       case SAArrayType(_, _) | SAPairType(_, _) => true
       case default                              => false
@@ -700,8 +702,7 @@ private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
   private def buildAssignment(lvalue: LValue, rvalue: RValue)(
       implicit
       irProgram: IRProgram,
-      funcName: String)
-    : Unit = {
+      funcName: String): Unit = {
     val lvalueType = getLValueType(lvalue)
     buildRValue(
       rvalue,
@@ -842,8 +843,7 @@ private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
       expression: Expression
   )(implicit irProgram: IRProgram,
     funcName: String,
-    isLastStatement: Boolean)
-    : Unit = {
+    isLastStatement: Boolean): Unit = {
     buildExpression(expression)
     val passReference = expression match {
       case id @ Identifier(_)   => isLValueReference(id)
@@ -859,7 +859,7 @@ private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     irProgram.inlinedFunctionsAndBodies.get(funcName) match {
       case Some(value) => buildFuncEpilogue(true)
-      case _ => buildFuncEpilogue(false)
+      case _           => buildFuncEpilogue(false)
     }
   }
 
@@ -930,8 +930,8 @@ private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
     irProgram.instructions += Instr(BL, BranchLabel("func_call"))
   }
 
-private def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram,
-                                          funcName: String) = {
+  private def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram,
+                                                  funcName: String) = {
     irProgram.instructions += Instr(
       PUSH,
       RegisterList(List(if (inlined) scratchRegs(0) else LR)))
@@ -951,7 +951,7 @@ private def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram,
     irProgram.instructions += Instr(BL, BranchLabel("func_return"))
   }
 
-private def buildFuncEpilogue(isInlined: Boolean)(
+  private def buildFuncEpilogue(isInlined: Boolean)(
       implicit irProgram: IRProgram,
       isLastStatement: Boolean,
       funcName: String) = {
@@ -977,8 +977,7 @@ private def buildFuncEpilogue(isInlined: Boolean)(
 
   private def buildFunc(
       func: Func
-  )(implicit irProgram: IRProgram,
-    funcName: String) = {
+  )(implicit irProgram: IRProgram, funcName: String) = {
     if (!irProgram.inlinedFunctionsAndBodies.keySet.contains(funcName)) {
       implicit val isLastStatement = false
       irProgram.instructions += Label(
@@ -997,15 +996,12 @@ private def buildFuncEpilogue(isInlined: Boolean)(
   private def buildFuncs(
       functions: List[Func]
   )(implicit irProgram: IRProgram) = {
-    functions.foreach(
-      (func: Func) =>
-        buildFunc(func)(irProgram,
-                        func.identBinding.identifier.name))
+    functions.foreach((func: Func) =>
+      buildFunc(func)(irProgram, func.identBinding.identifier.name))
   }
 
-  private def buildMain(statements: List[Statement])(
-      implicit
-      irProgram: IRProgram) = {
+  private def buildMain(statements: List[Statement])(implicit
+                                                     irProgram: IRProgram) = {
     implicit val funcName = "0"
     irProgram.instructions += Global("main")
     irProgram.instructions += Label("main")
@@ -1022,7 +1018,7 @@ private def buildFuncEpilogue(isInlined: Boolean)(
     buildFuncEpilogue(false)
   }
 
-private def getInlinedFunctions(program: Program)
+  private def getInlinedFunctions(program: Program)
     : Map[String, (Int, List[Parameter], List[Statement])] = {
     val inlinedFunctionsAndBodies
       : Map[String, (Int, List[Parameter], List[Statement])] = Map()
@@ -1037,12 +1033,17 @@ private def getInlinedFunctions(program: Program)
     inlinedFunctionsAndBodies
   }
 
-def buildIR(ast: Program,
+  def buildIR(ast: Program,
               symbolTable: SymbolTable,
               funcToLibMap: Map[String, String]): ListBuffer[IRType] = {
     val inlinedFunctionsAndBodies = getInlinedFunctions(ast)
     implicit val irProgram =
-      IRProgram(ListBuffer(), 0, 0, symbolTable, funcToLibMap, inlinedFunctionsAndBodies)
+      IRProgram(ListBuffer(),
+                0,
+                0,
+                symbolTable,
+                funcToLibMap,
+                inlinedFunctionsAndBodies)
     buildFuncs(ast.functions)
     buildMain(ast.statements)
     irProgram.instructions

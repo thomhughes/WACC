@@ -14,7 +14,8 @@ case class IRProgram(
     var labelCount: Int,
     val symbolTable: SymbolTable,
     val funcToLibMap: Map[String, String],
-    val inlinedFunctionsAndBodies : Map[String, (Int, List[Parameter], List[Statement])]
+    val inlinedFunctionsAndBodies: Map[String,
+                                       (Int, List[Parameter], List[Statement])]
 )
 
 sealed trait IRType
