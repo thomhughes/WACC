@@ -132,7 +132,8 @@ object Main {
           printErrors(errors, fileName)
           sys.exit(semanticErrorExitCode)
         } else {
-          val instructions = buildIR(controlFlowOptimizedProgram, symbolTable)
+          val instructions =
+            buildIR(controlFlowOptimizedProgram, symbolTable, funcToLibMap)
           val assembly = convertAssembly(peepholeOptimisation(instructions))
           val assemblyFileName = getAssemblyFileName(fileName)
           printToFile(assembly, assemblyFileName)
