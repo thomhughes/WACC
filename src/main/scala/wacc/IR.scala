@@ -1,7 +1,6 @@
 package wacc
 
 case class IsLastStatement(last: Boolean)
-case class IsFunctionInlined(inlined: Boolean)
 
 object IR {
   import scala.collection.mutable.ListBuffer
@@ -597,7 +596,6 @@ object IR {
             irProgram.symbolTable.encountered(param.identifier))
           buildFuncPrologue(true)
           changeScope(true)
-          implicit val inlinedFunc = IsFunctionInlined(true)
           val statementsOfInlineFunc = value._3
 
           buildInlineFunctionStatements(statementsOfInlineFunc)
@@ -620,8 +618,7 @@ object IR {
       irProgram: IRProgram,
       funcName: String,
       inlinedFunctionsAndBodies: Map[String,
-                                     (Int, List[Parameter], List[Statement])],
-      inlinedFunc: IsFunctionInlined) = {
+                                     (Int, List[Parameter], List[Statement])]) = {
     implicit var isLastStatement = IsLastStatement(false)
     statements.init.foreach(buildStatement(_))
     statements.last match {
@@ -763,7 +760,6 @@ object IR {
     funcName: String,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
-    inlinedFunc: IsFunctionInlined,
     isLastStatement: IsLastStatement): Unit = {
     val elseLabel = getTemporaryLabelName(irProgram.labelCount)
     val ifEndLabel = getTemporaryLabelName(irProgram.labelCount + 1)
@@ -793,7 +789,6 @@ object IR {
       funcName: String,
       inlinedFunctionsAndBodies: Map[String,
                                      (Int, List[Parameter], List[Statement])],
-      inlinedFunc: IsFunctionInlined,
       isLastStatement: IsLastStatement): Unit = {
     val conditionLabel = getTemporaryLabelName(irProgram.labelCount)
     val doneLabel = getTemporaryLabelName(irProgram.labelCount + 1)
@@ -880,7 +875,6 @@ object IR {
       expression: Expression
   )(implicit irProgram: IRProgram,
     funcName: String,
-    inlinedFunc: IsFunctionInlined,
     isLastStatement: IsLastStatement,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])])
@@ -898,9 +892,9 @@ object IR {
     }
     buildGCFuncReturn()
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
-    inlinedFunc match {
-      case IsFunctionInlined(true)  => buildFuncEpilogue(true)
-      case IsFunctionInlined(false) => buildFuncEpilogue(false)
+    inlinedFunctionsAndBodies.get(funcName) match {
+      case Some(value) => buildFuncEpilogue(true)
+      case _ => buildFuncEpilogue(false)
     }
   }
 
@@ -920,7 +914,6 @@ object IR {
     funcName: String,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
-    inlinedFunc: IsFunctionInlined,
     isLastStatement: IsLastStatement): Unit = {
     changeScope(true)
     statements.foreach(buildStatement(_))
@@ -951,7 +944,6 @@ object IR {
     funcName: String,
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])],
-    inlinedFunc: IsFunctionInlined,
     isLastStatement: IsLastStatement): Unit = {
     statement match {
       case ExitStatement(e) => buildExit(e)
@@ -1035,7 +1027,6 @@ object IR {
     inlinedFunctionsAndBodies: Map[String,
                                    (Int, List[Parameter], List[Statement])]) = {
     if (!inlinedFunctionsAndBodies.keySet.contains(funcName)) {
-      implicit val inlinedFunc = IsFunctionInlined(false);
       implicit val isLastStatement = IsLastStatement(false)
       irProgram.instructions += Label(
         renameFunc(func.identBinding.identifier.name)
@@ -1074,7 +1065,6 @@ object IR {
     irProgram.symbolTable.resetScope()
     buildFuncPrologue(false)
     changeScope(true)
-    implicit val inlinedFunc = IsFunctionInlined(false);
     implicit val isLastStatement = IsLastStatement(false)
     statements.foreach(buildStatement(_))
     changeScope(false)
