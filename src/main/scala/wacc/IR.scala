@@ -18,7 +18,9 @@ object IR {
   private val paramRegs = List(R0, R1, R2, R3, R4)
   private val scratchRegs = List(R8, R9)
 
-  def countFunctionCalls(statement: Statement, function: Func): Int = {
+  implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0 
+
+private def countFunctionCalls(statement: Statement, function: Func): Int = {
     statement match {
       case AssignmentStatement(_, rvalue) =>
         rvalue match {
@@ -47,11 +49,11 @@ object IR {
     }
   }
 
-  def getNoFunctionCalls(program: Program, function: Func): Int = {
+private def getNoFunctionCalls(program: Program, function: Func): Int = {
     program.statements.map(countFunctionCalls(_, function)).sum
   }
 
-  def functionNotNested(statement: Statement, func: Func): Boolean = {
+private def functionNotNested(statement: Statement, func: Func): Boolean = {
     statement match {
       case AssignmentStatement(_, rvalue) =>
         rvalue match {
@@ -77,7 +79,7 @@ object IR {
     }
   }
 
-  def shouldInlineFunction(program: Program, function: Func): Boolean = {
+private def shouldInlineFunction(program: Program, function: Func): Boolean = {
     (function.body.length < lengthOfSmallFunction || getNoFunctionCalls(
       program,
       function) < maxNoCallsOfFunction) && (
@@ -88,7 +90,7 @@ object IR {
     )
   }
 
-  def changeScope(enter: Boolean)(implicit irProgram: IRProgram,
+private def changeScope(enter: Boolean)(implicit irProgram: IRProgram,
                                   funcName: String) = {
     if (enter) irProgram.symbolTable.enterScope()
     else irProgram.symbolTable.exitScope()
@@ -140,7 +142,7 @@ object IR {
     loadRemainingChunks(value > 0, dest, chunks)
   }
 
-  // If src is defined then it's offset from source, if not then it's offset from 0
+  // If src iprivate defined then it's offset from source, if not then it's offset from 0
   private def loadRegConstant(dest: Register, src: Register, value: Int)(
       implicit
       irProgram: IRProgram) = {
@@ -190,7 +192,7 @@ object IR {
   }
 
   // dereference value at top of stack *stack, clobbers paramRegs(0)
-  def buildStackDereference(t: SAType)(implicit irProgram: IRProgram): Unit = {
+private def buildStackDereference(t: SAType)(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     irProgram.instructions += Instr(
       getLoadDataOperand(t),
@@ -397,7 +399,7 @@ object IR {
     )
   }
 
-  def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
+private def modifyingUnaryOp(op: UnaryOp)(implicit irProgram: IRProgram): Unit = {
     irProgram.instructions += Instr(POP, RegisterList(List(paramRegs(0))))
     (op: @unchecked) match {
       case Not => {
@@ -535,19 +537,7 @@ object IR {
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
 
-  def buildInlinedFuncPrologue()(implicit irProgram: IRProgram,
-                                 funcName: String) = {
-    irProgram.instructions += Instr(PUSH, RegisterList(List(FP)))
-    buildGCFuncCall()
-    // Store frame pointer as pointer to frame pointer on stack
-    irProgram.instructions += Instr(ADD, FP, SP, Imm(4))
-    val frameSize = irProgram.symbolTable.getFrameSize()
-    if (irProgram.symbolTable.getFrameSize() > 0) {
-      loadRegConstant(SP, SP, -(frameSize + (frameSize % 4)))
-    }
-  }
-
-  def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
+private def renameToJumpAtEndOfInlineFunc(funcName: String, occurrence: Int) = {
     funcName + "__" + occurrence.toString
   }
 
@@ -597,7 +587,7 @@ object IR {
       case Some(_) => loadStdLibArgs(args) 
       case None => {}
     }
-    if (irProgram.inlinedFunctionsAndBodies.keySet.contains(id.name)) buildInlinedFuncCall(id)
+   if (irProgram.inlinedFunctionsAndBodies.keySet.contains(id.name)) buildInlinedFuncCall(id)
     else irProgram.instructions += Instr(BL, BranchLabel(renameFunc(id.name)))
     irProgram.instructions += Instr(PUSH, RegisterList(List(paramRegs(0))))
   }
@@ -633,7 +623,7 @@ object IR {
       funcName: String
   ): Unit = {
     buildLValueReference(id)
-    def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
+  def buildArrLoadHelper(indices: List[Expression]): Unit = indices match {
       case Nil => {}
       case head :: next => {
         buildExpression(head)
@@ -654,7 +644,6 @@ object IR {
     case default       => false
   }
 
-  implicit def boolToInt(bool: Boolean): Int = if (bool) 1 else 0
   private def buildNewPair(e1: Expression, e2: Expression, argType: SAType)(
       implicit
       irProgram: IRProgram,
@@ -701,7 +690,7 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("exit"))
   }
 
-  def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
+private def isLValueReference(lvalue: LValue)(implicit irProgram: IRProgram,
                                         funcName: String) =
     getLValueType(lvalue) match {
       case SAArrayType(_, _) | SAPairType(_, _) => true
@@ -825,7 +814,6 @@ object IR {
   )(implicit irProgram: IRProgram, funcName: String): Unit = {
     buildExpression(expression)
     val exprType = getExpressionType(expression)
-
     // Dereference arrays to access value of data
     exprType match {
       case at @ SAArrayType(_, _) => buildStackDereference(at)
@@ -942,7 +930,7 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("func_call"))
   }
 
-  def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram,
+private def buildFuncPrologue(inlined: Boolean)(implicit irProgram: IRProgram,
                                           funcName: String) = {
     irProgram.instructions += Instr(
       PUSH,
@@ -963,7 +951,7 @@ object IR {
     irProgram.instructions += Instr(BL, BranchLabel("func_return"))
   }
 
-  def buildFuncEpilogue(isInlined: Boolean)(
+private def buildFuncEpilogue(isInlined: Boolean)(
       implicit irProgram: IRProgram,
       isLastStatement: Boolean,
       funcName: String) = {
@@ -1034,7 +1022,7 @@ object IR {
     buildFuncEpilogue(false)
   }
 
-  def getInlinedFunctions(program: Program)
+private def getInlinedFunctions(program: Program)
     : Map[String, (Int, List[Parameter], List[Statement])] = {
     val inlinedFunctionsAndBodies
       : Map[String, (Int, List[Parameter], List[Statement])] = Map()
@@ -1049,7 +1037,7 @@ object IR {
     inlinedFunctionsAndBodies
   }
 
-  def buildIR(ast: Program,
+def buildIR(ast: Program,
               symbolTable: SymbolTable,
               funcToLibMap: Map[String, String]): ListBuffer[IRType] = {
     val inlinedFunctionsAndBodies = getInlinedFunctions(ast)
