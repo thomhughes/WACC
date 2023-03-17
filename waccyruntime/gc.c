@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define GC_ENABLED true
+
 struct linked_list __thread call_stack;
 struct hashmap __thread *heap;
 
@@ -71,7 +73,8 @@ void *heap_create(int size, enum heap_type type) {
 void heap_destroy(void *address) {
   struct heapnode *destroy_node = (struct heapnode *)hashmap_get(heap, &(struct heapnode){ .address=address });
   assert(destroy_node);
-  free(destroy_node->address);
+  if (GC_ENABLED)
+    free(destroy_node->address);
   hashmap_delete(heap, destroy_node);
 }
 
@@ -145,7 +148,8 @@ void gc_sweep();
 extern void func_return(void *returnvalue) {
   assert(callinfo_get());
   hashmap_free(callinfo_get()->roots);
-  free(list_peek(&call_stack)->data);
+  if (GC_ENABLED)
+    free(list_peek(&call_stack)->data);
   list_pop(&call_stack);
 
   if (returnvalue) {
@@ -175,7 +179,8 @@ void gc_sweep() {
   struct heapnode *node = NULL;
   while (hashmap_iter(heap, &i, (void **)&node)) {
     if (node->marked != mark) {
-      free(node->address);
+      if (GC_ENABLED)
+        free(node->address);
       hashmap_delete(heap, node);
       i = 0;
     }
@@ -186,7 +191,8 @@ void gc_sweep() {
 void heapnode_free(void *node_) {
   struct heapnode *node = (struct heapnode *)node_;
   fprintf(stderr, "[!] Late freeing: %p\n", node->address);
-  free(node->address);
+  if (GC_ENABLED)
+    free(node->address);
 }
 
 extern void gc_init() {
